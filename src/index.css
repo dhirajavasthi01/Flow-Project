@@ -2,6 +2,19 @@
 
 @source "../**/*.{js,jsx,ts,tsx}";
 
+/* Ensure html and body take full height */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
 @theme {
   /* Custom Primary Blue Colors */
   --color-primary-blue: #009FDF;

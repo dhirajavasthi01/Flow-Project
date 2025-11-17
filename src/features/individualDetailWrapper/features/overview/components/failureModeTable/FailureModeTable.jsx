@@ -166,7 +166,7 @@ const FailureModeTable = ({ data }) => {
 
     for (const r of baseRows) {
 
-      const subsystem = r.getValue('subsystem')
+      const subsystem = r.getValue('subSystem')
 
       const key = subsystem
 
@@ -200,7 +200,7 @@ const FailureModeTable = ({ data }) => {
 
  
 
-    const subsystemSpan = computeRowSpanForColumn(visible, 'subsystem')
+    const subsystemSpan = computeRowSpanForColumn(visible, 'subSystem')
 
  
 
