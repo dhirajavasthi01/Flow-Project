@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@source "../**/*.{js,jsx,ts,tsx}";
+
+@theme {
+  /* Custom Primary Blue Colors */
+  --color-primary-blue: #009FDF;
+  --color-primary-blue-bg: #E6F5FC;
+  --color-primary-blue-light: #F0F9FC;
+  --color-primary-blue-hover: #0088C7;
+  --color-primary-blue-border: #009FDF;
+  --color-primary-dark-blue: #003D5B;
+  --color-outline-primary-blue: #009FDF;
+  
+  /* Custom Gray Colors */
+  --color-primary-gray-2: #E5E5E5;
+  --color-primary-gray-9: #CCCCCC;
+  --color-primary-gray-14: #B3B3B3;
+  --color-primary-gray-18: #999999;
+  
+  /* Custom Blue Colors */
+  --color-primary-blue-4: #F5FBFD;
+}
+
+/* Custom utility classes for the custom colors */
+.bg-primary_blue {
+  background-color: var(--color-primary-blue);
+}
+
+.bg-primary_blue_bg {
+  background-color: var(--color-primary-blue-bg);
+}
+
+.bg-primary_blue_light {
+  background-color: var(--color-primary-blue-light);
+}
+
+.bg-primary_blue_4 {
+  background-color: var(--color-primary-blue-4);
+}
+
+.hover\:bg-primary_blue_hover:hover {
+  background-color: var(--color-primary-blue-hover);
+}
+
+.text-primary_blue {
+  color: var(--color-primary-blue);
+}
+
+.text-primary_dark_blue {
+  color: var(--color-primary-dark-blue);
+}
+
+.text-primary_blue_border {
+  color: var(--color-primary-blue-border);
+}
+
+.border-primary_gray_2 {
+  border-color: var(--color-primary-gray-2);
+}
+
+.border-primary_gray_9 {
+  border-color: var(--color-primary-gray-9);
+}
+
+.border-primary_gray_14 {
+  border-color: var(--color-primary-gray-14);
+}
+
+.text-primary_gray_2 {
+  color: var(--color-primary-gray-2);
+}
+
+.text-primary_gray_18 {
+  color: var(--color-primary-gray-18);
+}
+
+.border-outline_primary_blue {
+  border-color: var(--color-outline-primary-blue);
+}
+
+.focus\:outline-primary_blue:focus {
+  outline-color: var(--color-primary-blue);
+}
+
+/* Custom font sizes (using vmin units) */
+.text-10 {
+  font-size: 1vmin;
+}
+
+.text-12 {
+  font-size: 1.2vmin;
+}
+
+.text-14 {
+  font-size: 1.4vmin;
+}
+
+.text-15 {
+  font-size: 1.5vmin;
+}
+
+.text-16 {
+  font-size: 1.6vmin;
+}
+
+.text-17 {
+  font-size: 1.7vmin;
+}
+
+.text-20 {
+  font-size: 2vmin;
+}
+
+.text-22 {
+  font-size: 2.2vmin;
+}
+
+/* Custom font families */
+.font-sabic_text_bold {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 700;
+}
+
+.font-sabic_text_regulat {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+}
+
+/* Custom shadows */
+.shadow-primaryShadowCard {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom icon class */
+.icon-img {
+  width: 2vmin;
+  height: 2vmin;
+  display: inline-block;
+}
+
+/* Custom utility classes */
+.d-block {
+  display: block;
+}
+
+.lineHeight1_3 {
+  line-height: 1.3;
+}

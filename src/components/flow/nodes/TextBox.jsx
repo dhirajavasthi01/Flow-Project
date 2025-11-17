@@ -1,0 +1,299 @@
+import { memo, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { NodeResizer, useReactFlow, useStore } from '@xyflow/react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { EXTRA_NODE_COLORS } from "../utils";
+import { allTagsDataAtom, selectedNodeIdAtom, developerModeAtom, selectedEdgeIdAtom, nodeConfigAtom } from "../../../features/individualDetailWrapper/store/OverviewStore";
+import Handles from "../handles/Handles";
+
+export const TextBoxNodeFieldConfig = {
+    fields: [
+        { label: "Label", name: "label", type: "text" },
+        { label: "Text Color", name: "color", type: "color" },
+        {
+            label: "Target Handles", 
+            name: "targetHandles", 
+            type: "multi-select",
+        },
+        {
+            label: "Outlet (Right)",
+            name: "numSourceHandlesRight",
+            type: "number",
+            min: 0,
+        },
+        {
+            label: "Inlet (Top)",
+            name: "numTargetHandlesTop",
+            type: "number",
+            min: 0,
+        },
+        {
+            label: "Outlet (Bottom)",
+            name: "numSourceHandlesBottom",
+            type: "number",
+            min: 0,
+        },
+        {
+            label: "Inlet (Left)",
+            name: "numTargetHandlesLeft",
+            type: "number",
+            min: 0,
+        },
+    ],
+};
+
+export const TextBoxNodeConfig = {
+    name: "Textbox",
+    nodeType: "text-box-node",
+    type: "textBoxNode",
+    position: { x: 0, y: 0 },
+    data: {
+        numSourceHandlesRight: 1,
+        numTargetHandlesTop: 1,
+        numSourceHandlesBottom: 1,
+        numTargetHandlesLeft: 1,
+        label: "Text Box Node",
+        color: "#000000",
+        linkedTag: null,
+        targetHandles: [],
+    },
+    template: null,
+};
+
+export const TextboxNode = memo(({ data, id, selected }) => {
+    const selectedId = useAtomValue(selectedNodeIdAtom);
+    const isDeveloperMode = useAtomValue(developerModeAtom);
+    const { setNodes, screenToFlowPosition, getNodes } = useReactFlow();
+    const nodeLookup = useStore((s) => s.nodeLookup);
+    const setSelectedNodeId = useSetAtom(selectedNodeIdAtom);
+    const setSelectedEdgeId = useSetAtom(selectedEdgeIdAtom);
+    const setConfig = useSetAtom(nodeConfigAtom);
+    const textRef = useRef(null);
+    const containerRef = useRef(null);
+
+    const {
+        width: initialWidth = 200,
+        height: initialHeight = 100,
+        color,
+        label,
+        numSourceHandlesRight,
+        numSourceHandlesBottom,
+        numTargetHandlesTop,
+        numTargetHandlesLeft,
+        linkedTag,
+        template,
+        targetHandles = [],
+    } = data;
+
+    const [currentDimensions, setCurrentDimensions] = useState({
+        width: initialWidth,
+        height: initialHeight
+    });
+    const [fontSize, setFontSize] = useState(16);
+
+    useEffect(() => {
+        // Toggle draggability/selectability only (keep pointer events so we can intercept click in view mode)
+        setNodes((nodes) =>
+            nodes.map((node) => {
+                if (node.id !== id) return node;
+                return {
+                    ...node,
+                    draggable: isDeveloperMode,
+                    selectable: isDeveloperMode,
+                };
+            })
+        );
+    }, [isDeveloperMode, id, setNodes]);
+
+    const handleInterceptClick = (e) => {
+        if (isDeveloperMode) return; // normal editing behavior
+        
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Convert click coordinates to flow coordinates
+        const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+        // Find all nodes that contain this point (excluding text boxes and self)
+        let bestMatch = null;
+        for (const node of nodeLookup.values()) {
+            if (!node || node.id === id) continue; // skip self
+            if (node.type === 'textBoxNode') continue; // ignore other text boxes
+            
+            const w = node.measured?.width || 0;
+            const h = node.measured?.height || 0;
+            if (w === 0 || h === 0) continue;
+            
+            const left = node.internals.positionAbsolute.x;
+            const top = node.internals.positionAbsolute.y;
+            const right = left + w;
+            const bottom = top + h;
+            
+            // Check if click point is inside this node
+            const contains = point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
+            if (!contains) continue;
+            
+            // Prefer node with highest z-index
+            const z = node.internals?.z || 0;
+            if (!bestMatch || z > bestMatch.z) {
+                bestMatch = { id: node.id, z, node };
+            }
+        }
+
+        if (bestMatch) {
+            const allNodes = getNodes();
+            const targetNode = allNodes.find(n => n.id === bestMatch.id);
+            
+            if (targetNode) {
+                // Update React Flow selection state
+                setNodes((nodes) =>
+                    nodes.map((node) => ({
+                        ...node,
+                        selected: node.id === bestMatch.id
+                    }))
+                );
+                
+                // Update Jotai state
+                setSelectedEdgeId(null);
+                setSelectedNodeId(bestMatch.id);
+                setConfig(targetNode);
+            }
+        }
+    };
+
+    useEffect(() => {
+        setCurrentDimensions({
+            width: initialWidth,
+            height: initialHeight
+        });
+    }, [initialWidth, initialHeight]);
+
+    const { bgColor } = EXTRA_NODE_COLORS[template] || {};
+    const allTagsDataList = useAtomValue(allTagsDataAtom);
+    const tagData = allTagsDataList.find((x) => x.tagId && x.tagId == linkedTag);
+
+    const onResizeEnd = (_, params) => {
+        setCurrentDimensions({
+            width: params.width,
+            height: params.height,
+        });
+
+        setNodes((nds) =>
+            nds.map((node) => {
+                if (node.id === id) {
+                    return {
+                        ...node,
+                        data: { ...node.data, width: params.width, height: params.height },
+                    };
+                }
+                return node;
+            })
+        );
+    };
+
+    useLayoutEffect(() => {
+        const calculateFontSize = () => {
+            if (!textRef.current) return;
+            const parentWidth = currentDimensions.width - 4;
+            const parentHeight = currentDimensions.height - 4;
+            if (parentWidth <= 0 || parentHeight <= 0) {
+                setFontSize(1);
+                return;
+            }
+
+            let low = 1;
+            let high = 500;
+            let bestFit = 1;
+
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                textRef.current.style.fontSize = `${mid}px`;
+                const textWidth = textRef.current.scrollWidth;
+                const textHeight = textRef.current.scrollHeight;
+
+                if (textWidth <= parentWidth && textHeight <= parentHeight) {
+                    bestFit = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            low = 1;
+            high = bestFit;
+            let finalFit = 1;
+
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                textRef.current.style.fontSize = `${mid}px`;
+                const textHeight = textRef.current.scrollHeight;
+                if (textHeight <= parentHeight) {
+                    finalFit = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            setFontSize(finalFit);
+        };
+        calculateFontSize();
+    }, [currentDimensions.width, currentDimensions.height, label, tagData]);
+    const textContent = tagData ? tagData?.actual ?? "-" : label;
+
+    return (
+        <>
+            <NodeResizer
+                isVisible={selected && isDeveloperMode}
+                minWidth={80}
+                minHeight={40}
+                onResizeEnd={onResizeEnd}
+            />
+            <div
+                ref={containerRef}
+                style={{
+                    display: "inline-flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    position: "relative",
+                    backgroundColor: bgColor || "transparent",
+                    width: currentDimensions.width,
+                    height: currentDimensions.height,
+                    padding: "4px",
+                    boxSizing: "border-box",
+                    pointerEvents: 'auto',
+                    cursor: isDeveloperMode ? 'default' : 'pointer',
+                }}
+                onMouseDown={handleInterceptClick}
+                onClick={handleInterceptClick}
+            >
+                <p
+                    ref={textRef}
+                    dangerouslySetInnerHTML={{
+                        __html: textContent,
+                    }}
+                    style={{
+                        color: label.toLowerCase().includes("header") ? "red" : color,
+                        textAlign: "center",
+                        fontSize: `${fontSize}px`,
+                        margin: 0,
+                        padding: 0,
+                        fontWeight: 'bold',
+                        lineHeight: '1.2',
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                    }}
+                    className="text-uppercase"
+                />
+
+                <Handles
+                    numSourceHandlesRight={numSourceHandlesRight}
+                    numTargetHandlesTop={numTargetHandlesTop}
+                    numSourceHandlesBottom={numSourceHandlesBottom}
+                    numTargetHandlesLeft={numTargetHandlesLeft}
+                    targetHandles={targetHandles}
+                    key="textBoxNode"
+                />
+            </div>
+        </>
+    );
+});
