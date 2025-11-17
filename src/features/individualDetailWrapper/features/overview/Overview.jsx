@@ -32,7 +32,7 @@ const Overview = () => {
   const data = [
     {
       caseId: 1,
-      entityId: 15,
+      entityId: 1,
       entityName: "Surface Condenser KT13001",
       entityDisplayName: "Surface Condenser KT13001",
       entityType: "sub_entity",
@@ -72,7 +72,7 @@ const Overview = () => {
     },
      {
     caseId: 2,
-    entityId: 5,
+    entityId: 2,
     entityName: "Process Stg1",
     entityDisplayName: "Process Stg1",
     entityType: "sub_entity",
@@ -90,7 +90,7 @@ const Overview = () => {
         failureSymptomsId: 3102,
         failureSymptomsName: "Low Flow",
         suggestion: "Plan shutdown cleaning and inspect impeller blades",
-        anomaly: true,
+        anomaly: false,
         activeSince: "2024-02-20"
       },
       {
@@ -102,7 +102,7 @@ const Overview = () => {
         failureSymptomsId: 3105,
         failureSymptomsName: "Pressure Variation",
         suggestion: "Check inlet valves and ensure stage balancing control is stable",
-        anomaly: true,
+        anomaly: false,
         activeSince: "2024-03-11"
       }
     ]
@@ -178,7 +178,7 @@ console.log("TABLE DATA", tableData);
           <div className={`${isFailureModeOpen ? "h-[47vmin]" : "h-[85vmin]"} mt-[1vmin]`}>
             <ReactFlowProvider>
               <div className="h-full">
-                <Flow showDeveloperMode={true} />
+                <Flow showDeveloperMode={true} tableData={tableData} />
               </div>
             </ReactFlowProvider>
           </div>

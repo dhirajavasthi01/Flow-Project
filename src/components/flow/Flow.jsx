@@ -15,7 +15,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import {
   deleteAtom,
   developerModeAtom,
@@ -46,6 +46,7 @@ import { useFlowData } from './hooks/useFlowData/useFlowData';
 import { useOutletContext } from 'react-router-dom';
 
 function Flow(props) {
+  const { tableData = [] } = props;
   const [isPageDataLoading, setPageDataLoading] = useState(false);
   const [newNode, setNewNode] = useAtom(newNodeAtom);
   const [config, setConfig] = useAtom(nodeConfigAtom);
@@ -58,8 +59,8 @@ function Flow(props) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-
-  const isDeveloperMode = useAtomValue(developerModeAtom);
+   const [isDeveloperMode, setDeveloperMode] = useAtom(developerModeAtom);
+  // const isDeveloperMode = useAtomValue(developerModeAtom);
   const isFailureModeOpen = useAtomValue(isFailureModeAtom);
   const [shouldDelete, setShouldDelete] = useAtom(deleteAtom);
   const [type, setType] = useAtom(dragNodeTypeAtom);
@@ -93,9 +94,61 @@ function Flow(props) {
     saved
   } = useFlowData(caseId);
 
+  // Store original fetchedNodes to reprocess when tableData changes
+  const originalFetchedNodesRef = useRef([]);
+  // Track if we've already processed nodes to avoid unnecessary reprocessing
+  const lastProcessedTableDataRef = useRef(null);
+
+  // Process nodes to match with tableData when not in developer mode
+  // Preserves existing node properties (like style for resize) and only updates data properties
+  const processNodesWithTableData = useCallback((nodesToProcess, preserveCurrentState = false) => {
+    if (isDeveloperMode || !tableData || tableData.length === 0) {
+      return nodesToProcess;
+    }
+
+    return nodesToProcess.map(node => {
+      const subSystem = node.data?.subSystem;
+      if (!subSystem) return node;
+
+      // Find matching entityId in tableData (subSystem is string, entityId is number)
+      const matchingTableData = tableData.find(
+        item => item.anomaly && String(item.entityId) === String(subSystem)
+      );
+
+      if (matchingTableData) {
+        const nodeData = { ...node.data };
+        
+        // If node uses gradients, update gradient colors to red shades
+        if (nodeData.gradientStart || nodeData.gradientEnd) {
+          // Use red gradient: darker red at ends, lighter red in middle
+          nodeData.gradientStart = '#cc0000'; // Lighter red
+          nodeData.gradientEnd = '#cc0000';   // Darker red
+        } else {
+          // For non-gradient nodes, use solid red
+          nodeData.nodeColor = '#cc0000';
+        }
+        
+        nodeData.failureSymptomsName = matchingTableData.activeFailureSymptoms || matchingTableData.failureSymptomsName;
+        
+        return {
+          ...node,
+          // Preserve style (for resize) and other properties
+          style: preserveCurrentState ? node.style : node.style,
+          data: nodeData
+        };
+      }
+
+      return node;
+    });
+  }, [tableData, isDeveloperMode]);
+
   useEffect(() => {
-    if (fetchedNodes.length > 0 && !loadingFlow) {
-      setNodes(fetchedNodes);
+    if (fetchedNodes.length > 0 && !loadingFlow && !isDeveloperMode) {
+      // Store original nodes for reprocessing
+      originalFetchedNodesRef.current = fetchedNodes;
+      
+      const processedNodes = processNodesWithTableData(fetchedNodes);
+      setNodes(processedNodes);
       setEdges(fetchedEdges);
 
       setTimeout(() => {
@@ -107,7 +160,93 @@ function Flow(props) {
       setNodes([]);
       setEdges([]);
     }
-  }, [fetchedNodes, fetchedEdges, loadingFlow, error, saved, fitView, zoomTo]);
+  }, [fetchedNodes, fetchedEdges, loadingFlow, error, saved, fitView, zoomTo, isDeveloperMode, processNodesWithTableData]);
+
+  // Reprocess nodes when tableData changes or developer mode is toggled (when not in developer mode)
+  // This preserves current node state (like resize dimensions) while updating data properties
+  useEffect(() => {
+    // Only reprocess when not in developer mode and we have data
+    if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode && tableData && tableData.length > 0) {
+      // Check if tableData actually changed to avoid unnecessary reprocessing
+      const tableDataKey = JSON.stringify(tableData.map(item => ({ entityId: item.entityId, activeFailureSymptoms: item.activeFailureSymptoms })));
+      if (lastProcessedTableDataRef.current === tableDataKey) {
+        return; // Skip if tableData hasn't actually changed
+      }
+      lastProcessedTableDataRef.current = tableDataKey;
+      
+      // Use current nodes to preserve resize and other manual changes, but update from original for data matching
+      setNodes((currentNodes) => {
+        // If no current nodes, process from original
+        if (currentNodes.length === 0) {
+          return processNodesWithTableData(originalFetchedNodesRef.current);
+        }
+        
+        // Create a map of current nodes by id to preserve their state
+        const currentNodeMap = new Map(currentNodes.map(node => [node.id, node]));
+        
+        // Process original nodes to get the data updates (red color, tooltip)
+        const processedNodes = processNodesWithTableData(originalFetchedNodesRef.current);
+        
+        // Merge: use processed data but preserve current node state (style, position, etc.)
+        return processedNodes.map(processedNode => {
+          const currentNode = currentNodeMap.get(processedNode.id);
+          if (currentNode) {
+            // Preserve ALL current state (style, position, dimensions, etc.) but update data properties
+            const updatedData = { ...currentNode.data };
+            
+            // Update color properties (handle both gradient and solid colors)
+            if (processedNode.data.gradientStart || processedNode.data.gradientEnd) {
+              updatedData.gradientStart = processedNode.data.gradientStart;
+              updatedData.gradientEnd = processedNode.data.gradientEnd;
+            } else if (processedNode.data.nodeColor) {
+              updatedData.nodeColor = processedNode.data.nodeColor;
+            }
+            
+            updatedData.failureSymptomsName = processedNode.data.failureSymptomsName;
+            
+            return {
+              ...currentNode,
+              // Preserve style completely (includes resize dimensions)
+              style: currentNode.style,
+              // Preserve position
+              position: currentNode.position,
+              positionAbsolute: currentNode.positionAbsolute,
+              // Preserve measured dimensions
+              measured: currentNode.measured,
+              // Update only the data properties we need
+              data: updatedData
+            };
+          }
+          return processedNode;
+        });
+      });
+    } else if (originalFetchedNodesRef.current.length > 0 && isDeveloperMode) {
+      // Check if we just entered developer mode (avoid infinite loop)
+      const wasInDeveloperMode = lastProcessedTableDataRef.current === 'DEVELOPER_MODE';
+      if (!wasInDeveloperMode) {
+        lastProcessedTableDataRef.current = 'DEVELOPER_MODE';
+        // When entering developer mode, restore original nodes (but preserve current state if nodes exist)
+        setNodes((currentNodes) => {
+          // If we have current nodes, preserve them (they might have resize changes)
+          if (currentNodes.length > 0) {
+            const originalNodeMap = new Map(originalFetchedNodesRef.current.map(node => [node.id, node]));
+            return currentNodes.map(currentNode => {
+              const originalNode = originalNodeMap.get(currentNode.id);
+              if (originalNode) {
+                // Preserve current state but restore original data
+                return {
+                  ...currentNode,
+                  data: originalNode.data
+                };
+              }
+              return currentNode;
+            });
+          }
+          return originalFetchedNodesRef.current;
+        });
+      }
+    }
+  }, [tableData, isDeveloperMode]); // Removed processNodesWithTableData from dependencies
 
   const fitViewWithPadding = useCallback(() => {
     setTimeout(() => {
@@ -177,7 +316,29 @@ function Flow(props) {
         return node;
       });
 
-      setNodes(applyNodeChanges(changes, updatedNodes));
+      const finalNodes = applyNodeChanges(changes, updatedNodes);
+      setNodes(finalNodes);
+      
+      // Update originalFetchedNodesRef when nodes are resized so dimensions persist
+      // when exiting developer mode
+      if (changes.some(change => change.type === 'resize')) {
+        originalFetchedNodesRef.current = finalNodes.map(node => {
+          const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
+          if (originalNode) {
+            // Preserve original data but update dimensions
+            return {
+              ...originalNode,
+              style: node.style,
+              data: {
+                ...originalNode.data,
+                width: node.data.width,
+                height: node.data.height
+              }
+            };
+          }
+          return node;
+        });
+      }
     },
     [nodes, setNodes, isDeveloperMode]
   );
@@ -282,7 +443,7 @@ function Flow(props) {
 
   useEffect(() => {
     if (shouldUpdateConfig && selectedNodeId) {
-      const updatedNodes = nodes.map((node) =>
+            const updatedNodes = nodes.map((node) =>
         node.id === selectedNodeId
           ? {
               ...node,
@@ -366,6 +527,7 @@ function Flow(props) {
         onSuccess: () => console.log('Flow diagram saved successfully'),
         onError: (error) => console.error('Error saving flow diagram:', error)
       });
+      setDeveloperMode(false);
     } catch (error) {
       console.error('Error saving flow diagram:', error);
     }

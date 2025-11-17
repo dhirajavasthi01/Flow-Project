@@ -22,7 +22,8 @@ const SvgNode = ({
     gradientStart,
     gradientEnd,
     svgPath,
-    title
+    title,
+    failureSymptomsName
   } = data;
 
   const [svgContent, setSvgContent] = useState(null);
@@ -221,7 +222,13 @@ const SvgNode = ({
         disableResizeObserver={true}
         disableAutoUpdate={true}
       >
-        {title ? (
+        {failureSymptomsName ? (
+          <div className="tooltip_container text-left text-white p-2">
+            <p className="text-14-primary text-white font-bold mb-1">
+              Failure Symptoms: <span className="text-12-primary text-white">{failureSymptomsName}</span>
+            </p>
+          </div>
+        ) : title ? (
           <div className="tooltip_container text-left text-white p-2">
             <p className="text-14-primary text-white font-bold mb-1">{title}</p>
           </div>
