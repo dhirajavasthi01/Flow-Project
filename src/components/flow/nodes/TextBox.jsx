@@ -2,7 +2,7 @@ import { memo, useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { NodeResizer, useReactFlow, useStore } from '@xyflow/react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { EXTRA_NODE_COLORS } from "../utils";
-import { allTagsDataAtom, selectedNodeIdAtom, developerModeAtom, selectedEdgeIdAtom, nodeConfigAtom } from "../../../features/individualDetailWrapper/store/OverviewStore";
+import { allTagsDataAtom, selectedNodeIdAtom, developerModeAtom, selectedEdgeIdAtom, nodeConfigAtom, failureNodeClickedAtom } from "../../../features/individualDetailWrapper/store/OverviewStore";
 import Handles from "../handles/Handles";
 
 export const TextBoxNodeFieldConfig = {
@@ -67,6 +67,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     const setSelectedNodeId = useSetAtom(selectedNodeIdAtom);
     const setSelectedEdgeId = useSetAtom(selectedEdgeIdAtom);
     const setConfig = useSetAtom(nodeConfigAtom);
+    const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
     const textRef = useRef(null);
     const containerRef = useRef(null);
 
@@ -153,6 +154,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                 );
                 
                 // Update Jotai state
+                setFailureNodeClicked(targetNode.data.subSystem);
                 setSelectedEdgeId(null);
                 setSelectedNodeId(bestMatch.id);
                 setConfig(targetNode);

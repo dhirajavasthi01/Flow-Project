@@ -2,11 +2,16 @@ import { useReactTable, flexRender, getCoreRowModel } from "@tanstack/react-tabl
 
 import { computeRowSpanForColumn, getColumns, mechanicalParameters } from "./FailureModeTable.function";
 
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState, useEffect, useRef } from "react";
+import { useAtomValue } from "jotai";
+import { failureNodeClickedAtom } from "../../../../store/OverviewStore";
 
 const FailureModeTable = ({ data }) => {
 
+ const failureNodeClicked = useAtomValue(failureNodeClickedAtom)
   const [subSystemModalOpen, setSubSystemModalOpen] = useState(false);
+  const tableContainerRef = useRef(null);
+  const highlightedRowRef = useRef(null);
 
   const [isAnomalyIndexModal, setIsAnomalyIndexModal] = useState(false);
 
@@ -22,7 +27,7 @@ const FailureModeTable = ({ data }) => {
 
   }
 
- 
+ console.log("failureNodeClicked:", failureNodeClicked);
 
   const onAnomalyIndexModalClick = (row) => {
 
@@ -214,11 +219,23 @@ const FailureModeTable = ({ data }) => {
 
   }, [baseRows])
 
- 
+  // Scroll to highlighted row when failureNodeClicked changes
+  useEffect(() => {
+    if (highlightedRowRef.current && failureNodeClicked) {
+      // Use setTimeout to ensure the DOM has updated
+      setTimeout(() => {
+        highlightedRowRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        });
+      }, 100);
+    }
+  }, [failureNodeClicked, visibleRows]);
 
   return (
 
-    <div className="max-w-full h-full overflow-x-auto grow">
+    <div ref={tableContainerRef} className="max-w-full h-full overflow-x-auto overflow-y-auto grow">
 
       <table className="table-fixed shadow-[0px_0px_3px_0px_#00000029] w-full">
 
@@ -282,13 +299,19 @@ const FailureModeTable = ({ data }) => {
 
             <>
 
-              {visibleRows.map(row => (
+              {visibleRows.map(row => {
+                const rowEntityId = row.original?.entityId;
+                const isHighlighted = failureNodeClicked && rowEntityId !== undefined && 
+                  String(failureNodeClicked) === String(rowEntityId);
 
+                return (
                 <tr
 
                   key={row.id}
-
-                  className='text-12 border-primary_gray_4 py-1 bg-primary_white border-b'
+                  ref={isHighlighted ? highlightedRowRef : null}
+                  className={`text-12 border-primary_gray_4 py-1 border-b ${
+                    isHighlighted ? 'bg-red-200' : 'bg-primary_white'
+                  }`}
 
                 >
 
@@ -309,8 +332,8 @@ const FailureModeTable = ({ data }) => {
                   )}
 
                 </tr>
-
-              ))}
+                );
+              })}
 
             </>
 

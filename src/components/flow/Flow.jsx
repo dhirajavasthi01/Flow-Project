@@ -20,6 +20,7 @@ import {
   deleteAtom,
   developerModeAtom,
   dragNodeTypeAtom,
+  failureNodeClickedAtom,
   isFailureModeAtom,
   networkLockedAtom,
   newNodeAtom,
@@ -32,7 +33,7 @@ import {
   updateConfigAtom
 } from '../../features/individualDetailWrapper/store/OverviewStore';
 
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { SelectionFlowRect } from './SelectionFlowRect';
 import { svgMap } from './SvgMap';
 import Marker from './marker';
@@ -59,14 +60,13 @@ function Flow(props) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-   const [isDeveloperMode, setDeveloperMode] = useAtom(developerModeAtom);
-  // const isDeveloperMode = useAtomValue(developerModeAtom);
-  const isFailureModeOpen = useAtomValue(isFailureModeAtom);
+  const [isDeveloperMode, setDeveloperMode] = useAtom(developerModeAtom);
+  const [isFailureModeOpen, setIsFailureModeOpen] = useAtom(isFailureModeAtom);
   const [shouldDelete, setShouldDelete] = useAtom(deleteAtom);
   const [type, setType] = useAtom(dragNodeTypeAtom);
   const [nodeToCopy, setNodeToCopy] = useState(null);
-
-  const updateNodeInternals = useUpdateNodeInternals();
+    const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom); 
+     const updateNodeInternals = useUpdateNodeInternals();
   const { screenToFlowPosition, fitView, zoomTo, getNodes } = useReactFlow();
   const [selectedEdgeType, setSelectedEdgeType] = useAtom(selectedEdgeTypeAtom);
   const nodeLookup = useStore((s) => s.nodeLookup);
@@ -117,7 +117,7 @@ function Flow(props) {
 
       if (matchingTableData) {
         const nodeData = { ...node.data };
-        
+
         // If node uses gradients, update gradient colors to red shades
         if (nodeData.gradientStart || nodeData.gradientEnd) {
           // Use red gradient: darker red at ends, lighter red in middle
@@ -127,9 +127,9 @@ function Flow(props) {
           // For non-gradient nodes, use solid red
           nodeData.nodeColor = '#cc0000';
         }
-        
+
         nodeData.failureSymptomsName = matchingTableData.activeFailureSymptoms || matchingTableData.failureSymptomsName;
-        
+
         return {
           ...node,
           // Preserve style (for resize) and other properties
@@ -146,7 +146,7 @@ function Flow(props) {
     if (fetchedNodes.length > 0 && !loadingFlow && !isDeveloperMode) {
       // Store original nodes for reprocessing
       originalFetchedNodesRef.current = fetchedNodes;
-      
+
       const processedNodes = processNodesWithTableData(fetchedNodes);
       setNodes(processedNodes);
       setEdges(fetchedEdges);
@@ -173,27 +173,27 @@ function Flow(props) {
         return; // Skip if tableData hasn't actually changed
       }
       lastProcessedTableDataRef.current = tableDataKey;
-      
+
       // Use current nodes to preserve resize and other manual changes, but update from original for data matching
       setNodes((currentNodes) => {
         // If no current nodes, process from original
         if (currentNodes.length === 0) {
           return processNodesWithTableData(originalFetchedNodesRef.current);
         }
-        
+
         // Create a map of current nodes by id to preserve their state
         const currentNodeMap = new Map(currentNodes.map(node => [node.id, node]));
-        
+
         // Process original nodes to get the data updates (red color, tooltip)
         const processedNodes = processNodesWithTableData(originalFetchedNodesRef.current);
-        
+
         // Merge: use processed data but preserve current node state (style, position, etc.)
         return processedNodes.map(processedNode => {
           const currentNode = currentNodeMap.get(processedNode.id);
           if (currentNode) {
             // Preserve ALL current state (style, position, dimensions, etc.) but update data properties
             const updatedData = { ...currentNode.data };
-            
+
             // Update color properties (handle both gradient and solid colors)
             if (processedNode.data.gradientStart || processedNode.data.gradientEnd) {
               updatedData.gradientStart = processedNode.data.gradientStart;
@@ -201,9 +201,9 @@ function Flow(props) {
             } else if (processedNode.data.nodeColor) {
               updatedData.nodeColor = processedNode.data.nodeColor;
             }
-            
+
             updatedData.failureSymptomsName = processedNode.data.failureSymptomsName;
-            
+
             return {
               ...currentNode,
               // Preserve style completely (includes resize dimensions)
@@ -318,7 +318,7 @@ function Flow(props) {
 
       const finalNodes = applyNodeChanges(changes, updatedNodes);
       setNodes(finalNodes);
-      
+
       // Update originalFetchedNodesRef when nodes are resized so dimensions persist
       // when exiting developer mode
       if (changes.some(change => change.type === 'resize')) {
@@ -414,7 +414,8 @@ function Flow(props) {
       getNodes,
       setNodes
     });
-
+     setFailureNodeClicked(node.data.subSystem);
+     setIsFailureModeOpen(true)
     if (targetNode) {
       setSelectedEdgeId(null);
       setSelectedNodeId(targetNode.id);
@@ -443,14 +444,14 @@ function Flow(props) {
 
   useEffect(() => {
     if (shouldUpdateConfig && selectedNodeId) {
-            const updatedNodes = nodes.map((node) =>
+      const updatedNodes = nodes.map((node) =>
         node.id === selectedNodeId
           ? {
-              ...node,
-              data: { ...node.data, ...config.data },
-              width: config.data.width,
-              height: config.data.height
-            }
+            ...node,
+            data: { ...node.data, ...config.data },
+            width: config.data.width,
+            height: config.data.height
+          }
           : node
       );
 
@@ -466,10 +467,10 @@ function Flow(props) {
       const updatedEdges = edges.map((edge) =>
         edge.id === selectedEdgeId
           ? {
-              ...edge,
-              type: config.type,
-              markerEnd: config.markerEnd
-            }
+            ...edge,
+            type: config.type,
+            markerEnd: config.markerEnd
+          }
           : edge
       );
 
