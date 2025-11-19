@@ -77,11 +77,14 @@ export const getColumns = (
           <span>ACTIVE FAILURE SYSMPTOMS</span>
         </div>
       ),
-      cell: ({ getValue }) => (
-        <div className="px-1">
-          <div>{getValue()}</div>
-        </div>
-      ),
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <div className="px-1">
+            <div>{value ? value : <span className="text-primary_gray_18">-</span>}</div>
+          </div>
+        );
+      },
       meta: {
         headerClass:
           "font-sabic_text_regulat text-12 uppercase w-[15vmin] text-left",
@@ -97,20 +100,23 @@ export const getColumns = (
           <span>ACTIVE FAILURE MODE</span>
         </div>
       ),
-      cell: ({ getValue, row }) => (
-        <div className="flex justify-between items-center">
-          <div className="px-1 flex flex-col text-left gap-1">
-            <div>{getValue()}</div>
-            <div className="uppercase text-primary_gray_2">
-              ACTIVE SINCE: {row.original?.activeSince}
+      cell: ({ getValue, row }) => {
+        const value = getValue();
+        return (
+          <div className="flex justify-between items-center">
+            <div className="px-1 flex flex-col text-left gap-1">
+              <div>{value ? value : <span className="text-primary_gray_18">-</span>}</div>
+              <div className="uppercase text-primary_gray_2">
+                ACTIVE SINCE: {row.original?.activeSince ? row.original.activeSince : <span className="text-primary_gray_18">-</span>}
+              </div>
             </div>
+            <TrendingUpIcon
+              onClick={() => onParameterTrendModalClick(row.original)}
+              className="h-[3vmin] w-[3vmin] cursor-pointer"
+            />
           </div>
-          <TrendingUpIcon
-            onClick={() => onParameterTrendModalClick(row.original)}
-            className="h-[3vmin] w-[3vmin] cursor-pointer"
-          />
-        </div>
-      ),
+        );
+      },
       meta: {
         headerClass:
           "font-sabic_text_regulat text-11 uppercase w-[15vmin] text-left",
@@ -128,6 +134,14 @@ export const getColumns = (
       ),
       cell: ({ getValue }) => {
         const value = getValue();
+        // Handle null/undefined values (when no failureMode)
+        if (!value) {
+          return (
+            <div className="px-1 text-primary_gray_18">
+              -
+            </div>
+          );
+        }
         const isLong = value.length > 150;
         return (
           <div className="px-1">

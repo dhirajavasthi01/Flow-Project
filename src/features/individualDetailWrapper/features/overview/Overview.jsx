@@ -43,7 +43,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 801,
-        subComponentAssetId: 11,
+        subComponentAssetId: 1,
         failureModeId: 901,
         failureModeName: "Seal Gas Pressure Drop",
         failureModeDescription: "Low seal gas pressure in LP stage",
@@ -55,7 +55,7 @@ const Overview = () => {
       },
       {
         fmsId: 802,
-        subComponentAssetId: 12,
+        subComponentAssetId: 2,
         failureModeId: 902,
         failureModeName: "Bearing Temperature Rise",
         failureModeDescription: "LP bearing temperature increased above threshold",
@@ -78,32 +78,7 @@ const Overview = () => {
     modelId: 305,
     anomalyIndex: 33.8,
     anomalyPercentageChange: 4.2,
-    failureMode: [
-      {
-        fmsId: 820,
-        subComponentAssetId: 20,
-        failureModeId: 931,
-        failureModeName: "Impeller Fouling",
-        failureModeDescription: "Fouling on impeller causing flow reduction",
-        failureSymptomsId: 3102,
-        failureSymptomsName: "Low Flow",
-        suggestion: "Plan shutdown cleaning and inspect impeller blades",
-        anomaly: true,
-        activeSince: 1735498800000 // 25 hours before (should NOT blink)
-      },
-      {
-        fmsId: 821,
-        subComponentAssetId: 22,
-        failureModeId: 932,
-        failureModeName: "Stage Pressure Imbalance",
-        failureModeDescription: "Pressure mismatch between stages",
-        failureSymptomsId: 3105,
-        failureSymptomsName: "Pressure Variation",
-        suggestion: "Check inlet valves and ensure stage balancing control is stable",
-        anomaly: true,
-        activeSince: 1735524000000 // 18 hr before (should blink)
-      }
-    ]
+    failureMode: []
   },
 
   {
@@ -119,7 +94,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 900,
-        subComponentAssetId: 33,
+        subComponentAssetId: 9,
         failureModeId: 950,
         failureModeName: "Oil Filter Choking",
         failureModeDescription: "Oil filters getting partially blocked",
@@ -131,7 +106,7 @@ const Overview = () => {
       },
       {
         fmsId: 901,
-        subComponentAssetId: 34,
+        subComponentAssetId: 9,
         failureModeId: 951,
         failureModeName: "Oil Pump Vibration",
         failureModeDescription: "Vibration observed in auxiliary oil pump",
@@ -157,7 +132,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 950,
-        subComponentAssetId: 41,
+        subComponentAssetId: 4,
         failureModeId: 1001,
         failureModeName: "Blade Tip Erosion",
         failureModeDescription: "Erosion at turbine blade tips from steam impurities",
@@ -169,7 +144,7 @@ const Overview = () => {
       },
       {
         fmsId: 951,
-        subComponentAssetId: 42,
+        subComponentAssetId: 4,
         failureModeId: 1002,
         failureModeName: "Bearing Metal Debris",
         failureModeDescription: "Wear particles detected in lube oil sample",
@@ -195,7 +170,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 980,
-        subComponentAssetId: 51,
+        subComponentAssetId: 3,
         failureModeId: 1101,
         failureModeName: "Tube Leakage",
         failureModeDescription: "Water ingress due to tube crack",
@@ -207,7 +182,7 @@ const Overview = () => {
       },
       {
         fmsId: 981,
-        subComponentAssetId: 52,
+        subComponentAssetId: 3,
         failureModeId: 1102,
         failureModeName: "Air Ingress",
         failureModeDescription: "Vacuum drop due to condenser air ingress",
@@ -225,10 +200,30 @@ const Overview = () => {
 
   // Flatten Table Data
   const flattenData = (data) =>
-    data.flatMap((entity) =>
-      entity.failureMode.map((fm) => ({
+    data.flatMap((entity) => {
+      // If no failureMode, create a single disabled row
+      if (!entity.failureMode || entity.failureMode.length === 0) {
+        return [{
+          subSystem: entity.entityDisplayName,
+          anomalyIndex: entity.anomalyIndex,
+          subComponentAssetId: entity.entityId, // Use entityId as fallback
+          anomalyPercentageChange: entity.anomalyPercentageChange,
+          activeFailureSymptoms: null,
+          activeFailureMode: null,
+          prescription: null,
+          activeSince: null,
+          anomaly: false,
+          entityId: entity.entityId,
+          failureModeId: null,
+          hasFailureMode: false, // Flag to indicate no failureMode
+        }];
+      }
+      
+      // If failureMode exists, map over it as before
+      return entity.failureMode.map((fm) => ({
         subSystem: entity.entityDisplayName,
         anomalyIndex: entity.anomalyIndex,
+        subComponentAssetId: fm.subComponentAssetId,
         anomalyPercentageChange: entity.anomalyPercentageChange,
         activeFailureSymptoms: fm.failureSymptomsName,
         activeFailureMode: fm.failureModeName,
@@ -237,8 +232,9 @@ const Overview = () => {
         anomaly: fm.anomaly,
         entityId: entity.entityId,
         failureModeId: fm.failureModeId,
-      }))
-    );
+        hasFailureMode: true, // Flag to indicate failureMode exists
+      }));
+    });
 
   const tableData = useMemo(() => flattenData(data), []);
 console.log("TABLE DATA", tableData);

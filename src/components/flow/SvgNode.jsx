@@ -23,9 +23,12 @@ const SvgNode = ({
     gradientEnd,
     svgPath,
     title,
+    failureModeNames,
     failureSymptomsName,
     shouldBlink = false
   } = data;
+
+  const failureModeList = failureModeNames?.length ? failureModeNames : null;
 
   const [svgContent, setSvgContent] = useState(null);
   const [useDefaultSvgColors, setUseDefaultSvgColors] = useState(true);
@@ -228,7 +231,16 @@ const SvgNode = ({
         disableResizeObserver={true}
         disableAutoUpdate={true}
       >
-        {failureSymptomsName ? (
+        {failureModeList?.length ? (
+          <div className="tooltip_container text-left text-white p-2">
+            <p className="text-14-primary text-white font-bold mb-1">
+              Failure Mode{failureModeList.length > 1 ? "s" : ""}:{" "}
+              <span className="text-12-primary text-white">
+                {failureModeList.join(", ")}
+              </span>
+            </p>
+          </div>
+        ) : failureSymptomsName ? (
           <div className="tooltip_container text-left text-white p-2">
             <p className="text-14-primary text-white font-bold mb-1">
               Failure Symptoms: <span className="text-12-primary text-white">{failureSymptomsName}</span>

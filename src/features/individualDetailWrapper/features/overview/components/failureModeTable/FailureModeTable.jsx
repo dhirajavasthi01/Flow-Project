@@ -34,7 +34,7 @@ const FailureModeTable = ({ data }) => {
 
   const baseRows = table.getRowModel().rows;
 
-  const renderGroupedCell = (cell, spanMap, meta, extraClass) => {
+  const renderGroupedCell = (cell, spanMap, meta, extraClass, isHighlighted) => {
     const info = spanMap.get(cell.row.id);
     if (!info?.isFirst) return null;
 
@@ -51,26 +51,26 @@ const FailureModeTable = ({ data }) => {
     );
   };
 
-  const renderDefaultCell = (cell, meta) => (
+  const renderDefaultCell = (cell, meta, isHighlighted) => (
     <td
       key={cell.id}
       className={`font-sabic_text_regular text-12 h-[5vmin] p-[1.5vmin] text-left uppercase ${
-        meta?.cellClass ?? ""
-      }`}
+        isHighlighted ? "bg-red-200" : ""
+      } ${meta?.cellClass ?? ""}`}
     >
       {flexRender(cell.column.columnDef.cell, cell.getContext())}
     </td>
   );
 
-  const renderCell = (cell, maps) => {
+  const renderCell = (cell, maps, isHighlighted) => {
     const meta = cell.column.columnDef.meta;
     const colId = cell.column.id;
 
     if (colId === "subSystem" || colId === "anomalyIndex") {
-      return renderGroupedCell(cell, maps.rowSpanSubsystem, meta);
+      return renderGroupedCell(cell, maps.rowSpanSubsystem, meta, null, isHighlighted);
     }
 
-    return renderDefaultCell(cell, meta);
+    return renderDefaultCell(cell, meta, isHighlighted);
   };
 
   const { visibleRows, rowSpanSubsystem } = useMemo(() => {
@@ -136,23 +136,28 @@ const FailureModeTable = ({ data }) => {
         <tbody>
           {visibleRows.length ? (
             visibleRows.map(row => {
-              const rowEntityId = row.original?.entityId;
+              const rowEntityId = row.original?.subComponentAssetId;
+              const hasFailureMode = row.original?.hasFailureMode !== false; // Default to true if not set
 
               const isHighlighted =
                 failureNodeClicked &&
                 rowEntityId !== undefined &&
                 String(failureNodeClicked) === String(rowEntityId);
 
+              // Disable row if no failureMode
+              const isDisabled = !hasFailureMode;
+
               return (
                 <tr
                   key={row.id}
                   ref={isHighlighted ? highlightedRowRef : null}
                   className={`text-12 border-primary_gray_4 py-1 border-b ${
-                    isHighlighted ? "bg-red-200" : "bg-primary_white"
+                    isDisabled ? "bg-gray-100 opacity-50 cursor-not-allowed" : "bg-primary_white"
                   }`}
+                  style={isDisabled ? { pointerEvents: 'none' } : {}}
                 >
                   {row.getVisibleCells().map(cell =>
-                    renderCell(cell, { rowSpanSubsystem })
+                    renderCell(cell, { rowSpanSubsystem }, isHighlighted)
                   )}
                 </tr>
               );

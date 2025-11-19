@@ -122,7 +122,7 @@ function Flow(props) {
 
       if (matchingTableDataEntries.length > 0) {
         const nodeData = { ...node.data };
-        
+
         // Use the first matching entry for color and tooltip (same as before)
         const matchingTableData = matchingTableDataEntries[0];
         
@@ -154,7 +154,15 @@ function Flow(props) {
           nodeData.nodeColor = '#cc0000';
         }
 
-        nodeData.failureSymptomsName = matchingTableData.activeFailureSymptoms || matchingTableData.failureSymptomsName;
+        const failureModeNames = Array.from(
+          new Set(
+            matchingTableDataEntries
+              .map(entry => entry.failureModeName ?? entry.activeFailureMode)
+              .filter(Boolean)
+          )
+        );
+
+        nodeData.failureModeNames = failureModeNames;
         nodeData.shouldBlink = shouldBlink;
 
         return {
@@ -195,7 +203,12 @@ function Flow(props) {
     // Only reprocess when not in developer mode and we have data
     if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode && tableData && tableData.length > 0) {
       // Check if tableData actually changed to avoid unnecessary reprocessing
-      const tableDataKey = JSON.stringify(tableData.map(item => ({ subComponentAssetId: item.subComponentAssetId, activeFailureSymptoms: item.activeFailureSymptoms })));
+      const tableDataKey = JSON.stringify(
+        tableData.map(item => ({
+          subComponentAssetId: item.subComponentAssetId,
+          failureModeName: item.failureModeName ?? item.activeFailureMode
+        }))
+      );
       if (lastProcessedTableDataRef.current === tableDataKey) {
         return; // Skip if tableData hasn't actually changed
       }
@@ -229,7 +242,7 @@ function Flow(props) {
               updatedData.nodeColor = processedNode.data.nodeColor;
             }
 
-            updatedData.failureSymptomsName = processedNode.data.failureSymptomsName;
+            updatedData.failureModeNames = processedNode.data.failureModeNames;
             updatedData.shouldBlink = processedNode.data.shouldBlink;
 
             return {
