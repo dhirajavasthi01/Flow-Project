@@ -115,9 +115,9 @@ function Flow(props) {
         return node;
       }
       
-      // Find all matching entityId entries in tableData (subSystem is string, entityId is number)
+      // Find all matching subComponentAssetId entries in tableData (subSystem is string, subComponentAssetId is number)
       const matchingTableDataEntries = tableData.filter(
-        item => item.anomaly && String(item.entityId) === String(subSystem)
+        item => String(item.subComponentAssetId) === String(subSystem)
       );
 
       if (matchingTableDataEntries.length > 0) {
@@ -195,7 +195,7 @@ function Flow(props) {
     // Only reprocess when not in developer mode and we have data
     if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode && tableData && tableData.length > 0) {
       // Check if tableData actually changed to avoid unnecessary reprocessing
-      const tableDataKey = JSON.stringify(tableData.map(item => ({ entityId: item.entityId, activeFailureSymptoms: item.activeFailureSymptoms })));
+      const tableDataKey = JSON.stringify(tableData.map(item => ({ subComponentAssetId: item.subComponentAssetId, activeFailureSymptoms: item.activeFailureSymptoms })));
       if (lastProcessedTableDataRef.current === tableDataKey) {
         return; // Skip if tableData hasn't actually changed
       }
