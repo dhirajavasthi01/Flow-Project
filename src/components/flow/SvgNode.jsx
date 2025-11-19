@@ -23,7 +23,8 @@ const SvgNode = ({
     gradientEnd,
     svgPath,
     title,
-    failureSymptomsName
+    failureSymptomsName,
+    shouldBlink = false
   } = data;
 
   const [svgContent, setSvgContent] = useState(null);
@@ -179,9 +180,13 @@ const SvgNode = ({
       setUseDefaultSvgColors(false);
     }
   }, [nodeColor, strokeColor, defaultNodeColor, defaultStrokeColor, data.gradientStart, data.gradientEnd]);
+  // Only blink when not in developer mode
+  const shouldApplyBlink = shouldBlink && !isDeveloperMode;
 
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+    <div 
+      style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+    >
       {tag && (
         <div style={{ marginBottom: "8px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "14px", fontWeight: "regular", wordBreak: "break-word" }}>{tag}</p>
@@ -191,6 +196,7 @@ const SvgNode = ({
       <div
         ref={svgContainerRef}
         data-tooltip-id={`tooltip-${id}`}
+        className={shouldApplyBlink ? 'node-blink' : ''}
         style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}
       >
         {svgContent ? (

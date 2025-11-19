@@ -160,3 +160,20 @@ html, body {
 .lineHeight1_3 {
   line-height: 1.3;
 }
+
+/* Blinking animation for nodes - shadow only on SVG */
+@keyframes blink {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.8)) drop-shadow(0 0 12px rgba(255, 0, 0, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.4)) drop-shadow(0 0 8px rgba(255, 0, 0, 0.3));
+  }
+}
+
+/* Apply shadow animation only to SVG elements inside blinking nodes */
+.node-blink svg,
+.node-blink div svg {
+  animation: blink 1s ease-in-out infinite;
+  will-change: filter;
+}

@@ -51,7 +51,7 @@ const Overview = () => {
         failureSymptomsName: "Low Seal Gas",
         suggestion: "Inspect seal gas supply line and ensure pressure regulation",
         anomaly: true,
-        activeSince: "2024-04-01"
+        activeSince: 1735524000000 // 18 hr before (should blink)
       },
       {
         fmsId: 802,
@@ -63,7 +63,7 @@ const Overview = () => {
         failureSymptomsName: "High Temperature",
         suggestion: "Check lubrication flow and inspect bearing alignment",
         anomaly: false,
-        activeSince: "2024-05-10"
+        activeSince: 1735416000000 // 2 days before (should NOT blink)
       }
     ]
   },
@@ -89,7 +89,7 @@ const Overview = () => {
         failureSymptomsName: "Low Flow",
         suggestion: "Plan shutdown cleaning and inspect impeller blades",
         anomaly: true,
-        activeSince: "2024-02-20"
+        activeSince: 1735498800000 // 25 hours before (should NOT blink)
       },
       {
         fmsId: 821,
@@ -101,7 +101,7 @@ const Overview = () => {
         failureSymptomsName: "Pressure Variation",
         suggestion: "Check inlet valves and ensure stage balancing control is stable",
         anomaly: true,
-        activeSince: "2024-03-11"
+        activeSince: 1735524000000 // 18 hr before (should blink)
       }
     ]
   },
@@ -127,7 +127,7 @@ const Overview = () => {
         failureSymptomsName: "Low Oil Flow",
         suggestion: "Replace filters and verify oil cleanliness index",
         anomaly: true,
-        activeSince: "2024-01-29"
+        activeSince: 1735416000000 // 2 days before (should NOT blink)
       },
       {
         fmsId: 901,
@@ -138,8 +138,8 @@ const Overview = () => {
         failureSymptomsId: 3304,
         failureSymptomsName: "Vibration",
         suggestion: "Inspect coupling and check pump alignment",
-        anomaly: false,
-        activeSince: "2024-02-15"
+        anomaly: true,
+        activeSince: 1735498800000 // 25 hours before (should NOT blink)
       }
     ]
   },
@@ -165,7 +165,7 @@ const Overview = () => {
         failureSymptomsName: "Efficiency Loss",
         suggestion: "Schedule inspection and consider blade replacement",
         anomaly: true,
-        activeSince: "2024-05-05"
+        activeSince: 1735524000000 // 18 hr before (should blink)
       },
       {
         fmsId: 951,
@@ -177,7 +177,7 @@ const Overview = () => {
         failureSymptomsName: "Oil Contamination",
         suggestion: "Perform oil flushing and inspect bearing surfaces",
         anomaly: true,
-        activeSince: "2024-06-12"
+        activeSince: 1735416000000 // 2 days before (should NOT blink)
       }
     ]
   },
@@ -203,7 +203,7 @@ const Overview = () => {
         failureSymptomsName: "Pressure Drop",
         suggestion: "Perform hydrotest and isolate leaking tube bundle",
         anomaly: true,
-        activeSince: "2024-01-18"
+        activeSince: 1735498800000 // 25 hours before (should NOT blink)
       },
       {
         fmsId: 981,
@@ -214,12 +214,13 @@ const Overview = () => {
         failureSymptomsId: 3909,
         failureSymptomsName: "Vacuum Loss",
         suggestion: "Inspect expansion joints and gland sealing system",
-        anomaly: false,
-        activeSince: "2024-03-22"
+        anomaly: true,
+        activeSince: 1735524000000 // 18 hr before (should blink)
       }
     ]
   }
-]
+];
+
 
 
   // Flatten Table Data

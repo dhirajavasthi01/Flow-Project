@@ -1,4 +1,5 @@
 import getStroke from "perfect-freehand";
+import moment from "moment";
 
  
 
@@ -430,6 +431,45 @@ export const edgeOptions = [
 
 ]
 
- 
+/**
+ * Checks if a node should blink based on actualTime and activeSince
+ * @param {number} actualTime - Current timestamp in milliseconds
+ * @param {number|string} activeSince - Timestamp in milliseconds or date string
+ * @param {number} hoursThreshold - Number of hours threshold (default: 24)
+ * @returns {object} - Object containing shouldBlink boolean, hoursDifference, and isPast
+ */
+export const shouldNodeBlink = (actualTime, activeSince, hoursThreshold = 24) => {
+  if (!actualTime || !activeSince) {
+    return {
+      shouldBlink: false,
+      hoursDifference: null,
+      isPast: false
+    };
+  }
 
- 
+  try {
+    // Convert timestamps to moment objects
+    const actualTimeMoment = moment(actualTime);
+    const activeSinceMoment = moment(activeSince);
+    
+    // Calculate difference in hours (positive if activeSince is in the past)
+    const hoursDifference = actualTimeMoment.diff(activeSinceMoment, 'hours', true);
+    
+    // Check if activeSince is in the past and within the threshold
+    const isPast = hoursDifference > 0;
+    const shouldBlink = isPast && hoursDifference < hoursThreshold;
+    
+    return {
+      shouldBlink,
+      hoursDifference: hoursDifference.toFixed(2),
+      isPast
+    };
+  } catch (error) {
+    console.error('Error calculating blink status:', error);
+    return {
+      shouldBlink: false,
+      hoursDifference: null,
+      isPast: false
+    };
+  }
+};

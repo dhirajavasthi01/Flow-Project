@@ -30,14 +30,15 @@ import {
   selectedNodeAtom,
   selectedNodeIdAtom,
   showHandlesAtom,
-  updateConfigAtom
+  updateConfigAtom,
+  AppAtom
 } from '../../features/individualDetailWrapper/store/OverviewStore';
 
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { SelectionFlowRect } from './SelectionFlowRect';
 import { svgMap } from './SvgMap';
 import Marker from './marker';
-import { generateRandom8DigitNumber } from '../../utills/flowUtills/FlowUtills';
+import { generateRandom8DigitNumber, shouldNodeBlink } from '../../utills/flowUtills/FlowUtills';
 import { allNodes, edgeTypes, nodeTypes } from './NodeEdgeTypes';
 import { useFlowSelection } from './hooks/useFlowSelection/useFlowSelection';
 import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager';
@@ -65,8 +66,10 @@ function Flow(props) {
   const [shouldDelete, setShouldDelete] = useAtom(deleteAtom);
   const [type, setType] = useAtom(dragNodeTypeAtom);
   const [nodeToCopy, setNodeToCopy] = useState(null);
-    const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom); 
-     const updateNodeInternals = useUpdateNodeInternals();
+  const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
+  const appData = useAtomValue(AppAtom);
+  const actualTime = appData?.actualTime || Date.now();
+  const updateNodeInternals = useUpdateNodeInternals();
   const { screenToFlowPosition, fitView, zoomTo, getNodes } = useReactFlow();
   const [selectedEdgeType, setSelectedEdgeType] = useAtom(selectedEdgeTypeAtom);
   const nodeLookup = useStore((s) => s.nodeLookup);
@@ -108,15 +111,38 @@ function Flow(props) {
 
     return nodesToProcess.map(node => {
       const subSystem = node.data?.subSystem;
-      if (!subSystem) return node;
-
-      // Find matching entityId in tableData (subSystem is string, entityId is number)
-      const matchingTableData = tableData.find(
+      if (!subSystem) {
+        return node;
+      }
+      
+      // Find all matching entityId entries in tableData (subSystem is string, entityId is number)
+      const matchingTableDataEntries = tableData.filter(
         item => item.anomaly && String(item.entityId) === String(subSystem)
       );
 
-      if (matchingTableData) {
+      if (matchingTableDataEntries.length > 0) {
         const nodeData = { ...node.data };
+        
+        // Use the first matching entry for color and tooltip (same as before)
+        const matchingTableData = matchingTableDataEntries[0];
+        
+        // Check if ANY activeSince is within last 24 hours using utility function
+        let shouldBlink = false;
+             
+        // Check all matching entries for activeSince within last 24 hours (past only)
+        for (const entry of matchingTableDataEntries) {
+          const activeSince = entry.activeSince;
+          
+          if (activeSince) {
+            // Use utility function to check if node should blink
+            const blinkResult = shouldNodeBlink(actualTime, activeSince, 24);
+            
+            if (blinkResult.shouldBlink) {
+              shouldBlink = true;
+              break; // Found one within 24 hours, no need to check others
+            }
+          }
+        }
 
         // If node uses gradients, update gradient colors to red shades
         if (nodeData.gradientStart || nodeData.gradientEnd) {
@@ -129,6 +155,7 @@ function Flow(props) {
         }
 
         nodeData.failureSymptomsName = matchingTableData.activeFailureSymptoms || matchingTableData.failureSymptomsName;
+        nodeData.shouldBlink = shouldBlink;
 
         return {
           ...node,
@@ -140,9 +167,9 @@ function Flow(props) {
 
       return node;
     });
-  }, [tableData, isDeveloperMode]);
+  }, [tableData, isDeveloperMode, actualTime]);
 
-  useEffect(() => {
+  useEffect(() => {   
     if (fetchedNodes.length > 0 && !loadingFlow && !isDeveloperMode) {
       // Store original nodes for reprocessing
       originalFetchedNodesRef.current = fetchedNodes;
@@ -203,6 +230,7 @@ function Flow(props) {
             }
 
             updatedData.failureSymptomsName = processedNode.data.failureSymptomsName;
+            updatedData.shouldBlink = processedNode.data.shouldBlink;
 
             return {
               ...currentNode,

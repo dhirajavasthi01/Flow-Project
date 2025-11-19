@@ -177,7 +177,33 @@ export const networkDownloadingAtom = atom({ type: 'png', isDownloading: false }
 
 export const dragNodeTypeAtom = atom(null)
 
-export const AppAtom = atom({})
+export const AppAtom = atom({
+  "actualTime": 1735588800000,
+  "actualTimeStr": "30-DEC-24 11:00:00 PM",
+  "caseData": [
+    {
+      "region": "MIDDLE EAST",
+      "affiliate": "SAUDI KAYAN",
+      "plant": "OLEFINS",
+      "caseName": "CRACKED GAS COMPRESSOR",
+      "caseId": "1"
+    },
+    {
+      "region": "MIDDLE EAST",
+      "affiliate": "SAUDI KAYAN",
+      "plant": "POLYPROPYLENE",
+      "caseName": "EXTRUDER (EX-28851)",
+      "caseId": "2"
+    }
+  ],
+  "caseHierarchy": null,
+  "calenderData": null,
+  "quickLinks": [],
+  "timeActualByCaseIds": {
+    "1": 1735588800000
+  },
+  "optimumTimeStr": "18-NOV-25 12:00:00 AM"
+})
 
 export const highlightedNodeTypeAtom = atom(null);
 
