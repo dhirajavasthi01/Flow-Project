@@ -21,7 +21,6 @@ export const CompressorConfigNodeConfig = {
         gradientStart: getNodeGradient()[0],
         gradientEnd: getNodeGradient()[1],
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["compressor-config-node"] || null,
     },
 };

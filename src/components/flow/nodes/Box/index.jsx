@@ -9,7 +9,6 @@ export const BoxNodeFieldConfig = {
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
     ],
-    showLinkModal: true,
 };
 
 export const BoxNodeConfig = {
@@ -20,16 +19,11 @@ export const BoxNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["box-node"] || null,
-    },
-    style: {
-        width: 100,
-        height: 150,
-    },
+    }
 };
 
-const BoxNode = ({ data, id, selected, type }) => {
+export const BoxNode = ({ data, id, selected, type }) => {
     const { svgPath } = data;
     const nodeCommon = useNodeCommon(id, data);
 

@@ -5,13 +5,10 @@ import { useNodeCommon } from '../useNodeCommon';
 
 export const CouplingNodeFieldConfig = {
     fields: [
-        { label: "Is Active", name: "isActive", type: "switch" },
-        { label: "Node Color", name: "nodeColor", type: "gradientColor" },
+        { label: "Node Color", name: "nodeColor", type: "color" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
-        { label: "Width", name: "width", type: "number", min: 100 },
-        { label: "Height", name: "height", type: "number", min: 100 },
+        { label: "Sub System", name: "subSystem", type: "text" },
     ],
-    showLinkModal: true,
 };
 export const CouplingNodeConfig = {
     name: "Coupling Node",
@@ -19,18 +16,14 @@ export const CouplingNodeConfig = {
     type: "couplingNode",
     position: { x: 0, y: 0 },
     data: {
-        isActive: false,
-        linkedTag: null,
         subSystem: null,
         nodeColor: "#a9a6a6",
         strokeColor: "#000000",
         svgPath: svgMap["coupling-node"] || null,
-        // width: 230,
-        // height: 260,
     },
 };
 
-const CouplingNode = ({ data, id, selected, type }) => {
+export const CouplingNode = ({ data, id, selected, type }) => {
     const { svgPath } = data;
     const nodeCommon = useNodeCommon(id, data);
 

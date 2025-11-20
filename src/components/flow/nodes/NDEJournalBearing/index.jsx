@@ -3,7 +3,7 @@ import { svgMap } from '../../svgMap';
 import BaseSvgNode from '../BaseSvgNode';
 import { useNodeCommon } from '../useNodeCommon';
 
-export const NDEJournalBearingNodeFieldConfig = {
+export const NdeJournalBearingNodeFieldConfig = {
     fields: [
         { label: "Node Color", name: "nodeColor", type: "gradientColor" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
@@ -11,20 +11,19 @@ export const NDEJournalBearingNodeFieldConfig = {
     ],
 };
 
-export const NDEJournalBearingNodeConfig = {
-    name: "NDE Journal Bearing Node",
+export const NdeJournalBearingNodeConfig = {
+    name: "Nde Journal Bearing Node",
     nodeType: "nde-journal-bearing-node",
     type: "ndeJournalBearingNode",
     position: { x: 0, y: 0 },
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["nde-journal-bearing-node"] || null,
     },
 };
 
-export const NDEJournalBearingNode = ({ data, id, selected, type }) => {
+export const NdeJournalBearingNode = ({ data, id, selected, type }) => {
     const { svgPath } = data;
     const nodeCommon = useNodeCommon(id, data);
 
@@ -44,4 +43,4 @@ export const NDEJournalBearingNode = ({ data, id, selected, type }) => {
     );
 };
 
-export default memo(NDEJournalBearingNode);
+export default memo(NdeJournalBearingNode);

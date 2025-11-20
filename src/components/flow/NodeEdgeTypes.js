@@ -1,23 +1,21 @@
-import BearingNode, { BearingNodeConfig, BearingNodeFieldConfig } from './nodes/Bearing';
-import CouplingNode, { CouplingNodeConfig, CouplingNodeFieldConfig } from './nodes/Coupling';
-import CompressorNode, { CompressorNodeConfig, CompressorNodeFieldConfig } from './nodes/Compressor';
-import BoxNode, { BoxNodeConfig, BoxNodeFieldConfig } from './nodes/Box';
+
+import {CouplingNode, CouplingNodeConfig, CouplingNodeFieldConfig } from './nodes/Coupling';
+import {CompressorNode, CompressorNodeConfig, CompressorNodeFieldConfig } from './nodes/Compressor';
+import {BoxNode, BoxNodeConfig, BoxNodeFieldConfig } from './nodes/Box';
 import { HeatExchangerNode, HeatExchangerNodeConfig, HeatExchangerNodeFieldConfig } from './nodes/HeatExchanger';
 import { TurbineNode, TurbineNodeConfig, TurbineNodeFieldConfig } from './nodes/Turbine';
 import { SurfaceCondenserNode, SurfaceCondenserNodeConfig, SurfaceCondenserNodeFieldConfig } from './nodes/SurfaceCondenser';
-import { KODNode, KODNodeConfig, KODNodeFieldConfig } from './nodes/Kod';
 import { CentrifugalPumpNode, CentrifugalPumpNodeConfig, CentrifugalPumpNodeFieldConfig } from './nodes/CentrifugalPump';
-import { ESVNode, ESVNodeConfig, ESVNodeFieldConfig } from './nodes/Esv';
+import { EsvNode, EsvNodeConfig, EsvNodeFieldConfig } from './nodes/Esv';
 import { EjectorNode, EjectorNodeConfig, EjectorNodeFieldConfig } from './nodes/Ejector';
 import { TextboxNode, TextBoxNodeConfig, TextBoxNodeFieldConfig } from './nodes/TextBox';
-import { NDEJournalBearingNode, NDEJournalBearingNodeConfig, NDEJournalBearingNodeFieldConfig } from './nodes/NDEJournalBearing';
+import { NdeJournalBearingNode, NdeJournalBearingNodeConfig, NdeJournalBearingNodeFieldConfig } from './nodes/NdeJournalBearing';
 import { CompressorConfigNode, CompressorConfigNodeConfig, CompressorConfigNodeFieldConfig } from './nodes/CompressorConfig';
-import { V2Node, V2NodeConfig, V2NodeFieldConfig } from './nodes/V2';
-import FlowingPipeEdge from './edges/FlowingPipEdge';
 import { Dot, DotConfig, DotFieldConfig } from './nodes/Dot';
+import { KodNode, KodNodeConfig, KodNodeFieldConfig } from './nodes/Kod';
+import FlowingPipeEdge from './edges/FlowingPipEdge';
 
 export const nodeTypes = {
-  bearingNode: BearingNode,
   couplingNode: CouplingNode,
   compressorNode: CompressorNode,
   compressorConfigNode: CompressorConfigNode,
@@ -25,26 +23,17 @@ export const nodeTypes = {
   heatExchangerNode: HeatExchangerNode,
   turbineNode: TurbineNode,
   surfaceCondenserNode: SurfaceCondenserNode,
-  kodNode: KODNode,
+  kodNode: KodNode,
   centrifugalPumpNode: CentrifugalPumpNode,
-  esvNode: ESVNode,
+  esvNode: EsvNode,
   ejectorNode: EjectorNode,
+  ndeJournalBearingNode: NdeJournalBearingNode,
+  dotNode: Dot,
   textBoxNode: TextboxNode,
-  ndeJournalBearingNode: NDEJournalBearingNode,
-  v2Node: V2Node,
-  dotNode: Dot
-};
-
-export const edgeTypes = {
-  flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
-  flowingPipe: (props) => FlowingPipeEdge({ ...props, type: "straight" }),
-  flowingPipeDotted: (props) => FlowingPipeEdge({ ...props, type: "dotted" }),
-  flowingPipeDottedArrow: (props) => FlowingPipeEdge({ ...props, type: "dottedArrow" })
 };
 
 // Export all node configs as an array
 export const allNodes = [
-  BearingNodeConfig,
   CouplingNodeConfig,
   CompressorNodeConfig,
   CompressorConfigNodeConfig,
@@ -52,19 +41,17 @@ export const allNodes = [
   HeatExchangerNodeConfig,
   TurbineNodeConfig,
   SurfaceCondenserNodeConfig,
-  KODNodeConfig,
+  KodNodeConfig,
   CentrifugalPumpNodeConfig,
-  ESVNodeConfig,
+  EsvNodeConfig,
   EjectorNodeConfig,
+  NdeJournalBearingNodeConfig,
+  DotConfig,
   TextBoxNodeConfig,
-  NDEJournalBearingNodeConfig,
-  V2NodeConfig,
-  DotConfig
 ];
 
 // Export node types config for field configurations
 export const nodeTypesConfig = {
-  "bearing-node": BearingNodeFieldConfig,
   "coupling-node": CouplingNodeFieldConfig,
   "compressor-node": CompressorNodeFieldConfig,
   "compressor-config-node": CompressorConfigNodeFieldConfig,
@@ -72,14 +59,19 @@ export const nodeTypesConfig = {
   "heat-exchanger-node": HeatExchangerNodeFieldConfig,
   "turbine-node": TurbineNodeFieldConfig,
   "surface-condenser-node": SurfaceCondenserNodeFieldConfig,
-  "kod-node": KODNodeFieldConfig,
+  "kod-node": KodNodeFieldConfig,
   "centrifugal-pump-node": CentrifugalPumpNodeFieldConfig,
-  "esv-node": ESVNodeFieldConfig,
+  "esv-node": EsvNodeFieldConfig,
   "ejector-node": EjectorNodeFieldConfig,
+  "nde-journal-bearing-node": NdeJournalBearingNodeFieldConfig,
+  "dot-node": DotFieldConfig || {},
   "text-box-node": TextBoxNodeFieldConfig,
-  "nde-journal-bearing-node": NDEJournalBearingNodeFieldConfig,
-  "v2-node": V2NodeFieldConfig,
-  "dot-node": DotFieldConfig || {}
 };
 
 
+export const edgeTypes = {
+  flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
+  flowingPipe: (props) => FlowingPipeEdge({ ...props, type: "straight" }),
+  flowingPipeDotted: (props) => FlowingPipeEdge({ ...props, type: "dotted" }),
+  flowingPipeDottedArrow: (props) => FlowingPipeEdge({ ...props, type: "dottedArrow" })
+};

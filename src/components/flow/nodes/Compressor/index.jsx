@@ -9,7 +9,6 @@ export const CompressorNodeFieldConfig = {
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
     ],
-    showLinkModal: true,
 };
 
 export const CompressorNodeConfig = {
@@ -20,10 +19,7 @@ export const CompressorNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["compressor-node"] || null,
-        // width: 20,
-        // height: 20,
     },
 };
 

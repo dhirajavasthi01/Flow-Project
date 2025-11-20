@@ -8,13 +8,7 @@ export const EjectorNodeFieldConfig = {
         { label: "Node Color", name: "nodeColor", type: "gradientColor" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" }, 
-        {
-            label: "Target Handles", 
-            name: "targetHandles", 
-            type: "multi-select", 
-        },
     ],
-    showLinkModal: true,
 };
 
 export const EjectorNodeConfig = {
@@ -25,9 +19,7 @@ export const EjectorNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["ejector-node"] || null,
-        targetHandles: [], // Empty array means all handles will be source by default
     },
 };
 

@@ -3,38 +3,27 @@ import { svgMap } from '../../svgMap';
 import BaseSvgNode from '../BaseSvgNode';
 import { useNodeCommon } from '../useNodeCommon';
 
-export const BearingNodeFieldConfig = {
+export const CompressorBearingNodeFieldConfig = {
     fields: [
         { label: "Node Color", name: "nodeColor", type: "color" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
-        //  {
-        //     label: "Target Handles", 
-        //     name: "targetHandles", 
-        //     type: "multi-select",
-        // },
     ],
 };
 
-export const BearingNodeConfig = {
-    name: "Bearing Node",
-    nodeType: "bearing-node",
-    type: "bearingNode",
+export const CompressorBearingNodeConfig = {
+    name: "Compressor Bearing Node",
+    nodeType: "compressor-bearing-node",
+    type: "CompressorBearingNode",
     position: { x: 0, y: 0 },
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
-        svgPath: svgMap["bearing-node"] || null,
-        //  targetHandles: [],
-    },
-    style: {
-        width: 100,
-        height: 200,
-    },
+        svgPath: svgMap["compressor-bearing-node"] || null,
+    }
 };
 
-export const BearingNode = ({ data, id, selected, type }) => {
+export const CompressorBearingNode = ({ data, id, selected, type }) => {
     const { svgPath } = data;
     const nodeCommon = useNodeCommon(id, data);
 
@@ -54,4 +43,4 @@ export const BearingNode = ({ data, id, selected, type }) => {
     );
 };
 
-export default memo(BearingNode);
+export default memo(CompressorBearingNode);

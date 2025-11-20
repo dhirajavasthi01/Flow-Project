@@ -460,10 +460,7 @@ function Flow(props) {
   );
 
   const onNodeClick = (event, node) => {
-    const HaveFailureMode = tableData.some(
-      item => item.subComponentAssetId == node.data.subSystem
-    );
-    if (!isDeveloperMode && HaveFailureMode) {
+
       const targetNode = handleTextBoxClick(event, node, {
         nodeLookup,
         isDeveloperMode,
@@ -482,7 +479,7 @@ function Flow(props) {
         setSelectedEdgeId(null);
         setConfig(node);
       }
-    }
+    
   };
 
   const onEdgeClick = (event, edge) => {

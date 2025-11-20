@@ -8,13 +8,7 @@ export const CentrifugalPumpNodeFieldConfig = {
         { label: "Node Color", name: "nodeColor", type: "gradientColor" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
-        {
-            label: "Target Handles",
-            name: "targetHandles",
-            type: "multi-select",
-        },
     ],
-    showLinkModal: true,
 };
 
 export const CentrifugalPumpNodeConfig = {
@@ -25,14 +19,8 @@ export const CentrifugalPumpNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["centrifugal-pump-node"] || null,
-        targetHandles: [],
-    },
-    style: {
-        width: 200,
-        height: 200,
-    },
+    }
 };
 
 export const CentrifugalPumpNode = ({ data, id, selected, type }) => {

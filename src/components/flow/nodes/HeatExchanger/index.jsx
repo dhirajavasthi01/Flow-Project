@@ -8,14 +8,8 @@ export const HeatExchangerNodeFieldConfig = {
     fields: [
         { label: "Node Color", name: "nodeColor", type: "gradientColor" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
-        {
-            label: "Target Handles",
-            name: "targetHandles",
-            type: "multi-select",
-        },
-
+        { label: "Sub System", name: "subSystem", type: "text" }, 
     ],
-    showLinkModal: true,
 };
 
 export const HeatExchangerNodeConfig = {
@@ -26,9 +20,7 @@ export const HeatExchangerNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath:  svgMap["heat-exchanger-node"] || null,
-        targetHandles: [],
     },
 };
 

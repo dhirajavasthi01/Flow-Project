@@ -3,36 +3,27 @@ import { svgMap } from '../../svgMap';
 import BaseSvgNode from '../BaseSvgNode';
 import { useNodeCommon } from '../useNodeCommon';
 
-export const ESVNodeFieldConfig = {
+export const EsvNodeFieldConfig = {
     fields: [
         { label: "Node Color", name: "nodeColor", type: "gradientColor" },
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
-        {
-            label: "Target Handles",
-            name: "targetHandles",
-            type: "multi-select",
-        },
-
     ],
-    showLinkModal: true,
 };
 
-export const ESVNodeConfig = {
-    name: "ESV Node",
+export const EsvNodeConfig = {
+    name: "Esv Node",
     nodeType: "esv-node",
     type: "esvNode",
     position: { x: 0, y: 0 },
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["esv-node"] || null,
-        targetHandles: [],
     },
 };
 
-export const ESVNode = ({ data, id, selected, type }) => {
+export const EsvNode = ({ data, id, selected, type }) => {
     const { svgPath } = data;
     const nodeCommon = useNodeCommon(id, data);
 
@@ -56,4 +47,4 @@ export const ESVNode = ({ data, id, selected, type }) => {
     );
 };
 
-export default memo(ESVNode);
+export default memo(EsvNode);

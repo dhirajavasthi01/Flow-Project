@@ -9,7 +9,6 @@ export const SurfaceCondenserNodeFieldConfig = {
         { label: "Stroke Color", name: "strokeColor", type: "color" },
         { label: "Sub System", name: "subSystem", type: "text" },
     ],
-    showLinkModal: true,
 };
 
 export const SurfaceCondenserNodeConfig = {
@@ -20,7 +19,6 @@ export const SurfaceCondenserNodeConfig = {
     data: {
         nodeColor: "#d3d3d3",
         strokeColor: "#000000",
-        subSystem: null,
         svgPath: svgMap["surface-condenser-node"] || null,
     },
 };
