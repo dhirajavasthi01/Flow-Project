@@ -101,6 +101,7 @@ function Flow(props) {
   const originalFetchedNodesRef = useRef([]);
   // Track if we've already processed nodes to avoid unnecessary reprocessing
   const lastProcessedTableDataRef = useRef(null);
+  const processNodesWithTableDataRef = useRef(null);
 
   // Process nodes to match with tableData when not in developer mode
   // Preserves existing node properties (like style for resize) and only updates data properties
@@ -114,7 +115,7 @@ function Flow(props) {
       if (!subSystem) {
         return node;
       }
-      
+
       // Find all matching subComponentAssetId entries in tableData (subSystem is string, subComponentAssetId is number)
       const matchingTableDataEntries = tableData.filter(
         item => String(item.subComponentAssetId) === String(subSystem)
@@ -125,18 +126,18 @@ function Flow(props) {
 
         // Use the first matching entry for color and tooltip (same as before)
         const matchingTableData = matchingTableDataEntries[0];
-        
+
         // Check if ANY activeSince is within last 24 hours using utility function
         let shouldBlink = false;
-             
+
         // Check all matching entries for activeSince within last 24 hours (past only)
         for (const entry of matchingTableDataEntries) {
           const activeSince = entry.activeSince;
-          
+
           if (activeSince) {
             // Use utility function to check if node should blink
             const blinkResult = shouldNodeBlink(actualTime, activeSince, 24);
-            
+
             if (blinkResult.shouldBlink) {
               shouldBlink = true;
               break; // Found one within 24 hours, no need to check others
@@ -177,12 +178,19 @@ function Flow(props) {
     });
   }, [tableData, isDeveloperMode, actualTime]);
 
-  useEffect(() => {   
+  useEffect(() => {
+    processNodesWithTableDataRef.current = processNodesWithTableData;
+  }, [processNodesWithTableData]);
+
+
+  useEffect(() => {
     if (fetchedNodes.length > 0 && !loadingFlow && !isDeveloperMode) {
       // Store original nodes for reprocessing
       originalFetchedNodesRef.current = fetchedNodes;
 
-      const processedNodes = processNodesWithTableData(fetchedNodes);
+      const processedNodes = processNodesWithTableDataRef.current
+        ? processNodesWithTableDataRef.current(fetchedNodes)
+        : fetchedNodes;
       setNodes(processedNodes);
       setEdges(fetchedEdges);
 
@@ -195,7 +203,7 @@ function Flow(props) {
       setNodes([]);
       setEdges([]);
     }
-  }, [fetchedNodes, fetchedEdges, loadingFlow, error, saved, fitView, zoomTo, isDeveloperMode, processNodesWithTableData]);
+  }, [fetchedNodes, fetchedEdges, loadingFlow, error, saved, fitView, zoomTo, isDeveloperMode]);
 
   // Reprocess nodes when tableData changes or developer mode is toggled (when not in developer mode)
   // This preserves current node state (like resize dimensions) while updating data properties
@@ -218,14 +226,18 @@ function Flow(props) {
       setNodes((currentNodes) => {
         // If no current nodes, process from original
         if (currentNodes.length === 0) {
-          return processNodesWithTableData(originalFetchedNodesRef.current);
+          return processNodesWithTableDataRef.current
+            ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current)
+            : originalFetchedNodesRef.current;
         }
 
         // Create a map of current nodes by id to preserve their state
         const currentNodeMap = new Map(currentNodes.map(node => [node.id, node]));
 
         // Process original nodes to get the data updates (red color, tooltip)
-        const processedNodes = processNodesWithTableData(originalFetchedNodesRef.current);
+        const processedNodes = processNodesWithTableDataRef.current
+          ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current)
+          : originalFetchedNodesRef.current;
 
         // Merge: use processed data but preserve current node state (style, position, etc.)
         return processedNodes.map(processedNode => {
@@ -287,7 +299,7 @@ function Flow(props) {
         });
       }
     }
-  }, [tableData, isDeveloperMode]); // Removed processNodesWithTableData from dependencies
+  }, [tableData, isDeveloperMode]);
 
   const fitViewWithPadding = useCallback(() => {
     setTimeout(() => {
@@ -448,23 +460,28 @@ function Flow(props) {
   );
 
   const onNodeClick = (event, node) => {
-    const targetNode = handleTextBoxClick(event, node, {
-      nodeLookup,
-      isDeveloperMode,
-      screenToFlowPosition,
-      getNodes,
-      setNodes
-    });
-     setFailureNodeClicked(node.data.subSystem);
-     setIsFailureModeOpen(true)
-    if (targetNode) {
-      setSelectedEdgeId(null);
-      setSelectedNodeId(targetNode.id);
-      setConfig(targetNode);
-    } else {
-      setSelectedNodeId(node.id);
-      setSelectedEdgeId(null);
-      setConfig(node);
+    const HaveFailureMode = tableData.some(
+      item => item.subComponentAssetId == node.data.subSystem
+    );
+    if (!isDeveloperMode && HaveFailureMode) {
+      const targetNode = handleTextBoxClick(event, node, {
+        nodeLookup,
+        isDeveloperMode,
+        screenToFlowPosition,
+        getNodes,
+        setNodes
+      });
+      setFailureNodeClicked(node.data.subSystem);
+      setIsFailureModeOpen(true)
+      if (targetNode) {
+        setSelectedEdgeId(null);
+        setSelectedNodeId(targetNode.id);
+        setConfig(targetNode);
+      } else {
+        setSelectedNodeId(node.id);
+        setSelectedEdgeId(null);
+        setConfig(node);
+      }
     }
   };
 
