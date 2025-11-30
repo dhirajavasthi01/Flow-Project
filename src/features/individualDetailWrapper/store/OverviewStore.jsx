@@ -2,7 +2,7 @@ import { atom } from 'jotai'
 
 
 
-export const subSystemListAtom = atom([
+export const subComponentListAtom = atom([
   {
     "entityID": 1,
     "entityName": "Cracked Gas Compressor",

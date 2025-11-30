@@ -10,7 +10,7 @@ import {
   selectedNodeIdAtom,
   selectedPageAtom,
   updateConfigAtom,
-  subSystemListAtom,
+  subComponentListAtom,
 } from "../../features/individualDetailWrapper/store/OverviewStore";
 
 import { nodeTypesConfig } from "./NodeEdgeTypes";
@@ -64,7 +64,7 @@ const NodeConfigurator = () => {
 
   const selectedPage = useAtomValue(selectedPageAtom);
   const allTagsDataList = useAtomValue(allTagsDataAtom);
-  const subSystemList = useAtomValue(subSystemListAtom);
+  const subComponentList = useAtomValue(subComponentListAtom);
 
   const [extractedColors, setExtractedColors] = useState(null);
 
@@ -153,7 +153,7 @@ const NodeConfigurator = () => {
     if (key === "subSystem") {
       return [
         { id: null, name: "Select Sub System" },
-        ...subSystemList.map((x) => ({ id: x.entityID, name: x.entityName })),
+        ...subComponentList.map((x) => ({ id: x.entityID, name: x.entityName })),
       ];
     }
     return [];
@@ -391,20 +391,20 @@ const NodeConfigurator = () => {
   const renderSubSystemSelect = (data) => (
     <div key="sub-system-select" className="p-[1vmin_1.5vmin]">
       <label className="text-16 text-primary_dark_blue uppercase">
-        Sub component :
+        Sub Component:
       </label>
 
       <select
         className="form-select border border-primary_gray_2 text-15 p-[0.8vmin]"
-        name="subSystem"
-        value={data?.subSystem || ""}
+        name="subComponentAssetId"
+        value={data?.subComponentAssetId || ""}
         onChange={onConfigChange}
         style={{ fontSize: "1.4vmin", borderRadius: ".3vmin" }}
       >
-        <option value="">Select Sub System</option>
-        {subSystemList.map((system) => (
-          <option key={system.entityID} value={system.entityID}>
-            {system.entityName}
+        <option value="">Select Sub Component</option>
+        {subComponentList.map((subComponent) => (
+          <option key={subComponent.entityID} value={subComponent.entityID}>
+            {subComponent.entityName}
           </option>
         ))}
       </select>

@@ -111,14 +111,14 @@ function Flow(props) {
     }
 
     return nodesToProcess.map(node => {
-      const subSystem = node.data?.subSystem;
-      if (!subSystem) {
+      const subComponentAssetId = node.data?.subComponentAssetId;
+      if (!subComponentAssetId) {
         return node;
       }
 
       // Find all matching subComponentAssetId entries in tableData (subSystem is string, subComponentAssetId is number)
       const matchingTableDataEntries = tableData.filter(
-        item => String(item.subComponentAssetId) === String(subSystem)
+        item => String(item.subComponentAssetId) === String(subComponentAssetId)
       );
 
       if (matchingTableDataEntries.length > 0) {
@@ -468,7 +468,7 @@ function Flow(props) {
         getNodes,
         setNodes
       });
-      setFailureNodeClicked(node.data.subSystem);
+      setFailureNodeClicked(node.data.subComponentAssetId);
       setIsFailureModeOpen(true)
       if (targetNode) {
         setSelectedEdgeId(null);
