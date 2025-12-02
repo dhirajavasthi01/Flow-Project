@@ -359,6 +359,34 @@ const NETWORK_COLOUR_OPTIONS = {
 
   },
 
+  dotted: {
+
+    borderColor: '#000000',
+
+    strokeDasharray: '5,5',
+
+  },
+
+  dottedArrow: {
+
+    borderColor: '#000000',
+
+    strokeDasharray: '5,5',
+
+  },
+
+  straightArrow: {
+
+    borderColor: '#000000',
+
+  },
+
+  straight: {
+
+    borderColor: '#000000',
+
+  },
+
 };
 
  
@@ -472,4 +500,53 @@ export const shouldNodeBlink = (actualTime, activeSince, hoursThreshold = 24) =>
       isPast: false
     };
   }
+};
+
+/**
+ * Normalizes subComponentAssetIds to an array of strings
+ * Handles arrays, comma-separated strings, single values, or null/undefined
+ * @param {string|number|string[]|number[]} ids - Can be array, comma-separated string, or single ID
+ * @returns {string[]} - Array of ID strings
+ */
+export const normalizeSubComponentAssetIds = (ids) => {
+  if (!ids) return [];
+  
+  // If already an array, normalize to string array
+  if (Array.isArray(ids)) {
+    return ids.map(id => String(id).trim()).filter(Boolean);
+  }
+  
+  // If string or number, try to parse as comma-separated or use as single value
+  const idString = String(ids).trim();
+  if (!idString) return [];
+  
+  // Check if it contains commas (comma-separated string)
+  if (idString.includes(',')) {
+    return idString.split(',').map(id => id.trim()).filter(Boolean);
+  }
+  
+  // Single value
+  return [idString];
+};
+
+/**
+ * Checks if there's any overlap between two sets of subComponentAssetIds
+ * Supports many-to-many matching with arrays, strings, or single values:
+ * - If node has [1] and tableData has "1,2", it matches
+ * - If node has "1,2" and tableData has [1], it matches
+ * - If node has [1,2] and tableData has [2,3], it matches (overlap on "2")
+ * @param {string|number|string[]|number[]} nodeSubComponentAssetId - Node's subComponentAssetId
+ * @param {string|number|string[]|number[]} tableSubComponentAssetId - Table row's subComponentAssetId
+ * @returns {boolean} - True if there's any overlap
+ */
+export const hasSubComponentAssetIdMatch = (nodeSubComponentAssetId, tableSubComponentAssetId) => {
+  if (!nodeSubComponentAssetId || !tableSubComponentAssetId) return false;
+  
+  const nodeIds = normalizeSubComponentAssetIds(nodeSubComponentAssetId);
+  const tableIds = normalizeSubComponentAssetIds(tableSubComponentAssetId);
+  
+  if (nodeIds.length === 0 || tableIds.length === 0) return false;
+  
+  // Check for any overlap
+  return nodeIds.some(nodeId => tableIds.includes(nodeId));
 };

@@ -22,12 +22,10 @@ import {
   dragNodeTypeAtom,
   failureNodeClickedAtom,
   isFailureModeAtom,
-  networkLockedAtom,
   newNodeAtom,
   nodeConfigAtom,
   selectedEdgeIdAtom,
   selectedEdgeTypeAtom,
-  selectedNodeAtom,
   selectedNodeIdAtom,
   showHandlesAtom,
   updateConfigAtom,
@@ -38,7 +36,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { SelectionFlowRect } from './SelectionFlowRect';
 import { svgMap } from './SvgMap';
 import Marker from './marker';
-import { generateRandom8DigitNumber, shouldNodeBlink } from '../../utills/flowUtills/FlowUtills';
+import { generateRandom8DigitNumber, shouldNodeBlink, hasSubComponentAssetIdMatch } from '../../utills/flowUtills/FlowUtills';
 import { allNodes, edgeTypes, nodeTypes } from './NodeEdgeTypes';
 import { useFlowSelection } from './hooks/useFlowSelection/useFlowSelection';
 import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager';
@@ -116,9 +114,10 @@ function Flow(props) {
         return node;
       }
 
-      // Find all matching subComponentAssetId entries in tableData (subSystem is string, subComponentAssetId is number)
+      // Find all matching subComponentAssetId entries in tableData using many-to-many matching
+      // Supports comma-separated IDs: if tableData has "1,2" and node has "1" or "2", it matches
       const matchingTableDataEntries = tableData.filter(
-        item => String(item.subComponentAssetId) === String(subComponentAssetId)
+        item => hasSubComponentAssetIdMatch(subComponentAssetId, item.subComponentAssetId)
       );
 
       if (matchingTableDataEntries.length > 0) {
@@ -415,7 +414,6 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeStraightArrow',
-            data: { edgeStyleType: 'straightArrow' },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
           break;
@@ -423,16 +421,14 @@ function Flow(props) {
         case 'straight':
           newEdge = {
             ...params,
-            type: 'flowingPipeStraight',
-            data: { edgeStyleType: 'straight' }
+            type: 'flowingPipe'
           };
           break;
 
         case 'dotted':
           newEdge = {
             ...params,
-            type: 'flowingPipeDotted',
-            data: { edgeStyleType: 'dotted' }
+            type: 'flowingPipeDotted'
           };
           break;
 
@@ -440,7 +436,6 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeDottedArrow',
-            data: { edgeStyleType: 'dottedArrow' },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
           break;
@@ -449,7 +444,6 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeStraightArrow',
-            data: { edgeStyleType: 'straightArrow' },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
       }
@@ -487,7 +481,16 @@ function Flow(props) {
 
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
-    setConfig({ ...edge, configType: 'edge' });
+    
+    // Initialize style and markerEnd if they don't exist
+    setConfig({ 
+      ...edge, 
+      configType: 'edge',
+      style: edge.style || { stroke: '#000000', strokeWidth: 2 },
+      markerEnd: edge.markerEnd || (edge.type === 'flowingPipeStraightArrow' || edge.type === 'flowingPipeDottedArrow' 
+        ? { type: 'arrowclosed', width: 20, height: 20, color: edge.style?.stroke || '#000' }
+        : undefined)
+    });
   };
 
   useEffect(() => {
@@ -519,15 +522,35 @@ function Flow(props) {
 
   useEffect(() => {
     if (shouldUpdateConfig && selectedEdgeId) {
-      const updatedEdges = edges.map((edge) =>
-        edge.id === selectedEdgeId
-          ? {
+      const updatedEdges = edges.map((edge) => {
+        if (edge.id === selectedEdgeId) {
+          // Determine if edge is dotted based on type
+          const isDotted = config.type === 'flowingPipeDotted' || config.type === 'flowingPipeDottedArrow';
+
+          // Create a completely new edge object to force React Flow re-render
+          const updatedEdge = {
             ...edge,
             type: config.type,
-            markerEnd: config.markerEnd
+            markerEnd: config.markerEnd,
+            style: config.style || edge.style
+          };
+
+          // For dotted edges, ensure strokeDasharray is in style
+          if (isDotted) {
+            updatedEdge.style = {
+              ...updatedEdge.style,
+              strokeDasharray: updatedEdge.style.strokeDasharray || '5,5'
+            };
+          } else {
+            // Remove strokeDasharray for non-dotted edges
+            const { strokeDasharray, ...styleWithoutDash } = updatedEdge.style || {};
+            updatedEdge.style = styleWithoutDash;
           }
-          : edge
-      );
+
+          return updatedEdge;
+        }
+        return edge;
+      });
 
       setEdges(updatedEdges);
       setSelectedEdgeId(null);

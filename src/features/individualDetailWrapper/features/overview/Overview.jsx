@@ -43,7 +43,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 801,
-        subComponentAssetId: 1,
+        subComponentAssetId: "1,2",
         failureModeId: 901,
         failureModeName: "Seal Gas Pressure Drop",
         failureModeDescription: "Low seal gas pressure in LP stage",
@@ -55,7 +55,7 @@ const Overview = () => {
       },
       {
         fmsId: 802,
-        subComponentAssetId: 2,
+        subComponentAssetId: "4",
         failureModeId: 902,
         failureModeName: "Bearing Temperature Rise",
         failureModeDescription: "LP bearing temperature increased above threshold",
@@ -94,7 +94,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 900,
-        subComponentAssetId: 9,
+        subComponentAssetId: "1",
         failureModeId: 950,
         failureModeName: "Oil Filter Choking",
         failureModeDescription: "Oil filters getting partially blocked",
@@ -106,7 +106,7 @@ const Overview = () => {
       },
       {
         fmsId: 901,
-        subComponentAssetId: 9,
+        subComponentAssetId: '2',
         failureModeId: 951,
         failureModeName: "Oil Pump Vibration",
         failureModeDescription: "Vibration observed in auxiliary oil pump",
@@ -132,7 +132,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 950,
-        subComponentAssetId: 4,
+        subComponentAssetId: "6",
         failureModeId: 1001,
         failureModeName: "Blade Tip Erosion",
         failureModeDescription: "Erosion at turbine blade tips from steam impurities",
@@ -144,7 +144,7 @@ const Overview = () => {
       },
       {
         fmsId: 951,
-        subComponentAssetId: 4,
+        subComponentAssetId: "7",
         failureModeId: 1002,
         failureModeName: "Bearing Metal Debris",
         failureModeDescription: "Wear particles detected in lube oil sample",
@@ -170,7 +170,7 @@ const Overview = () => {
     failureMode: [
       {
         fmsId: 980,
-        subComponentAssetId: 3,
+        subComponentAssetId: "10,11",
         failureModeId: 1101,
         failureModeName: "Tube Leakage",
         failureModeDescription: "Water ingress due to tube crack",
@@ -182,7 +182,7 @@ const Overview = () => {
       },
       {
         fmsId: 981,
-        subComponentAssetId: 3,
+        subComponentAssetId: "40,23",
         failureModeId: 1102,
         failureModeName: "Air Ingress",
         failureModeDescription: "Vacuum drop due to condenser air ingress",

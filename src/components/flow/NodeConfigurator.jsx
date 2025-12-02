@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Select from "react-select";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import MultiSelectV2 from "../multiSelect/MultiSelect";
 
 import {
   allTagsDataAtom,
@@ -18,6 +19,7 @@ import {
   edgeOptions,
   extractColorsFromSvg,
   text_box_resources,
+  normalizeSubComponentAssetIds,
 } from "../../utills/flowUtills/FlowUtills";
 
 const switchStyles = {
@@ -142,11 +144,31 @@ const NodeConfigurator = () => {
 
   const onEdgeConfigChange = (event) => {
     const { name, value } = event.target;
-    setConfig((prev) => ({
-      ...prev,
-      [name]: value,
-      markerEnd: value,
-    }));
+    setConfig((prev) => {
+      const updated = {
+        ...prev,
+        [name]: value,
+      };
+      
+      // If changing edge type, update markerEnd accordingly
+      if (name === 'type') {
+        const hasArrow = value === 'flowingPipeStraightArrow' || value === 'flowingPipeDottedArrow';
+        if (hasArrow) {
+          // Preserve existing arrow size if it exists, otherwise use default
+          const existingSize = prev.markerEnd?.width || 20;
+          updated.markerEnd = { 
+            type: 'arrowclosed', 
+            width: existingSize, 
+            height: existingSize, 
+            color: prev.style?.stroke || prev.markerEnd?.color || '#000' 
+          };
+        } else {
+          updated.markerEnd = undefined;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const getOptionsList = (key) => {
@@ -388,28 +410,59 @@ const NodeConfigurator = () => {
     );
   };
 
-  const renderSubSystemSelect = (data) => (
-    <div key="sub-system-select" className="p-[1vmin_1.5vmin]">
-      <label className="text-16 text-primary_dark_blue uppercase">
-        Sub Component:
-      </label>
+  const renderSubSystemSelect = (data) => {
+    // Normalize current value to array (handles array, string, or comma-separated string)
+    const currentValue = data?.subComponentAssetId;
+    const selectedIds = normalizeSubComponentAssetIds(currentValue);
+    
+    // Transform subComponentList to MultiSelect format (tag_name and display_name)
+    const multiSelectData = subComponentList.map((subComponent) => ({
+      tag_name: String(subComponent.entityID),
+      display_name: subComponent.entityName
+    }));
 
-      <select
-        className="form-select border border-primary_gray_2 text-15 p-[0.8vmin]"
-        name="subComponentAssetId"
-        value={data?.subComponentAssetId || ""}
-        onChange={onConfigChange}
-        style={{ fontSize: "1.4vmin", borderRadius: ".3vmin" }}
-      >
-        <option value="">Select Sub Component</option>
-        {subComponentList.map((subComponent) => (
-          <option key={subComponent.entityID} value={subComponent.entityID}>
-            {subComponent.entityName}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+    // Get initial selected values in MultiSelect format
+    const initialValues = selectedIds.map(id => {
+      const subComponent = subComponentList.find(sc => String(sc.entityID) === String(id));
+      return subComponent ? {
+        tag_name: String(subComponent.entityID),
+        display_name: subComponent.entityName
+      } : null;
+    }).filter(Boolean);
+
+    // Handle multi-select change - store as array of IDs
+    const handleMultiSelectChange = (selectedTags) => {
+      // Extract IDs from selected tags and store as array
+      const selectedIds = selectedTags ? selectedTags.map(tag => tag.tag_name) : [];
+      
+      const syntheticEvent = {
+        target: {
+          name: "subComponentAssetId",
+          value: selectedIds, // Store as array
+          type: "multi-select",
+          checked: false,
+        },
+      };
+      onConfigChange(syntheticEvent);
+    };
+
+    return (
+      <div key="sub-system-select" className="p-[1vmin_1.5vmin]">
+        <label className="text-16 text-primary_dark_blue uppercase">
+          Sub Component:
+        </label>
+
+        <div style={{ minHeight: "3.5vmin", border: "1px solid #d1d5db", borderRadius: "0.3vmin" }}>
+          <MultiSelectV2
+            data={multiSelectData}
+            onChange={handleMultiSelectChange}
+            initialValues={initialValues}
+            shouldUpdateSelected={false}
+          />
+        </div>
+      </div>
+    );
+  };
 
   const data = getData(selectedEdgeId, config);
   const fieldsToRender = nodeTypesConfig[config?.nodeType]?.fields || [];
@@ -500,7 +553,7 @@ const NodeConfigurator = () => {
       </p>
 
       <div>
-        <label className="text-13-bold uppercase">Color :</label>
+        <label className="text-13-bold uppercase">Edge Type :</label>
         <select
           className="form-select"
           name="type"
@@ -520,6 +573,86 @@ const NodeConfigurator = () => {
           ))}
         </select>
       </div>
+
+      <div className="text-14 p-[1vmin_1.5vmin]">
+        <label className="text-15 text-primary_dark_blue uppercase">
+          Edge Color :
+        </label>
+        <input
+          type="color"
+          name="strokeColor"
+          value={config?.style?.stroke || "#000000"}
+          onChange={(e) => {
+            const color = e.target.value;
+            setConfig((prev) => ({
+              ...prev,
+              style: {
+                ...prev.style,
+                stroke: color,
+              },
+              // Update markerEnd color if it exists
+              markerEnd: prev.markerEnd 
+                ? { ...prev.markerEnd, color }
+                : prev.markerEnd,
+            }));
+          }}
+          className="form-control text-16"
+          style={{ width: "100%", marginTop: "0.5vmin" }}
+        />
+      </div>
+
+      <div className="text-14 p-[1vmin_1.5vmin]">
+        <label className="text-15 text-primary_dark_blue uppercase">
+          Edge Width :
+        </label>
+        <input
+          type="number"
+          name="strokeWidth"
+          min="1"
+          max="20"
+          step="1"
+          value={config?.style?.strokeWidth || 2}
+          onChange={(e) => {
+            const width = parseInt(e.target.value) || 2;
+            setConfig((prev) => ({
+              ...prev,
+              style: {
+                ...prev.style,
+                strokeWidth: width,
+              },
+            }));
+          }}
+          className="form-control text-14-regular"
+          style={{ width: "100%", marginTop: "0.5vmin", fontSize: "1.4vmin", padding: "0.5vmin" }}
+        />
+      </div>
+
+      {config?.markerEnd && (
+        <div className="text-14 p-[1vmin_1.5vmin]">
+          <label className="text-15 text-primary_dark_blue uppercase">
+            Arrow Size :
+          </label>
+          <input
+            type="number"
+            name="arrowSize"
+            min="5"
+            max="50"
+            step="1"
+            value={config?.markerEnd?.width || 20}
+            onChange={(e) => {
+              const size = parseInt(e.target.value) || 20;
+              setConfig((prev) => ({
+                ...prev,
+                markerEnd: prev.markerEnd 
+                  ? { ...prev.markerEnd, width: size, height: size }
+                  : { type: 'arrowclosed', width: size, height: size, color: prev.style?.stroke || '#000' }
+              }));
+            }}
+            className="form-control text-14-regular"
+            style={{ width: "100%", marginTop: "0.5vmin", fontSize: "1.4vmin", padding: "0.5vmin" }}
+          />
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1 mt-2">
         <button

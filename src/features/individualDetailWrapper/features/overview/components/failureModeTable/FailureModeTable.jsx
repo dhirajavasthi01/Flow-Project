@@ -4,6 +4,7 @@ import { computeRowSpanForColumn, getColumns } from "./FailureModeTable.function
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAtomValue } from "jotai";
 import { failureNodeClickedAtom } from "../../../../store/OverviewStore";
+import { hasSubComponentAssetIdMatch } from "../../../../../../utills/flowUtills/FlowUtills";
 
 const FailureModeTable = ({ data }) => {
   const failureNodeClicked = useAtomValue(failureNodeClickedAtom);
@@ -139,10 +140,11 @@ const FailureModeTable = ({ data }) => {
               const rowEntityId = row.original?.subComponentAssetId;
               const hasFailureMode = row.original?.hasFailureMode !== false; // Default to true if not set
 
+              // Use many-to-many matching for highlighting (supports comma-separated IDs)
               const isHighlighted =
                 failureNodeClicked &&
                 rowEntityId !== undefined &&
-                String(failureNodeClicked) === String(rowEntityId);
+                hasSubComponentAssetIdMatch(failureNodeClicked, rowEntityId);
 
               // Disable row if no failureMode
               const isDisabled = !hasFailureMode;
