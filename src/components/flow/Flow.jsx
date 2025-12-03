@@ -189,8 +189,19 @@ function Flow(props) {
       const processedNodes = processNodesWithTableDataRef.current
         ? processNodesWithTableDataRef.current(fetchedNodes)
         : fetchedNodes;
+      // Ensure all edges have default strokeWidth if not set
+      const processedEdges = fetchedEdges.map(edge => ({
+        ...edge,
+        style: {
+          stroke: '#000000',
+          strokeWidth: 5,
+          ...edge.style,
+          // Ensure strokeWidth is set, use existing or default to 5
+          strokeWidth: edge.style?.strokeWidth || 5
+        }
+      }));
       setNodes(processedNodes);
-      setEdges(fetchedEdges);
+      setEdges(processedEdges);
 
       setTimeout(() => {
         zoomTo(0.5);
@@ -413,6 +424,7 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeStraightArrow',
+            style: { stroke: '#000000', strokeWidth: 5 },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
           break;
@@ -420,14 +432,16 @@ function Flow(props) {
         case 'straight':
           newEdge = {
             ...params,
-            type: 'flowingPipe'
+            type: 'flowingPipe',
+            style: { stroke: '#000000', strokeWidth: 5 }
           };
           break;
 
         case 'dotted':
           newEdge = {
             ...params,
-            type: 'flowingPipeDotted'
+            type: 'flowingPipeDotted',
+            style: { stroke: '#000000', strokeWidth: 5 }
           };
           break;
 
@@ -435,6 +449,7 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeDottedArrow',
+            style: { stroke: '#000000', strokeWidth: 5 },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
           break;
@@ -443,6 +458,7 @@ function Flow(props) {
           newEdge = {
             ...params,
             type: 'flowingPipeStraightArrow',
+            style: { stroke: '#000000', strokeWidth: 5 },
             markerEnd: { type: 'arrowclosed', width: 20, height: 20, color: '#000' }
           };
       }
@@ -487,7 +503,7 @@ function Flow(props) {
     setConfig({ 
       ...edge, 
       configType: 'edge',
-      style: edge.style || { stroke: '#000000', strokeWidth: 2 },
+      style: edge.style || { stroke: '#000000', strokeWidth: 5 },
       markerEnd: edge.markerEnd || (edge.type === 'flowingPipeStraightArrow' || edge.type === 'flowingPipeDottedArrow' 
         ? { type: 'arrowclosed', width: 20, height: 20, color: edge.style?.stroke || '#000' }
         : undefined)
@@ -730,7 +746,7 @@ function Flow(props) {
           edges={edges}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
-          defaultEdgeOptions={{ type: 'flowingPipeStraightArrow' }}
+          defaultEdgeOptions={{ type: 'flowingPipeStraightArrow', style: { stroke: '#000000', strokeWidth: 5 } }}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}

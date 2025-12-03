@@ -644,9 +644,9 @@ const NodeConfigurator = () => {
           min="1"
           max="20"
           step="1"
-          value={config?.style?.strokeWidth || 2}
+          value={config?.style?.strokeWidth || 5}
           onChange={(e) => {
-            const width = parseInt(e.target.value) || 2;
+            const width = parseInt(e.target.value) || 5;
             setConfig((prev) => ({
               ...prev,
               style: {

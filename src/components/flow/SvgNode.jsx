@@ -1,7 +1,52 @@
-import { useState, useEffect, useRef } from 'react';
-import { Tooltip } from 'react-tooltip';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import "react-tooltip/dist/react-tooltip.css";
 import variables from '../../assets/Variables';
+import { NodeTooltip, NodeTooltipContent, useNodeTooltip } from './nodeTooltip/nodeTooltip';
+
+
+// Inner component that uses the tooltip hook directly - no wrapper affecting layout
+const SvgContent = ({ svgContent, svgPath, isHighlighted, svgContainerRef, HandlesComponent, id, shouldApplyBlink }) => {
+  const tooltip = useNodeTooltip();
+  
+  const handleMouseEnter = useCallback(() => {
+    if (tooltip) {
+      tooltip.showTooltip();
+    }
+  }, [tooltip]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (tooltip) {
+      tooltip.hideTooltip();
+    }
+  }, [tooltip]);
+
+  return (
+    <div
+      ref={svgContainerRef}
+      data-tooltip-id={`tooltip-${id}`}
+      className={shouldApplyBlink ? 'node-blink' : ''}
+      style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {svgContent ? (
+        <div
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+          style={{ width: "100%", flex: 1, minHeight: 0, pointerEvents: "none" }}
+        />
+      ) : (
+        <img
+          src={svgPath}
+          alt="Node"
+          style={{ width: "100%", flex: 1, minHeight: 0, objectFit: "contain", pointerEvents: "none" }}
+          className={isHighlighted ? "highlighted" : ""}
+        />
+      )}
+
+      {HandlesComponent && <HandlesComponent id={id} containerRef={svgContainerRef} />}
+    </div>
+  );
+};
 
 const SvgNode = ({
   id,
@@ -72,7 +117,7 @@ const SvgNode = ({
 
       if (isHighlighted) {
         const existingClass = svgElement.getAttribute("class") || "";
-        svgElement.setAttribute("class", `${existingClass} ${styles.highlighted}`.trim());
+        svgElement.setAttribute("class", `${existingClass} ${"highlighted"}`.trim());
       }
 
       if (isSelected && !isDeveloperMode) {
@@ -186,7 +231,7 @@ const SvgNode = ({
   // Only blink when not in developer mode
   const shouldApplyBlink = shouldBlink && !isDeveloperMode;
 
-  return (
+  const content = (
     <div 
       style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
     >
@@ -196,76 +241,37 @@ const SvgNode = ({
         </div>
       )}
 
-      <div
-        ref={svgContainerRef}
-        data-tooltip-id={`tooltip-${id}`}
-        className={shouldApplyBlink ? 'node-blink' : ''}
-        style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}
-      >
-        {svgContent ? (
-          <div
-            dangerouslySetInnerHTML={{ __html: svgContent }}
-            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
-          />
-        ) : (
-          <img
-            src={svgPath}
-            alt="Node"
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            className={isHighlighted ? styles.highlighted : ""}
-          />
-        )}
-
-        {HandlesComponent && <HandlesComponent id={id} containerRef={svgContainerRef} />}
-      </div>
+      <SvgContent
+        svgContent={svgContent}
+        svgPath={svgPath}
+        isHighlighted={isHighlighted}
+        svgContainerRef={svgContainerRef}
+        HandlesComponent={HandlesComponent}
+        id={id}
+        shouldApplyBlink={shouldApplyBlink}
+      />
 
       {subTag && (
         <div style={{ marginTop: "8px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "14px", fontWeight: "regular", wordBreak: "break-word" }}>{subTag}</p>
         </div>
       )}
-
-      <Tooltip
-        id={`tooltip-${id}`}
-        style={{ zIndex: 9999, maxWidth: "250px", whiteSpace: "pre-line" }}
-        disableResizeObserver={true}
-        disableAutoUpdate={true}
-      >
-        {failureModeList?.length ? (
-          <div className="tooltip_container text-left text-white p-2">
-            <p className="text-14-primary text-white font-bold mb-1">
-              Failure Mode{failureModeList.length > 1 ? "s" : ""}:{" "}
-              <span className="text-12-primary text-white">
-                {failureModeList.join(", ")}
-              </span>
-            </p>
-          </div>
-        ) : failureSymptomsName ? (
-          <div className="tooltip_container text-left text-white p-2">
-            <p className="text-14-primary text-white font-bold mb-1">
-              Failure Symptoms: <span className="text-12-primary text-white">{failureSymptomsName}</span>
-            </p>
-          </div>
-        ) : title ? (
-          <div className="tooltip_container text-left text-white p-2">
-            <p className="text-14-primary text-white font-bold mb-1">{title}</p>
-          </div>
-        ) : (
-          <div className="tooltip_container text-left text-white p-2">
-            <p className="text-12-primary text-white font-bold mb-1">
-              TTF: <span className="text-12-primary text-white">40 DAYS</span>
-            </p>
-            <p className="text-12-primary text-white font-bold">
-              FAILURE MODE:{" "}
-              <span className="text-12-primary text-white">
-                MP HIGH THRUST BEARING TEMPERATURE VARNISH FORMATION OR ACTIVE SIDE INTERNAL OIL INJECTION TO PADS AFFECTED
-              </span>
-            </p>
-          </div>
-        )}
-      </Tooltip>
     </div>
   );
+
+  // Only render tooltip wrapper in non-developer mode
+  if (!isDeveloperMode) {
+    return (
+      <NodeTooltip>
+        <NodeTooltipContent>
+          <div>Bearing node</div>
+        </NodeTooltipContent>
+        {content}
+      </NodeTooltip>
+    );
+  }
+
+  return content;
 };
 
 export default SvgNode;
