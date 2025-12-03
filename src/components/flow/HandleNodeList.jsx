@@ -17,6 +17,7 @@ import {
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { allNodes } from './NodeEdgeTypes';
+import { svgMap } from './svgMap';
 
  
 
@@ -104,11 +105,11 @@ const HandleNodeList = () => {
 
                 {(<div className=" pt-[0.3vmin] text-14 uppercase ">{node?.data?.dotPosition}</div>)}
 
-                {node?.data?.svgPath ? (
+                {svgMap[node?.nodeType] ? (
 
                   <img
 
-                    src={node?.data?.svgPath}
+                    src={svgMap[node?.nodeType]}
 
                     alt={node.name}
 

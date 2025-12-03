@@ -12,9 +12,9 @@ const Marker = ({ type }) => {
             <defs>
                 <marker
                     id={type}
-                    markerWidth="7"
-                    markerHeight="7"
-                    viewBox="-10 -10 20 20"
+                    markerWidth="5"
+                    markerHeight="5"
+                    viewBox="-6 -6 12 12"
                     markerUnits="strokeWidth"
                     orient="auto-start-reverse"
                     refX="0"
@@ -22,7 +22,7 @@ const Marker = ({ type }) => {
                 >
                     {!hidePolyline &&
                         <polyline
-                            points="-8,-6 0,0 -8,6 -8,-6"
+                            points="-5,-4 0,0 -5,4 -5,-4"
                             style={{
                                 stroke: borderColor,
                                 fill: borderColor,

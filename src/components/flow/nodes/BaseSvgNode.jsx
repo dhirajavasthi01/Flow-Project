@@ -3,6 +3,7 @@ import { NodeResizer } from '@xyflow/react';
 import SvgNode from '../SvgNode';
 import Handles from '../handles/Handles';
 import { useNodeResize } from './useNodeResize';
+import { svgMap } from '../svgMap';
 
 /**
  * Base component for SVG nodes that handles common NodeResizer and SvgNode rendering
@@ -25,7 +26,7 @@ const BaseSvgNode = ({
   data,
   selected,
   type,
-  svgPath,
+  nodeType,
   isDeveloperMode,
   isSelected,
   isHighlighted,
@@ -33,7 +34,8 @@ const BaseSvgNode = ({
   svgNodeProps = {},
 }) => {
   const onResizeEnd = useNodeResize(id);
-
+  const svgPathValue = svgMap[nodeType];
+  const svgPath = (typeof svgPathValue === 'string') ? svgPathValue : null;
   const {
     defaultNodeColor = '#d3d3d3',
     defaultStrokeColor = '#000000',

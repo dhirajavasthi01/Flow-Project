@@ -12,7 +12,8 @@ const SvgNode = ({
   HandlesComponent,
   isHighlighted = false,
   isSelected = false,
-  isDeveloperMode = true
+  isDeveloperMode = true,
+  svgPath,
 }) => {
   const {
     nodeColor = defaultNodeColor,
@@ -21,7 +22,6 @@ const SvgNode = ({
     subTag,
     gradientStart,
     gradientEnd,
-    svgPath,
     title,
     failureModeNames,
     failureSymptomsName,
@@ -100,17 +100,17 @@ const SvgNode = ({
 
         const stop1 = doc.createElementNS("http://www.w3.org/2000/svg", "stop");
         stop1.setAttribute("offset", "0%");
-        stop1.setAttribute("stop-color", gradientEnd);
+        stop1.setAttribute("stop-color", gradientStart);
         linearGrad.appendChild(stop1);
 
         const stop2 = doc.createElementNS("http://www.w3.org/2000/svg", "stop");
         stop2.setAttribute("offset", "50%");
-        stop2.setAttribute("stop-color", gradientStart);
+        stop2.setAttribute("stop-color", gradientEnd);
         linearGrad.appendChild(stop2);
 
         const stop3 = doc.createElementNS("http://www.w3.org/2000/svg", "stop");
         stop3.setAttribute("offset", "100%");
-        stop3.setAttribute("stop-color", gradientEnd);
+        stop3.setAttribute("stop-color", gradientStart);
         linearGrad.appendChild(stop3);
 
         defs.appendChild(linearGrad);

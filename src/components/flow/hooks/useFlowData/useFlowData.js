@@ -15,7 +15,11 @@ export function useFlowData(caseId = 1) {
         ...data,
         nodes: JSON.parse(data.nodeJson || '[]').map(node => ({
           ...node,
-          data: { ...node.data, svgPath: svgMap[node.nodeType] || null }
+          // Ensure nodeType is in data for easy access in components
+          data: { 
+            ...node.data, 
+            nodeType: node.nodeType || node.data?.nodeType 
+          }
         })),
         edges: JSON.parse(data.edgeJson || '[]')
       };

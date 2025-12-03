@@ -21,6 +21,7 @@ import {
   text_box_resources,
   normalizeSubComponentAssetIds,
 } from "../../utills/flowUtills/FlowUtills";
+import { svgMap } from "./svgMap";
 
 const switchStyles = {
   display: "flex",
@@ -77,12 +78,44 @@ const NodeConfigurator = () => {
   }, [selectedPage, setConfig, setSelectedEdgeId, setSelectedNodeId]);
 
   useEffect(() => {
-    if (config?.data?.svgPath) {
-      extractColorsFromSvg(config.data.svgPath).then((colors) => {
+    const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
+    if (svgPath && config) {
+      // Reset extractedColors while loading
+      setExtractedColors(null);
+      extractColorsFromSvg(svgPath).then((colors) => {
         setExtractedColors(colors);
+        // Auto-populate config with extracted colors if they're not already set
+        if (colors.gradientStart && colors.gradientEnd) {
+          setConfig((prev) => {
+            if (prev && (!prev.data?.gradientStart || !prev.data?.gradientEnd)) {
+              const updatedConfig = {
+                ...prev,
+                data: {
+                  ...prev.data,
+                  gradientStart: prev.data?.gradientStart || colors.gradientStart,
+                  gradientEnd: prev.data?.gradientEnd || colors.gradientEnd,
+                },
+              };
+              // If a node is selected, trigger update to apply colors immediately
+              if (selectedNodeId && prev.id === selectedNodeId) {
+                // Use setTimeout to ensure config is updated first, then trigger apply
+                setTimeout(() => {
+                  setShouldUpdateConfig(true);
+                }, 0);
+              }
+              return updatedConfig;
+            }
+            return prev;
+          });
+        }
+      }).catch((error) => {
+        console.error('Error extracting colors from SVG:', error);
+        setExtractedColors(null);
       });
+    } else {
+      setExtractedColors(null);
     }
-  }, [config?.data?.svgPath]);
+  }, [config?.nodeType, config?.id, selectedNodeId, setConfig, setShouldUpdateConfig]);
 
   const handleColorChange = (e, counterpartName, counterpartValue) => {
     onConfigChange(e);
@@ -292,7 +325,7 @@ const NodeConfigurator = () => {
           <input
             type="color"
             name="strokeColor"
-            value={data.strokeColor}
+            value={data.strokeColor || ""}
             onChange={onConfigChange}
             className="form-control text-16"
           />

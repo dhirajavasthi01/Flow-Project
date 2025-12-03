@@ -34,7 +34,6 @@ import {
 
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { SelectionFlowRect } from './SelectionFlowRect';
-import { svgMap } from './SvgMap';
 import Marker from './marker';
 import { generateRandom8DigitNumber, shouldNodeBlink, hasSubComponentAssetIdMatch } from '../../utills/flowUtills/FlowUtills';
 import { allNodes, edgeTypes, nodeTypes } from './NodeEdgeTypes';
@@ -454,7 +453,9 @@ function Flow(props) {
   );
 
   const onNodeClick = (event, node) => {
-
+      const HaveFailereMode = tableData.some(item => {
+        return hasSubComponentAssetIdMatch(node.data?.subComponentAssetId, item.subComponentAssetId);
+      });
       const targetNode = handleTextBoxClick(event, node, {
         nodeLookup,
         isDeveloperMode,

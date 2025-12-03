@@ -129,18 +129,69 @@ export const extractColorsFromSvg = async (svgPath) => {
 
     if (gradients.length > 0) {
 
-      const gradient = gradients[0];
+      // Helper function to get stop color (check both attribute and style)
+      const getStopColor = (stop) => {
+        // First try stop-color attribute
+        let color = stop.getAttribute('stop-color');
+        if (color) return color.trim();
+        
+        // If not found, check style attribute
+        const style = stop.getAttribute('style');
+        if (style) {
+          const match = style.match(/stop-color:\s*([^;]+)/i);
+          if (match) return match[1].trim();
+        }
+        
+        return null;
+      };
 
-      const stops = gradient.querySelectorAll('stop');
+      // Process each gradient to find the best one with distinct colors
+      let foundDistinctColors = false;
+      
+      for (let gradIdx = 0; gradIdx < gradients.length && !foundDistinctColors; gradIdx++) {
+        const gradient = gradients[gradIdx];
+        const stops = Array.from(gradient.querySelectorAll('stop'));
 
-     
+        if (stops.length >= 2) {
+          // Get all stop colors
+          const stopColors = stops.map(stop => getStopColor(stop)).filter(Boolean);
+          
+          if (stopColors.length >= 2) {
+            const firstColor = stopColors[0];
+            const lastColor = stopColors[stopColors.length - 1];
+            
+            // Normalize colors for comparison (trim and uppercase)
+            const normalizedFirst = firstColor?.trim().toUpperCase();
+            const normalizedLast = lastColor?.trim().toUpperCase();
 
-      if (stops.length >= 2) {
-
-        gradientStart = stops[0].getAttribute('stop-color') || null;
-
-        gradientEnd = stops[stops.length - 1].getAttribute('stop-color') || null;
-
+            // If first and last stops have the same color, find a different color from middle stops
+            // This handles cases like: #ADADAD -> #E3E3E3 -> #ADADAD
+            if (normalizedFirst && normalizedLast && normalizedFirst === normalizedLast && stopColors.length >= 3) {
+              // Look for a middle stop with a different color
+              for (let i = 1; i < stopColors.length - 1; i++) {
+                const middleColor = stopColors[i];
+                const normalizedMiddle = middleColor?.trim().toUpperCase();
+                
+                if (middleColor && normalizedMiddle && normalizedMiddle !== normalizedFirst) {
+                  // Use the middle color as gradientEnd to show the actual gradient variation
+                  gradientStart = firstColor;
+                  gradientEnd = middleColor;
+                  foundDistinctColors = true;
+                  break;
+                }
+              }
+            } else if (normalizedFirst && normalizedLast && normalizedFirst !== normalizedLast) {
+              // First and last are already different, use them
+              gradientStart = firstColor;
+              gradientEnd = lastColor;
+              foundDistinctColors = true;
+            } else if (!gradientStart && !gradientEnd) {
+              // Fallback: use first and last even if same (will be handled later)
+              gradientStart = firstColor;
+              gradientEnd = lastColor;
+            }
+          }
+        }
       }
 
     }

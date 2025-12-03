@@ -1,73 +1,97 @@
-
-import {CouplingNode, CouplingNodeConfig, CouplingNodeFieldConfig } from './nodes/Coupling';
-import {CompressorNode, CompressorNodeConfig, CompressorNodeFieldConfig } from './nodes/Compressor';
-import {BoxNode, BoxNodeConfig, BoxNodeFieldConfig } from './nodes/Box';
-import { HeatExchangerNode, HeatExchangerNodeConfig, HeatExchangerNodeFieldConfig } from './nodes/HeatExchanger';
-import { TurbineNode, TurbineNodeConfig, TurbineNodeFieldConfig } from './nodes/Turbine';
-import { SurfaceCondenserNode, SurfaceCondenserNodeConfig, SurfaceCondenserNodeFieldConfig } from './nodes/SurfaceCondenser';
-import { CentrifugalPumpNode, CentrifugalPumpNodeConfig, CentrifugalPumpNodeFieldConfig } from './nodes/CentrifugalPump';
-import { EsvNode, EsvNodeConfig, EsvNodeFieldConfig } from './nodes/Esv';
-import { EjectorNode, EjectorNodeConfig, EjectorNodeFieldConfig } from './nodes/Ejector';
+// Special nodes that don't have SVG files - keep these manual
 import { TextboxNode, TextBoxNodeConfig, TextBoxNodeFieldConfig } from './nodes/TextBox';
-import { NdeJournalBearingNode, NdeJournalBearingNodeConfig, NdeJournalBearingNodeFieldConfig } from './nodes/NdeJournalBearing';
-import { CompressorConfigNode, CompressorConfigNodeConfig, CompressorConfigNodeFieldConfig } from './nodes/CompressorConfig';
 import { Dot, DotConfig, DotFieldConfig } from './nodes/Dot';
-import { KodNode, KodNodeConfig, KodNodeFieldConfig } from './nodes/Kod';
 import FlowingPipeEdge from './edges/FlowingPipEdge';
 
-export const nodeTypes = {
-  couplingNode: CouplingNode,
-  compressorNode: CompressorNode,
-  compressorConfigNode: CompressorConfigNode,
-  boxNode: BoxNode,
-  heatExchangerNode: HeatExchangerNode,
-  turbineNode: TurbineNode,
-  surfaceCondenserNode: SurfaceCondenserNode,
-  kodNode: KodNode,
-  centrifugalPumpNode: CentrifugalPumpNode,
-  esvNode: EsvNode,
-  ejectorNode: EjectorNode,
-  ndeJournalBearingNode: NdeJournalBearingNode,
-  dotNode: Dot,
-  textBoxNode: TextboxNode,
-};
+// Dynamic node generation utilities
+import { generateNodeExports } from './utils/generateNode';
+import { toKebabCase, toCamelCase } from './utils/nodeNameUtils';
 
-// Export all node configs as an array
-export const allNodes = [
-  CouplingNodeConfig,
-  CompressorNodeConfig,
-  CompressorConfigNodeConfig,
-  BoxNodeConfig,
-  HeatExchangerNodeConfig,
-  TurbineNodeConfig,
-  SurfaceCondenserNodeConfig,
-  KodNodeConfig,
-  CentrifugalPumpNodeConfig,
-  EsvNodeConfig,
-  EjectorNodeConfig,
-  NdeJournalBearingNodeConfig,
-  DotConfig,
-  TextBoxNodeConfig,
-];
+// Dynamically import all SVG files from the flowIcons folder
+const svgModules = import.meta.glob('../../assets/flowIcons/*.svg', { eager: true });
 
-// Export node types config for field configurations
-export const nodeTypesConfig = {
-  "coupling-node": CouplingNodeFieldConfig,
-  "compressor-node": CompressorNodeFieldConfig,
-  "compressor-config-node": CompressorConfigNodeFieldConfig,
-  "box-node": BoxNodeFieldConfig,
-  "heat-exchanger-node": HeatExchangerNodeFieldConfig,
-  "turbine-node": TurbineNodeFieldConfig,
-  "surface-condenser-node": SurfaceCondenserNodeFieldConfig,
-  "kod-node": KodNodeFieldConfig,
-  "centrifugal-pump-node": CentrifugalPumpNodeFieldConfig,
-  "esv-node": EsvNodeFieldConfig,
-  "ejector-node": EjectorNodeFieldConfig,
-  "nde-journal-bearing-node": NdeJournalBearingNodeFieldConfig,
-  "dot-node": DotFieldConfig || {},
-  "text-box-node": TextBoxNodeFieldConfig,
-};
+/**
+ * Dynamically generates all node types, configs, and field configs from SVG files
+ */
+const dynamicNodes = Object.keys(svgModules).reduce((acc, path) => {
+  // Extract filename from path
+  const filename = path.split('/').pop();
+  
+  if (!filename) return acc;
+  
+  try {
+    // Generate node exports for this SVG file
+    const nodeExports = generateNodeExports(filename);
+  
+    // Verify that exports were generated correctly
+    if (!nodeExports || typeof nodeExports !== 'object') {
+      return acc;
+    }
+    
+    // Verify all required exports exist
+    const exportKeys = Object.keys(nodeExports);
+    const hasFieldConfig = exportKeys.some(k => k.endsWith('NodeFieldConfig'));
+    const hasNodeConfig = exportKeys.some(k => k.endsWith('NodeConfig'));
+    const hasNode = exportKeys.some(k => k.endsWith('Node') && !k.includes('Config') && !k.includes('Field'));
+    
+    if (!hasFieldConfig || !hasNodeConfig || !hasNode) {
+      return acc;
+    }
+    
+    // Store by filename for later use
+    acc[filename] = {
+      exports: nodeExports,
+      kebabName: toKebabCase(filename),
+      camelName: toCamelCase(filename),
+    };
+  } catch (error) {
+    // Silently skip nodes that fail to generate
+  }
+  
+  return acc;
+}, {});
 
+// Build nodeTypes object dynamically
+export const nodeTypes = Object.values(dynamicNodes).reduce((acc, node) => {
+  // Get the Node component from exports (e.g., BearingNode)
+  const nodeComponentKey = Object.keys(node.exports).find(key => key.endsWith('Node') && !key.includes('Config') && !key.includes('Field'));
+  if (nodeComponentKey) {
+    acc[node.camelName] = node.exports[nodeComponentKey];
+  }
+  return acc;
+}, {});
+
+// Add special nodes manually
+nodeTypes.dotNode = Dot;
+nodeTypes.textBoxNode = TextboxNode;
+
+// Build allNodes array dynamically
+export const allNodes = Object.values(dynamicNodes).map(node => {
+  // Get the NodeConfig from exports (e.g., BearingNodeConfig)
+  const configKey = Object.keys(node.exports || {}).find(key => key.endsWith('NodeConfig'));
+  return configKey ? node.exports[configKey] : null;
+}).filter(config => {
+  return config && typeof config === 'object' && config.name && config.nodeType;
+});
+
+// Add special node configs manually
+allNodes.push(DotConfig);
+allNodes.push(TextBoxNodeConfig);
+
+
+// Build nodeTypesConfig object dynamically
+export const nodeTypesConfig = Object.values(dynamicNodes).reduce((acc, node) => {
+  // Get the NodeFieldConfig from exports (e.g., BearingNodeFieldConfig)
+  const fieldConfigKey = Object.keys(node.exports).find(key => key.endsWith('NodeFieldConfig'));
+  if (fieldConfigKey) {
+    acc[node.kebabName] = node.exports[fieldConfigKey];
+  }
+  return acc;
+}, {});
+
+// Add special node field configs manually
+nodeTypesConfig["dot-node"] = DotFieldConfig || {};
+nodeTypesConfig["text-box-node"] = TextBoxNodeFieldConfig;
 
 export const edgeTypes = {
   flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
