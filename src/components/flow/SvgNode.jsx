@@ -79,7 +79,7 @@ const SvgNode = ({
   const [useDefaultSvgColors, setUseDefaultSvgColors] = useState(true);
   const svgContainerRef = useRef(null);
 
-  const processSvg = (
+  const processSvg = ({
     svgText,
     fillColor,
     strokeColor,
@@ -91,7 +91,7 @@ const SvgNode = ({
     nodeType,
     isSelected = false,
     isDeveloperMode = true
-  ) => {
+  }) => {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(svgText, 'image/svg+xml');
@@ -207,7 +207,19 @@ const SvgNode = ({
       try {
         const response = await fetch(svgPath);
         let svgText = await response.text();
-        svgText = processSvg(svgText, nodeColor, strokeColor, isHighlighted, useDefaultSvgColors, gradientStart, gradientEnd, id, nodeType, isSelected, isDeveloperMode);
+        svgText = processSvg({
+          svgText,
+          fillColor: nodeColor,
+          strokeColor,
+          isHighlighted,
+          useDefaultColors: useDefaultSvgColors,
+          gradientStart,
+          gradientEnd,
+          nodeId: id,
+          nodeType,
+          isSelected,
+          isDeveloperMode
+        });
         setSvgContent(svgText);
       } catch (error) {
         console.error("Error loading SVG:", error);

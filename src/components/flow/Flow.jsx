@@ -102,7 +102,7 @@ function Flow(props) {
 
   // Process nodes to match with tableData when not in developer mode
   // Preserves existing node properties (like style for resize) and only updates data properties
-  const processNodesWithTableData = useCallback((nodesToProcess, preserveCurrentState = false) => {
+  const processNodesWithTableData = useCallback((nodesToProcess) => {
     if (isDeveloperMode || !tableData || tableData.length === 0) {
       return nodesToProcess;
     }
@@ -166,8 +166,7 @@ function Flow(props) {
 
         return {
           ...node,
-          // Preserve style (for resize) and other properties
-          style: preserveCurrentState ? node.style : node.style,
+          // Preserve style (for resize) and other properties via spread operator
           data: nodeData
         };
       }
