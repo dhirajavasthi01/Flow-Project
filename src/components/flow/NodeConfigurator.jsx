@@ -77,44 +77,59 @@ const NodeConfigurator = () => {
     setSelectedNodeId(null);
   }, [selectedPage, setConfig, setSelectedEdgeId, setSelectedNodeId]);
 
-  useEffect(() => {
-    const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
-    if (svgPath && config) {
-      // Reset extractedColors while loading
-      setExtractedColors(null);
-      extractColorsFromSvg(svgPath).then((colors) => {
-        setExtractedColors(colors);
-        // Auto-populate config with extracted colors if they're not already set
-        if (colors.gradientStart && colors.gradientEnd) {
-          setConfig((prev) => {
-            if (prev && (!prev.data?.gradientStart || !prev.data?.gradientEnd)) {
-              const updatedConfig = {
-                ...prev,
-                data: {
-                  ...prev.data,
-                  gradientStart: prev.data?.gradientStart || colors.gradientStart,
-                  gradientEnd: prev.data?.gradientEnd || colors.gradientEnd,
-                },
-              };
-              // If a node is selected, trigger update to apply colors immediately
-              if (selectedNodeId && prev.id === selectedNodeId) {
-                // Use setTimeout to ensure config is updated first, then trigger apply
-                setTimeout(() => {
-                  setShouldUpdateConfig(true);
-                }, 0);
-              }
-              return updatedConfig;
-            }
-            return prev;
-          });
-        }
-      }).catch((error) => {
-        console.error('Error extracting colors from SVG:', error);
-        setExtractedColors(null);
-      });
-    } else {
+  // Helper function to update config with extracted colors
+  const updateConfigWithColors = (colors, prevConfig) => {
+    if (!prevConfig) return prevConfig;
+    
+    const hasGradientStart = prevConfig.data?.gradientStart;
+    const hasGradientEnd = prevConfig.data?.gradientEnd;
+    
+    if (hasGradientStart && hasGradientEnd) return prevConfig;
+    
+    const updatedConfig = {
+      ...prevConfig,
+      data: {
+        ...prevConfig.data,
+        gradientStart: hasGradientStart || colors.gradientStart,
+        gradientEnd: hasGradientEnd || colors.gradientEnd,
+      },
+    };
+    
+    const isSelectedNode = selectedNodeId && prevConfig.id === selectedNodeId;
+    if (isSelectedNode) {
+      setTimeout(() => setShouldUpdateConfig(true), 0);
+    }
+    
+    return updatedConfig;
+  };
+
+  // Helper function to handle color extraction
+  const handleColorExtraction = async (svgPath) => {
+    setExtractedColors(null);
+    
+    try {
+      const colors = await extractColorsFromSvg(svgPath);
+      setExtractedColors(colors);
+      
+      const hasBothColors = colors.gradientStart && colors.gradientEnd;
+      if (hasBothColors) {
+        setConfig((prev) => updateConfigWithColors(colors, prev));
+      }
+    } catch (error) {
+      console.error('Error extracting colors from SVG:', error);
       setExtractedColors(null);
     }
+  };
+
+  useEffect(() => {
+    const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
+    
+    if (!svgPath || !config) {
+      setExtractedColors(null);
+      return;
+    }
+    
+    handleColorExtraction(svgPath);
   }, [config?.nodeType, config?.id, selectedNodeId, setConfig, setShouldUpdateConfig]);
 
   const handleColorChange = (e, counterpartName, counterpartValue) => {
@@ -217,207 +232,202 @@ const NodeConfigurator = () => {
   const getData = (selectedEdgeId, config) =>
     selectedEdgeId ? config : config?.data;
 
-  const getInputField = (field, data) => {
-    if (field.type === "number") {
-      return (
-        <div key={field.name} className="mb-2">
-          <label className="text-13-bold uppercase">{field.label} :</label>
-          <input
-            className="form-control text-14-regular"
-            type="number"
-            name={field.name}
-            value={data?.[field.name] || ""}
-            min={field.min}
-            onChange={onConfigChange}
-          />
-        </div>
-      );
-    }
+  // Field type handler functions
+  const renderNumberField = (field, data) => (
+    <div key={field.name} className="mb-2">
+      <label className="text-13-bold uppercase">{field.label} :</label>
+      <input
+        className="form-control text-14-regular"
+        type="number"
+        name={field.name}
+        value={data?.[field.name] || ""}
+        min={field.min}
+        onChange={onConfigChange}
+      />
+    </div>
+  );
 
-    if (field.type === "text") {
-      return (
-        <div
-          key={field.name}
-          className="flex flex-nowrap p-[0.5vmin_1.5vmin] items-center"
-        >
-          <label className="text-16 text-primary_dark_blue uppercase whitespace-nowrap">
-            {field.label} :
-          </label>
-          <input
-            className="text-16 p-[0.5vmin] flex-grow ml-[0.5vmin] border border-primary_gray_2 rounded-[.4vmin] focus:outline-primary_blue"
-            type="text"
-            name={field.name}
-            value={data?.[field.name] || ""}
-            onChange={onConfigChange}
-          />
-        </div>
-      );
-    }
+  const renderTextField = (field, data) => (
+    <div
+      key={field.name}
+      className="flex flex-nowrap p-[0.5vmin_1.5vmin] items-center"
+    >
+      <label className="text-16 text-primary_dark_blue uppercase whitespace-nowrap">
+        {field.label} :
+      </label>
+      <input
+        className="text-16 p-[0.5vmin] flex-grow ml-[0.5vmin] border border-primary_gray_2 rounded-[.4vmin] focus:outline-primary_blue"
+        type="text"
+        name={field.name}
+        value={data?.[field.name] || ""}
+        onChange={onConfigChange}
+      />
+    </div>
+  );
 
-    if (field.type === "color") {
-      return (
-        <div key={field.name} className="flex items-center p-[0_1.5vmin]">
-          <label className="text-16 text-primary_dark_blue uppercase">
-            {field.label} :
-          </label>
-          <input
-            className="form-control text-14"
-            type="color"
-            name={field.name}
-            value={data?.[field.name] || ""}
-            onChange={onConfigChange}
-          />
-        </div>
-      );
-    }
+  const renderColorField = (field, data) => (
+    <div key={field.name} className="flex items-center p-[0_1.5vmin]">
+      <label className="text-16 text-primary_dark_blue uppercase">
+        {field.label} :
+      </label>
+      <input
+        className="form-control text-14"
+        type="color"
+        name={field.name}
+        value={data?.[field.name] || ""}
+        onChange={onConfigChange}
+      />
+    </div>
+  );
 
-    if (field.type === "gradientColor") {
-      const colors = [
-        {
-          name: "gradientStart",
-          value: data.gradientStart ?? extractedColors?.gradientStart,
-          counterpart: "gradientEnd",
-        },
-        {
-          name: "gradientEnd",
-          value: data.gradientEnd ?? extractedColors?.gradientEnd,
-          counterpart: "gradientStart",
-        },
-      ];
+  const renderGradientColorField = (field, data) => {
+    const colors = [
+      {
+        name: "gradientStart",
+        value: data.gradientStart ?? extractedColors?.gradientStart,
+        counterpart: "gradientEnd",
+      },
+      {
+        name: "gradientEnd",
+        value: data.gradientEnd ?? extractedColors?.gradientEnd,
+        counterpart: "gradientStart",
+      },
+    ];
 
-      return (
-        <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
-          <label className="text-15 text-primary_dark_blue uppercase mb-2">
-            <strong>{field.label} :</strong>
-          </label>
-          <div className="flex flex-wrap gap-[0.5vmin]">
-            {colors.map(({ name, value, counterpart }) => (
-              <div key={name} className="flex items-center">
-                <label className="text-17 capitalize text-primary_dark_blue">
-                  {name} :
-                </label>
-                <input
-                  type="color"
-                  name={name}
-                  value={value}
-                  onChange={(e) =>
-                    handleColorChange(
-                      e,
-                      counterpart,
-                      data[counterpart] ?? extractedColors?.[counterpart]
-                    )
-                  }
-                  className="form-control text-16"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    if (field.name === "strokeColor") {
-      return (
-        <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
-          <label className="text-15 text-primary_dark_blue uppercase">
-            {field.label} :
-          </label>
-          <input
-            type="color"
-            name="strokeColor"
-            value={data.strokeColor || ""}
-            onChange={onConfigChange}
-            className="form-control text-16"
-          />
-        </div>
-      );
-    }
-
-    if (field.type === "switch") {
-      const isChecked = data?.[field.name] || false;
-      return (
-        <div className="flex items-center gap-1 my-3" key={field.name}>
-          <label className="text-13-bold uppercase">{field.label} :</label>
-
-          <div style={switchStyles}>
-            <label
-              style={{
-                ...switchContainerStyles,
-                backgroundColor: isChecked ? "#009fdf" : "#939598",
-              }}
-            >
+    return (
+      <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
+        <label className="text-15 text-primary_dark_blue uppercase mb-2">
+          <strong>{field.label} :</strong>
+        </label>
+        <div className="flex flex-wrap gap-[0.5vmin]">
+          {colors.map(({ name, value, counterpart }) => (
+            <div key={name} className="flex items-center">
+              <label className="text-17 capitalize text-primary_dark_blue">
+                {name} :
+              </label>
               <input
-                type="checkbox"
-                checked={isChecked}
-                name={field.name}
-                onChange={onConfigChange}
-                style={inputStyles}
+                type="color"
+                name={name}
+                value={value}
+                onChange={(e) =>
+                  handleColorChange(
+                    e,
+                    counterpart,
+                    data[counterpart] ?? extractedColors?.[counterpart]
+                  )
+                }
+                className="form-control text-16"
               />
-              <div
-                style={{
-                  ...switchKnobStyles,
-                  left: isChecked ? "calc(100% - 17px)" : "3px",
-                }}
-              />
-            </label>
-          </div>
+            </div>
+          ))}
         </div>
-      );
-    }
+      </div>
+    );
+  };
 
-    if (field.type === "multi-select") {
-      const options =
-        field.options || [
-          { value: "left", label: "Left" },
-          { value: "right", label: "Right" },
-          { value: "top", label: "Top" },
-          { value: "bottom", label: "Bottom" },
-        ];
+  const renderStrokeColorField = (field, data) => (
+    <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
+      <label className="text-15 text-primary_dark_blue uppercase">
+        {field.label} :
+      </label>
+      <input
+        type="color"
+        name="strokeColor"
+        value={data.strokeColor || ""}
+        onChange={onConfigChange}
+        className="form-control text-16"
+      />
+    </div>
+  );
 
-      const selectedValues = data?.[field.name] || [];
-      const selectedOptions = options.filter((o) =>
-        selectedValues.includes(o.value)
-      );
-
-      return (
-        <div key={field.name} className="mb-2">
-          <label className="text-13-bold uppercase">{field.label} :</label>
-
-          <Select
-            isMulti
-            options={options}
-            value={selectedOptions}
-            onChange={(selected) => {
-              const values = selected ? selected.map((o) => o.value) : [];
-              onConfigChange({
-                target: {
-                  name: field.name,
-                  value: values,
-                  type: "multi-select",
-                },
-              });
+  const renderSwitchField = (field, data) => {
+    const isChecked = data?.[field.name] || false;
+    return (
+      <div className="flex items-center gap-1 my-3" key={field.name}>
+        <label className="text-13-bold uppercase">{field.label} :</label>
+        <div style={switchStyles}>
+          <label
+            style={{
+              ...switchContainerStyles,
+              backgroundColor: isChecked ? "#009fdf" : "#939598",
             }}
-            className="text-14"
-            styles={{
-              control: (base) => ({
-                ...base,
-                fontSize: "1.4vmin",
-                minHeight: "30px",
-              }),
-              menu: (base) => ({
-                ...base,
-                fontSize: "1.4vmin",
-              }),
-            }}
-          />
+          >
+            <input
+              type="checkbox"
+              checked={isChecked}
+              name={field.name}
+              onChange={onConfigChange}
+              style={inputStyles}
+            />
+            <div
+              style={{
+                ...switchKnobStyles,
+                left: isChecked ? "calc(100% - 17px)" : "3px",
+              }}
+            />
+          </label>
         </div>
-      );
-    }
+      </div>
+    );
+  };
+
+  const renderMultiSelectField = (field, data) => {
+    const defaultOptions = [
+      { value: "left", label: "Left" },
+      { value: "right", label: "Right" },
+      { value: "top", label: "Top" },
+      { value: "bottom", label: "Bottom" },
+    ];
+    const options = field.options || defaultOptions;
+    const selectedValues = data?.[field.name] || [];
+    const selectedOptions = options.filter((o) =>
+      selectedValues.includes(o.value)
+    );
+
+    const handleMultiSelectChange = (selected) => {
+      const values = selected ? selected.map((o) => o.value) : [];
+      onConfigChange({
+        target: {
+          name: field.name,
+          value: values,
+          type: "multi-select",
+        },
+      });
+    };
+
+    return (
+      <div key={field.name} className="mb-2">
+        <label className="text-13-bold uppercase">{field.label} :</label>
+        <Select
+          isMulti
+          options={options}
+          value={selectedOptions}
+          onChange={handleMultiSelectChange}
+          className="text-14"
+          styles={{
+            control: (base) => ({
+              ...base,
+              fontSize: "1.4vmin",
+              minHeight: "30px",
+            }),
+            menu: (base) => ({
+              ...base,
+              fontSize: "1.4vmin",
+            }),
+          }}
+        />
+      </div>
+    );
+  };
+
+  const renderSelectField = (field, data) => {
+    const options = field.customOptionsKey
+      ? getOptionsList(field.customOptionsKey)
+      : field.options || [];
 
     return (
       <div key={field.name}>
         <label className="text-13-bold uppercase">{field.label} :</label>
-
         <select
           className="form-select"
           name={field.name}
@@ -430,10 +440,7 @@ const NodeConfigurator = () => {
             border: "none",
           }}
         >
-          {(field.customOptionsKey
-            ? getOptionsList(field.customOptionsKey)
-            : field.options || []
-          ).map((resource) => (
+          {options.map((resource) => (
             <option key={resource.id} value={resource.id}>
               {resource.name}
             </option>
@@ -441,6 +448,31 @@ const NodeConfigurator = () => {
         </select>
       </div>
     );
+  };
+
+  const getInputField = (field, data) => {
+    // Check field.name first for special cases
+    if (field.name === "strokeColor") {
+      return renderStrokeColorField(field, data);
+    }
+
+    // Route by field.type
+    switch (field.type) {
+      case "number":
+        return renderNumberField(field, data);
+      case "text":
+        return renderTextField(field, data);
+      case "color":
+        return renderColorField(field, data);
+      case "gradientColor":
+        return renderGradientColorField(field, data);
+      case "switch":
+        return renderSwitchField(field, data);
+      case "multi-select":
+        return renderMultiSelectField(field, data);
+      default:
+        return renderSelectField(field, data);
+    }
   };
 
   const renderSubSystemSelect = (data) => {
