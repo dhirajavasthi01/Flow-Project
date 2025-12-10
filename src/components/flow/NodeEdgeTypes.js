@@ -1,6 +1,6 @@
 // Special nodes that don't have SVG files - keep these manual
 import { TextboxNode, TextBoxNodeConfig, TextBoxNodeFieldConfig } from './nodes/TextBox';
-import { Dot, DotConfig, DotFieldConfig } from './nodes/Dot';
+import { Dot, DotConfigBottom, DotConfigLeft, DotConfigRight, DotConfigTop, DotFieldConfig } from './nodes/Dot';
 import FlowingPipeEdge from './edges/FlowingPipEdge';
 
 // Dynamic node generation utilities
@@ -62,7 +62,10 @@ export const nodeTypes = Object.values(dynamicNodes).reduce((acc, node) => {
 }, {});
 
 // Add special nodes manually
-nodeTypes.dotNode = Dot;
+nodeTypes.dotNodeTop = Dot;
+nodeTypes.dotNodeBottom = Dot;
+nodeTypes.dotNodeRight = Dot;
+nodeTypes.dotNodeLeft = Dot;
 nodeTypes.textBoxNode = TextboxNode;
 
 // Build allNodes array dynamically
@@ -75,7 +78,10 @@ export const allNodes = Object.values(dynamicNodes).map(node => {
 });
 
 // Add special node configs manually
-allNodes.push(DotConfig);
+allNodes.push(DotConfigTop);
+allNodes.push(DotConfigBottom);
+allNodes.push(DotConfigRight);
+allNodes.push(DotConfigLeft);
 allNodes.push(TextBoxNodeConfig);
 
 
@@ -90,9 +96,13 @@ export const nodeTypesConfig = Object.values(dynamicNodes).reduce((acc, node) =>
 }, {});
 
 // Add special node field configs manually
-nodeTypesConfig["dot-node"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-top"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-bottom"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-right"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-left"] = DotFieldConfig || {};
 nodeTypesConfig["text-box-node"] = TextBoxNodeFieldConfig;
 
+// Create edgeTypes - FlowingPipeEdge will be loaded before first use
 export const edgeTypes = {
   flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
   flowingPipe: (props) => FlowingPipeEdge({ ...props, type: "straight" }),

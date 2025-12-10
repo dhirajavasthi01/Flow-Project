@@ -11,7 +11,7 @@ export default defineConfig({
       remotes: {
         uivisual: `${process.env.VITE_REMOTE_PATH || 'http://localhost:5001/flow_uivisuals'}/assets/remoteEntry.js`,
       },
-      shared: ['react', 'react-dom', 'react-router-dom', 'jotai', '@mui/material', '@emotion/react', '@emotion/styled'],
+      shared: ['react', 'react-dom', 'react-router-dom', 'jotai', '@mui/material', '@emotion/react', '@emotion/styled', '@xyflow/react'],
     }),
     tailwindcss(),
   ],
