@@ -43,6 +43,8 @@ import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop';
 import { useTextBoxClickHandler } from './hooks/useTextBoxClickHandler/useTextBoxClickHandler';
 import { useFlowData } from './hooks/useFlowData/useFlowData';
 import { useOutletContext } from 'react-router-dom';
+import { HelperLines } from './HelperLines';
+import { useHelperLines } from './useHelperLines';
 
 function Flow(props) {
   const { tableData = [] } = props;
@@ -71,6 +73,8 @@ function Flow(props) {
   const [selectedEdgeType, setSelectedEdgeType] = useAtom(selectedEdgeTypeAtom);
   const nodeLookup = useStore((s) => s.nodeLookup);
   const handleTextBoxClick = useTextBoxClickHandler();
+  const { snapNodePosition } = useHelperLines();
+  const [draggingNodeId, setDraggingNodeId] = useState(null);
 
   const { caseId } = useOutletContext();
 
@@ -354,8 +358,64 @@ function Flow(props) {
     (changes) => {
       if (!isDeveloperMode) return;
 
+      // Track dragging state for helper lines and detect drag end
+      let dragEndNodeId = null;
+      changes.forEach((change) => {
+        if (change.type === 'position') {
+          if (change.dragging === false) {
+            // Track when drag ends to apply final snap
+            dragEndNodeId = change.id;
+            // Don't clear immediately - let onNodeDragStop handle it
+          }
+        }
+      });
+
+      // Apply snapping to position changes during drag AND on drag end
+      // Skip snapping for dot nodes - they should move freely
+      const changesWithSnapping = changes.map((change) => {
+        if (change.type === 'position' && change.position) {
+          // Apply snapping during drag OR when drag ends (dragging === false)
+          const isDragging = change.dragging === true;
+          const isDragEnd = change.dragging === false && change.id === dragEndNodeId;
+          
+          if (isDragging || isDragEnd) {
+            // Check if this is a dot node
+            const node = nodeLookup.get(change.id);
+            const isDotNode = node?.type?.includes('dotNode') || node?.nodeType?.includes('dot-node');
+            
+            // Don't apply snapping to dot nodes - let them move freely
+            if (isDotNode) {
+              return change; // Return unchanged for dot nodes
+            }
+            
+            const snappedPosition = snapNodePosition(change.id, change.position);
+            
+            // Only apply snapping if the snap distance is small (user is close to alignment)
+            // This prevents unwanted position changes when user is intentionally moving away
+            const xDiff = Math.abs(snappedPosition.x - change.position.x);
+            const yDiff = Math.abs(snappedPosition.y - change.position.y);
+            const maxSnapDistance = 5; // Maximum pixels we'll snap
+            
+            // Only snap if the snap distance is small (user is very close to alignment)
+            if (xDiff <= maxSnapDistance && yDiff <= maxSnapDistance) {
+              // Only apply snapping if it's actually different and within reasonable distance
+              if (xDiff > 0.1 || yDiff > 0.1) {
+                return {
+                  ...change,
+                  position: snappedPosition,
+                };
+              }
+            }
+          }
+          
+          // Return original position if snapping would move too far or not needed
+          return change;
+        }
+        return change;
+      });
+
       const updatedNodes = nodes.map((node) => {
-        const resizeChange = changes.find(
+        const resizeChange = changesWithSnapping.find(
           (change) => change.type === 'resize' && change.id === node.id
         );
 
@@ -377,7 +437,7 @@ function Flow(props) {
         return node;
       });
 
-      const finalNodes = applyNodeChanges(changes, updatedNodes);
+      const finalNodes = applyNodeChanges(changesWithSnapping, updatedNodes);
       setNodes(finalNodes);
 
       // Update originalFetchedNodesRef when nodes are resized so dimensions persist
@@ -401,7 +461,7 @@ function Flow(props) {
         });
       }
     },
-    [nodes, setNodes, isDeveloperMode]
+    [nodes, setNodes, isDeveloperMode, snapNodePosition]
   );
 
   const handleEdgesChange = useCallback(
@@ -737,6 +797,36 @@ function Flow(props) {
     setShowSaveTemplate((selectedNodes || []).length > 0);
   }, []);
 
+  // Handle drag start - immediately set dragging node ID for helper lines
+  const onNodeDragStart = useCallback((event, node) => {
+    if (!isDeveloperMode) return;
+    setDraggingNodeId(node.id);
+  }, [isDeveloperMode]);
+
+  // Handle drag stop - clear dragging node ID
+  const onNodeDragStop = useCallback((event, node) => {
+    if (!isDeveloperMode) return;
+    // Apply final snap position when drag stops
+    const isDotNode = node.type?.includes('dotNode') || node.nodeType?.includes('dot-node');
+    if (!isDotNode && node.position) {
+      const snappedPosition = snapNodePosition(node.id, node.position);
+      const xDiff = Math.abs(snappedPosition.x - node.position.x);
+      const yDiff = Math.abs(snappedPosition.y - node.position.y);
+      
+      // If there's a snap, update the node position
+      if ((xDiff > 0.1 || yDiff > 0.1) && xDiff <= 5 && yDiff <= 5) {
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? { ...n, position: snappedPosition }
+              : n
+          )
+        );
+      }
+    }
+    setDraggingNodeId(null);
+  }, [isDeveloperMode, snapNodePosition, setNodes]);
+
   return (
     <div id="react-flow-container" className="h-full w-full relative" style={{ width: '100%', height: '100%' }}>
       <>
@@ -749,6 +839,8 @@ function Flow(props) {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
           onSelectionChange={handleSelectionChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -768,11 +860,12 @@ function Flow(props) {
           style={{ backgroundColor: '#FFFFFF' }}
         >
           {partial && <SelectionFlowRect partial={partial} />}
+          {isDeveloperMode && <HelperLines draggingNodeId={draggingNodeId} nodes={nodes} />}
 
-          <Marker type="flowingPipeStraightArrow" />
-          <Marker type="flowingPipe" />
-          <Marker type="flowingPipeDotted" />
-          <Marker type="flowingPipeDottedArrow" />
+            <Marker type="flowingPipeStraightArrow" />
+            <Marker type="flowingPipe" />
+            <Marker type="flowingPipeDotted" />
+            <Marker type="flowingPipeDottedArrow" />
 
           <Panel position="top-left" className="lasso-controls">
             {props?.showDeveloperMode && isDeveloperMode && (
