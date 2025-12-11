@@ -354,114 +354,125 @@ function Flow(props) {
     }
   }, [shouldDelete, selectedEdgeId, selectedNodeId, nodes, edges]);
 
+  // Helper function to detect drag end node ID
+  const detectDragEndNodeId = useCallback((changes) => {
+    for (const change of changes) {
+      if (change.type === 'position' && change.dragging === false) {
+        return change.id;
+      }
+    }
+    return null;
+  }, []);
+
+  // Helper function to check if a node is a dot node
+  const checkIsDotNode = useCallback((nodeId) => {
+    const node = nodeLookup.get(nodeId);
+    return node?.type?.includes('dotNode') || node?.nodeType?.includes('dot-node');
+  }, [nodeLookup]);
+
+  // Helper function to check if snapping should be applied
+  const shouldApplySnapping = useCallback((change, dragEndNodeId) => {
+    if (change.type !== 'position' || !change.position) return false;
+    const isDragging = change.dragging === true;
+    const isDragEnd = change.dragging === false && change.id === dragEndNodeId;
+    return isDragging || isDragEnd;
+  }, []);
+
+  // Helper function to check if snap distance is valid
+  const isValidSnapDistance = useCallback((snappedPosition, originalPosition) => {
+    const maxSnapDistance = 5;
+    const xDiff = Math.abs(snappedPosition.x - originalPosition.x);
+    const yDiff = Math.abs(snappedPosition.y - originalPosition.y);
+    
+    if (xDiff > maxSnapDistance || yDiff > maxSnapDistance) return false;
+    return xDiff > 0.1 || yDiff > 0.1;
+  }, []);
+
+  // Helper function to apply snapping to a single change
+  const applySnappingToChange = useCallback((change, dragEndNodeId) => {
+    if (!shouldApplySnapping(change, dragEndNodeId)) {
+      return change;
+    }
+
+    if (checkIsDotNode(change.id)) {
+      return change;
+    }
+
+    const snappedPosition = snapNodePosition(change.id, change.position);
+    if (!isValidSnapDistance(snappedPosition, change.position)) {
+      return change;
+    }
+
+    return {
+      ...change,
+      position: snappedPosition,
+    };
+  }, [shouldApplySnapping, checkIsDotNode, snapNodePosition, isValidSnapDistance]);
+
+  // Helper function to apply snapping to all changes
+  const applySnappingToChanges = useCallback((changes, dragEndNodeId) => {
+    return changes.map(change => applySnappingToChange(change, dragEndNodeId));
+  }, [applySnappingToChange]);
+
+  // Helper function to apply resize changes to nodes
+  const applyResizeChanges = useCallback((nodes, changesWithSnapping) => {
+    return nodes.map((node) => {
+      const resizeChange = changesWithSnapping.find(
+        (change) => change.type === 'resize' && change.id === node.id
+      );
+
+      if (!resizeChange) return node;
+
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          width: resizeChange.dimensions.width,
+          height: resizeChange.dimensions.height
+        },
+        data: {
+          ...node.data,
+          width: resizeChange.dimensions.width,
+          height: resizeChange.dimensions.height
+        }
+      };
+    });
+  }, []);
+
+  // Helper function to update originalFetchedNodesRef when nodes are resized
+  const updateOriginalFetchedNodesRef = useCallback((finalNodes) => {
+    originalFetchedNodesRef.current = finalNodes.map(node => {
+      const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
+      if (!originalNode) return node;
+
+      return {
+        ...originalNode,
+        style: node.style,
+        data: {
+          ...originalNode.data,
+          width: node.data.width,
+          height: node.data.height
+        }
+      };
+    });
+  }, []);
+
   const handleNodesChange = useCallback(
     (changes) => {
       if (!isDeveloperMode) return;
 
-      // Track dragging state for helper lines and detect drag end
-      let dragEndNodeId = null;
-      changes.forEach((change) => {
-        if (change.type === 'position') {
-          if (change.dragging === false) {
-            // Track when drag ends to apply final snap
-            dragEndNodeId = change.id;
-            // Don't clear immediately - let onNodeDragStop handle it
-          }
-        }
-      });
-
-      // Apply snapping to position changes during drag AND on drag end
-      // Skip snapping for dot nodes - they should move freely
-      const changesWithSnapping = changes.map((change) => {
-        if (change.type === 'position' && change.position) {
-          // Apply snapping during drag OR when drag ends (dragging === false)
-          const isDragging = change.dragging === true;
-          const isDragEnd = change.dragging === false && change.id === dragEndNodeId;
-          
-          if (isDragging || isDragEnd) {
-            // Check if this is a dot node
-            const node = nodeLookup.get(change.id);
-            const isDotNode = node?.type?.includes('dotNode') || node?.nodeType?.includes('dot-node');
-            
-            // Don't apply snapping to dot nodes - let them move freely
-            if (isDotNode) {
-              return change; // Return unchanged for dot nodes
-            }
-            
-            const snappedPosition = snapNodePosition(change.id, change.position);
-            
-            // Only apply snapping if the snap distance is small (user is close to alignment)
-            // This prevents unwanted position changes when user is intentionally moving away
-            const xDiff = Math.abs(snappedPosition.x - change.position.x);
-            const yDiff = Math.abs(snappedPosition.y - change.position.y);
-            const maxSnapDistance = 5; // Maximum pixels we'll snap
-            
-            // Only snap if the snap distance is small (user is very close to alignment)
-            if (xDiff <= maxSnapDistance && yDiff <= maxSnapDistance) {
-              // Only apply snapping if it's actually different and within reasonable distance
-              if (xDiff > 0.1 || yDiff > 0.1) {
-                return {
-                  ...change,
-                  position: snappedPosition,
-                };
-              }
-            }
-          }
-          
-          // Return original position if snapping would move too far or not needed
-          return change;
-        }
-        return change;
-      });
-
-      const updatedNodes = nodes.map((node) => {
-        const resizeChange = changesWithSnapping.find(
-          (change) => change.type === 'resize' && change.id === node.id
-        );
-
-        if (resizeChange) {
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              width: resizeChange.dimensions.width,
-              height: resizeChange.dimensions.height
-            },
-            data: {
-              ...node.data,
-              width: resizeChange.dimensions.width,
-              height: resizeChange.dimensions.height
-            }
-          };
-        }
-        return node;
-      });
-
+      const dragEndNodeId = detectDragEndNodeId(changes);
+      const changesWithSnapping = applySnappingToChanges(changes, dragEndNodeId);
+      const updatedNodes = applyResizeChanges(nodes, changesWithSnapping);
       const finalNodes = applyNodeChanges(changesWithSnapping, updatedNodes);
+      
       setNodes(finalNodes);
 
-      // Update originalFetchedNodesRef when nodes are resized so dimensions persist
-      // when exiting developer mode
       if (changes.some(change => change.type === 'resize')) {
-        originalFetchedNodesRef.current = finalNodes.map(node => {
-          const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
-          if (originalNode) {
-            // Preserve original data but update dimensions
-            return {
-              ...originalNode,
-              style: node.style,
-              data: {
-                ...originalNode.data,
-                width: node.data.width,
-                height: node.data.height
-              }
-            };
-          }
-          return node;
-        });
+        updateOriginalFetchedNodesRef(finalNodes);
       }
     },
-    [nodes, setNodes, isDeveloperMode, snapNodePosition]
+    [nodes, setNodes, isDeveloperMode, detectDragEndNodeId, applySnappingToChanges, applyResizeChanges, updateOriginalFetchedNodesRef]
   );
 
   const handleEdgesChange = useCallback(
