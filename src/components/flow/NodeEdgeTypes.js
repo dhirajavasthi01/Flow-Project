@@ -104,7 +104,7 @@ nodeTypesConfig["text-box-node"] = TextBoxNodeFieldConfig;
 
 // Create edgeTypes - FlowingPipeEdge will be loaded before first use
 export const edgeTypes = {
-  flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
+  flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props,label:'straight', type: "bezier" }),
   flowingPipe: (props) => FlowingPipeEdge({ ...props, type: "straight" }),
   flowingPipeDotted: (props) => FlowingPipeEdge({ ...props, type: "dotted" }),
   flowingPipeDottedArrow: (props) => FlowingPipeEdge({ ...props, type: "dottedArrow" })

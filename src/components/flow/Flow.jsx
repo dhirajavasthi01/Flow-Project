@@ -37,6 +37,11 @@ import { SelectionFlowRect } from './SelectionFlowRect';
 import Marker from './marker';
 import { generateRandom8DigitNumber, shouldNodeBlink, hasSubComponentAssetIdMatch } from '../../utills/flowUtills/FlowUtills';
 import { allNodes, edgeTypes, nodeTypes } from './NodeEdgeTypes';
+import {
+  processNodesWithTableData as processNodesWithTableDataUtil,
+  mergeProcessedNodesWithCurrent,
+  createTableDataKey
+} from './Flow.functions';
 import { useFlowSelection } from './hooks/useFlowSelection/useFlowSelection';
 import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager';
 import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop';
@@ -60,6 +65,7 @@ function Flow(props) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
   const [isDeveloperMode, setDeveloperMode] = useAtom(developerModeAtom);
   const [isFailureModeOpen, setIsFailureModeOpen] = useAtom(isFailureModeAtom);
   const [shouldDelete, setShouldDelete] = useAtom(deleteAtom);
@@ -104,80 +110,19 @@ function Flow(props) {
   const lastProcessedTableDataRef = useRef(null);
   const processNodesWithTableDataRef = useRef(null);
 
-  // Process nodes to match with tableData when not in developer mode
-  // Preserves existing node properties (like style for resize) and only updates data properties
-  const processNodesWithTableData = useCallback((nodesToProcess) => {
-    if (isDeveloperMode || !tableData || tableData.length === 0) {
-      return nodesToProcess;
-    }
-
-    return nodesToProcess.map(node => {
-      const subComponentAssetId = node.data?.subComponentAssetId;
-      if (!subComponentAssetId) {
-        return node;
-      }
-
-      // Find all matching subComponentAssetId entries in tableData using many-to-many matching
-      // Supports comma-separated IDs: if tableData has "1,2" and node has "1" or "2", it matches
-      const matchingTableDataEntries = tableData.filter(
-        item => hasSubComponentAssetIdMatch(subComponentAssetId, item.subComponentAssetId)
+  // Wrapper function that calls the utility with current component state
+  const processNodesWithTableData = useCallback(
+    (nodesToProcess, originalNodesForReset = null) => {
+      return processNodesWithTableDataUtil(
+        nodesToProcess,
+        originalNodesForReset,
+        tableData,
+        isDeveloperMode,
+        actualTime
       );
-
-      if (matchingTableDataEntries.length > 0) {
-        const nodeData = { ...node.data };
-
-        // Use the first matching entry for color and tooltip (same as before)
-        const matchingTableData = matchingTableDataEntries[0];
-
-        // Check if ANY activeSince is within last 24 hours using utility function
-        let shouldBlink = false;
-
-        // Check all matching entries for activeSince within last 24 hours (past only)
-        for (const entry of matchingTableDataEntries) {
-          const activeSince = entry.activeSince;
-
-          if (activeSince) {
-            // Use utility function to check if node should blink
-            const blinkResult = shouldNodeBlink(actualTime, activeSince, 24);
-
-            if (blinkResult.shouldBlink) {
-              shouldBlink = true;
-              break; // Found one within 24 hours, no need to check others
-            }
-          }
-        }
-
-        // If node uses gradients, update gradient colors to red shades
-        if (nodeData.gradientStart || nodeData.gradientEnd) {
-          // Use red gradient: darker red at ends, lighter red in middle
-          nodeData.gradientStart = '#cc0000'; // Lighter red
-          nodeData.gradientEnd = '#cc0000';   // Darker red
-        } else {
-          // For non-gradient nodes, use solid red
-          nodeData.nodeColor = '#cc0000';
-        }
-
-        const failureModeNames = Array.from(
-          new Set(
-            matchingTableDataEntries
-              .map(entry => entry.failureModeName ?? entry.activeFailureMode)
-              .filter(Boolean)
-          )
-        );
-
-        nodeData.failureModeNames = failureModeNames;
-        nodeData.shouldBlink = shouldBlink;
-
-        return {
-          ...node,
-          // Preserve style (for resize) and other properties via spread operator
-          data: nodeData
-        };
-      }
-
-      return node;
-    });
-  }, [tableData, isDeveloperMode, actualTime]);
+    },
+    [tableData, isDeveloperMode, actualTime]
+  );
 
   useEffect(() => {
     processNodesWithTableDataRef.current = processNodesWithTableData;
@@ -185,31 +130,60 @@ function Flow(props) {
 
 
   useEffect(() => {
-    if (fetchedNodes.length > 0 && !loadingFlow && !isDeveloperMode) {
-      // Store original nodes for reprocessing
-      originalFetchedNodesRef.current = fetchedNodes;
+    if (fetchedNodes.length > 0 && !loadingFlow) {
+      // Always store original nodes for reprocessing (even in developer mode)
+      // This ensures we can reprocess when exiting developer mode or when tableData changes
+      // Store a deep copy to avoid mutations affecting the original reference
+      const currentOriginalIds = originalFetchedNodesRef.current.map(n => n.id).sort().join(',');
+      const fetchedIds = fetchedNodes.map(n => n.id).sort().join(',');
+      
+      if (originalFetchedNodesRef.current.length === 0 || currentOriginalIds !== fetchedIds) {
+        // Store deep copy of fetched nodes to preserve original state
+        originalFetchedNodesRef.current = fetchedNodes.map(node => ({
+          ...node,
+          data: { ...node.data },
+          style: node.style ? { ...node.style } : undefined
+        }));
+      }
 
-      const processedNodes = processNodesWithTableDataRef.current
-        ? processNodesWithTableDataRef.current(fetchedNodes)
-        : fetchedNodes;
-      // Ensure all edges have default strokeWidth if not set
-      const processedEdges = fetchedEdges.map(edge => ({
-        ...edge,
-        style: {
-          stroke: '#000000',
-          strokeWidth: 5,
-          ...edge.style,
-          // Ensure strokeWidth is set, use existing or default to 5
-          strokeWidth: edge.style?.strokeWidth || 5
-        }
-      }));
-      setNodes(processedNodes);
-      setEdges(processedEdges);
+      // Only process nodes with tableData when not in developer mode
+      if (!isDeveloperMode) {
+        // Pass fetchedNodes as both nodesToProcess and originalNodesForReset since they're the original nodes
+        const processedNodes = processNodesWithTableDataRef.current
+          ? processNodesWithTableDataRef.current(fetchedNodes, fetchedNodes)
+          : fetchedNodes;
+        // Ensure all edges have default strokeWidth if not set
+        const processedEdges = fetchedEdges.map(edge => ({
+          ...edge,
+          style: {
+            stroke: '#000000',
+            strokeWidth: 5,
+            ...edge.style,
+            // Ensure strokeWidth is set, use existing or default to 5
+            strokeWidth: edge.style?.strokeWidth || 5
+          }
+        }));
+        setNodes(processedNodes);
+        setEdges(processedEdges);
 
-      setTimeout(() => {
-        zoomTo(0.5);
-        fitView({ duration: 800 });
-      }, 100);
+        setTimeout(() => {
+          zoomTo(0.5);
+          fitView({ duration: 800 });
+        }, 100);
+      } else {
+        // In developer mode, just set nodes and edges as-is
+        setNodes(fetchedNodes);
+        const processedEdges = fetchedEdges.map(edge => ({
+          ...edge,
+          style: {
+            stroke: '#000000',
+            strokeWidth: 5,
+            ...edge.style,
+            strokeWidth: edge.style?.strokeWidth || 5
+          }
+        }));
+        setEdges(processedEdges);
+      }
     } else if (error) {
       console.error('Error loading flow data:', error);
       setNodes([]);
@@ -220,15 +194,11 @@ function Flow(props) {
   // Reprocess nodes when tableData changes or developer mode is toggled (when not in developer mode)
   // This preserves current node state (like resize dimensions) while updating data properties
   useEffect(() => {
-    // Only reprocess when not in developer mode and we have data
-    if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode && tableData && tableData.length > 0) {
+    // Only reprocess when not in developer mode and we have original nodes
+    if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode) {
       // Check if tableData actually changed to avoid unnecessary reprocessing
-      const tableDataKey = JSON.stringify(
-        tableData.map(item => ({
-          subComponentAssetId: item.subComponentAssetId,
-          failureModeName: item.failureModeName ?? item.activeFailureMode
-        }))
-      );
+      const tableDataKey = createTableDataKey(tableData);
+      
       if (lastProcessedTableDataRef.current === tableDataKey) {
         return; // Skip if tableData hasn't actually changed
       }
@@ -236,54 +206,13 @@ function Flow(props) {
 
       // Use current nodes to preserve resize and other manual changes, but update from original for data matching
       setNodes((currentNodes) => {
-        // If no current nodes, process from original
-        if (currentNodes.length === 0) {
-          return processNodesWithTableDataRef.current
-            ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current)
-            : originalFetchedNodesRef.current;
-        }
-
-        // Create a map of current nodes by id to preserve their state
-        const currentNodeMap = new Map(currentNodes.map(node => [node.id, node]));
-
-        // Process original nodes to get the data updates (red color, tooltip)
+        // Process original nodes to get the data updates (red color, tooltip, blinking)
         const processedNodes = processNodesWithTableDataRef.current
-          ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current)
+          ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current, originalFetchedNodesRef.current)
           : originalFetchedNodesRef.current;
 
-        // Merge: use processed data but preserve current node state (style, position, etc.)
-        return processedNodes.map(processedNode => {
-          const currentNode = currentNodeMap.get(processedNode.id);
-          if (currentNode) {
-            // Preserve ALL current state (style, position, dimensions, etc.) but update data properties
-            const updatedData = { ...currentNode.data };
-
-            // Update color properties (handle both gradient and solid colors)
-            if (processedNode.data.gradientStart || processedNode.data.gradientEnd) {
-              updatedData.gradientStart = processedNode.data.gradientStart;
-              updatedData.gradientEnd = processedNode.data.gradientEnd;
-            } else if (processedNode.data.nodeColor) {
-              updatedData.nodeColor = processedNode.data.nodeColor;
-            }
-
-            updatedData.failureModeNames = processedNode.data.failureModeNames;
-            updatedData.shouldBlink = processedNode.data.shouldBlink;
-
-            return {
-              ...currentNode,
-              // Preserve style completely (includes resize dimensions)
-              style: currentNode.style,
-              // Preserve position
-              position: currentNode.position,
-              positionAbsolute: currentNode.positionAbsolute,
-              // Preserve measured dimensions
-              measured: currentNode.measured,
-              // Update only the data properties we need
-              data: updatedData
-            };
-          }
-          return processedNode;
-        });
+        // Merge processed nodes with current nodes to preserve state
+        return mergeProcessedNodesWithCurrent(processedNodes, currentNodes);
       });
     } else if (originalFetchedNodesRef.current.length > 0 && isDeveloperMode) {
       // Check if we just entered developer mode (avoid infinite loop)

@@ -90,7 +90,7 @@ const NodeConfigurator = () => {
       ...prevConfig,
       data: {
         ...prevConfig.data,
-        gradientStart: hasGradientStart || colors.gradientStart,
+        gradientStart: hasGradientStart || '#fff000',
         gradientEnd: hasGradientEnd || colors.gradientEnd,
       },
     };
@@ -284,7 +284,7 @@ const NodeConfigurator = () => {
     const colors = [
       {
         name: "gradientStart",
-        value: data.gradientStart ?? extractedColors?.gradientStart,
+        value: data.gradientStart ?? '#000fff',
         counterpart: "gradientEnd",
       },
       {
