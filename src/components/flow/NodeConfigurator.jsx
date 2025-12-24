@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import MultiSelectV2 from "../multiSelect/MultiSelect";
-
 import {
   allTagsDataAtom,
   deleteAtom,
@@ -13,7 +12,6 @@ import {
   updateConfigAtom,
   subComponentListAtom,
 } from "../../features/individualDetailWrapper/store/OverviewStore";
-
 import { nodeTypesConfig } from "./NodeEdgeTypes";
 import {
   edgeOptions,
@@ -22,12 +20,10 @@ import {
   normalizeSubComponentAssetIds,
 } from "../../utills/flowUtills/FlowUtills";
 import { svgMap } from "./svgMap";
-
 const switchStyles = {
   display: "flex",
   alignItems: "center",
 };
-
 const switchContainerStyles = {
   position: "relative",
   width: "40px",
@@ -35,7 +31,6 @@ const switchContainerStyles = {
   borderRadius: "20px",
   transition: "background-color 0.3s ease",
 };
-
 const switchKnobStyles = {
   position: "absolute",
   top: "50%",
@@ -46,7 +41,6 @@ const switchKnobStyles = {
   transition: "left 0.3s ease-in-out",
   transform: "translateY(-50%)",
 };
-
 const inputStyles = {
   opacity: 0,
   position: "absolute",
@@ -57,35 +51,26 @@ const inputStyles = {
   cursor: "pointer",
   zIndex: 1,
 };
-
 const NodeConfigurator = () => {
   const [config, setConfig] = useAtom(nodeConfigAtom);
   const setShouldUpdateConfig = useSetAtom(updateConfigAtom);
   const [selectedNodeId, setSelectedNodeId] = useAtom(selectedNodeIdAtom);
   const [selectedEdgeId, setSelectedEdgeId] = useAtom(selectedEdgeIdAtom);
   const setDelete = useSetAtom(deleteAtom);
-
   const selectedPage = useAtomValue(selectedPageAtom);
   const allTagsDataList = useAtomValue(allTagsDataAtom);
   const subComponentList = useAtomValue(subComponentListAtom);
-
   const [extractedColors, setExtractedColors] = useState(null);
-
   useEffect(() => {
     setConfig(null);
     setSelectedEdgeId(null);
     setSelectedNodeId(null);
   }, [selectedPage, setConfig, setSelectedEdgeId, setSelectedNodeId]);
-
-  // Helper function to update config with extracted colors
   const updateConfigWithColors = (colors, prevConfig) => {
     if (!prevConfig) return prevConfig;
-    
     const hasGradientStart = prevConfig.data?.gradientStart;
     const hasGradientEnd = prevConfig.data?.gradientEnd;
-    
     if (hasGradientStart && hasGradientEnd) return prevConfig;
-    
     const updatedConfig = {
       ...prevConfig,
       data: {
@@ -94,44 +79,36 @@ const NodeConfigurator = () => {
         gradientEnd: hasGradientEnd || colors.gradientEnd,
       },
     };
-    
     const isSelectedNode = selectedNodeId && prevConfig.id === selectedNodeId;
     if (isSelectedNode) {
       setTimeout(() => setShouldUpdateConfig(true), 0);
     }
-    
     return updatedConfig;
   };
+const handleColorExtraction = async (svgPath) => {
+  setExtractedColors(null);
 
-  // Helper function to handle color extraction
-  const handleColorExtraction = async (svgPath) => {
-    setExtractedColors(null);
-    
-    try {
-      const colors = await extractColorsFromSvg(svgPath);
-      setExtractedColors(colors);
-      
-      const hasBothColors = colors.gradientStart && colors.gradientEnd;
-      if (hasBothColors) {
-        setConfig((prev) => updateConfigWithColors(colors, prev));
-      }
-    } catch (error) {
-      console.error('Error extracting colors from SVG:', error);
-      setExtractedColors(null);
+  const isSpecial = config?.nodeType?.includes('tank') || config?.nodeType?.includes('gear');
+  if (isSpecial) return;
+
+  try {
+    const colors = await extractColorsFromSvg(svgPath);
+    setExtractedColors(colors);
+    if (colors.gradientStart && colors.gradientEnd) {
+      setConfig((prev) => updateConfigWithColors(colors, prev));
     }
-  };
-
+  } catch (error) {
+    console.error('Error extracting colors:', error);
+  }
+};
   useEffect(() => {
     const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
-    
     if (!svgPath || !config) {
       setExtractedColors(null);
       return;
     }
-    
     handleColorExtraction(svgPath);
   }, [config?.nodeType, config?.id, selectedNodeId, setConfig, setShouldUpdateConfig]);
-
   const handleColorChange = (e, counterpartName, counterpartValue) => {
     onConfigChange(e);
     const syntheticEvent = {
@@ -144,10 +121,8 @@ const NodeConfigurator = () => {
     };
     onConfigChange(syntheticEvent);
   };
-
   const onConfigChange = (event) => {
     const { name, value, type, checked } = event.target;
-
     if (type === "multi-select") {
       setConfig((prev) => ({
         ...prev,
@@ -155,7 +130,6 @@ const NodeConfigurator = () => {
       }));
       return;
     }
-
     if (name === "template") {
       const selectedData = text_box_resources.find((x) => x.id === value);
       setConfig((prev) => ({
@@ -169,7 +143,6 @@ const NodeConfigurator = () => {
       }));
       return;
     }
-
     if (type === "checkbox") {
       setConfig((prev) => ({
         ...prev,
@@ -177,7 +150,6 @@ const NodeConfigurator = () => {
       }));
       return;
     }
-
     setConfig((prev) => ({
       ...prev,
       data: {
@@ -189,7 +161,6 @@ const NodeConfigurator = () => {
       },
     }));
   };
-
   const onEdgeConfigChange = (event) => {
     const { name, value } = event.target;
     setConfig((prev) => {
@@ -197,28 +168,23 @@ const NodeConfigurator = () => {
         ...prev,
         [name]: value,
       };
-      
-      // If changing edge type, update markerEnd accordingly
       if (name === 'type') {
         const hasArrow = value === 'flowingPipeStraightArrow' || value === 'flowingPipeDottedArrow';
         if (hasArrow) {
-          // Preserve existing arrow size if it exists, otherwise use default
           const existingSize = prev.markerEnd?.width || 20;
-          updated.markerEnd = { 
-            type: 'arrowclosed', 
-            width: existingSize, 
-            height: existingSize, 
-            color: prev.style?.stroke || prev.markerEnd?.color || '#000' 
+          updated.markerEnd = {
+            type: 'arrowclosed',
+            width: existingSize,
+            height: existingSize,
+            color: prev.style?.stroke || prev.markerEnd?.color || "#000",
           };
         } else {
           updated.markerEnd = undefined;
         }
       }
-      
       return updated;
     });
   };
-
   const getOptionsList = (key) => {
     if (key === "subSystem") {
       return [
@@ -228,13 +194,10 @@ const NodeConfigurator = () => {
     }
     return [];
   };
-
   const getData = (selectedEdgeId, config) =>
     selectedEdgeId ? config : config?.data;
-
-  // Field type handler functions
   const renderNumberField = (field, data) => (
-    <div key={field.name} className="mb-2">
+    <div key={field.name} className="mb-2 p-[0.5vmin_1.5vmin]">
       <label className="text-13-bold uppercase">{field.label} :</label>
       <input
         className="form-control text-14-regular"
@@ -246,7 +209,6 @@ const NodeConfigurator = () => {
       />
     </div>
   );
-
   const renderTextField = (field, data) => (
     <div
       key={field.name}
@@ -264,14 +226,13 @@ const NodeConfigurator = () => {
       />
     </div>
   );
-
   const renderColorField = (field, data) => (
-    <div key={field.name} className="flex items-center p-[0_1.5vmin]">
+    <div key={field.name} className="flex items-center p-[0.5vmin_1.5vmin]">
       <label className="text-16 text-primary_dark_blue uppercase">
         {field.label} :
       </label>
       <input
-        className="form-control text-14"
+        className="form-control text-14 ml-2"
         type="color"
         name={field.name}
         value={data?.[field.name] || ""}
@@ -279,77 +240,44 @@ const NodeConfigurator = () => {
       />
     </div>
   );
-
   const renderGradientColorField = (field, data) => {
-    const colors = [
-      {
-        name: "gradientStart",
-        value: data.gradientStart ?? extractedColors?.gradientStart,
-        counterpart: "gradientEnd",
-      },
-      {
-        name: "gradientEnd",
-        value: data.gradientEnd ?? extractedColors?.gradientEnd,
-        counterpart: "gradientStart",
-      },
-    ];
+    const startVal = data.gradientStart || "#ffffff";
+    const endVal = data.gradientEnd || "#ffffff";
 
     return (
       <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
         <label className="text-15 text-primary_dark_blue uppercase mb-2">
           <strong>{field.label} :</strong>
         </label>
-        <div className="flex flex-wrap gap-[0.5vmin]">
-          {colors.map(({ name, value, counterpart }) => (
-            <div key={name} className="flex items-center">
-              <label className="text-17 capitalize text-primary_dark_blue">
-                {name} :
-              </label>
-              <input
-                type="color"
-                name={name}
-                value={value}
-                onChange={(e) =>
-                  handleColorChange(
-                    e,
-                    counterpart,
-                    data[counterpart] ?? extractedColors?.[counterpart]
-                  )
-                }
-                className="form-control text-16"
-              />
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-[1vmin] items-center">
+          <div className="flex items-center gap-1">
+            <label className="text-12">Gradient Start:</label>
+            <input type="color" name="gradientStart" value={startVal} onChange={onConfigChange} />
+          </div>
+          <div className="flex items-center gap-1">
+            <label className="text-12">Gradient End:</label>
+            <input type="color" name="gradientEnd" value={endVal} onChange={onConfigChange} />
+          </div>
         </div>
       </div>
     );
   };
-
   const renderStrokeColorField = (field, data) => (
     <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
-      <label className="text-15 text-primary_dark_blue uppercase">
-        {field.label} :
-      </label>
-      <input
-        type="color"
-        name="strokeColor"
-        value={data.strokeColor || ""}
-        onChange={onConfigChange}
-        className="form-control text-16"
-      />
+      <label className="text-15 text-primary_dark_blue uppercase">{field.label} :</label>
+      <input type="color" name="strokeColor" value={data.strokeColor || ""} onChange={onConfigChange} className="form-control text-16 ml-2" />
     </div>
   );
-
   const renderSwitchField = (field, data) => {
     const isChecked = data?.[field.name] || false;
     return (
-      <div className="flex items-center gap-1 my-3" key={field.name}>
+      <div className="flex items-center gap-3 p-[0.5vmin_1.5vmin]" key={field.name}>
         <label className="text-13-bold uppercase">{field.label} :</label>
         <div style={switchStyles}>
           <label
             style={{
               ...switchContainerStyles,
-              backgroundColor: isChecked ? "#009fdf" : "#939598",
+              backgroundColor: isChecked ? "#009fdf" : "#939598"
             }}
           >
             <input
@@ -370,7 +298,6 @@ const NodeConfigurator = () => {
       </div>
     );
   };
-
   const renderMultiSelectField = (field, data) => {
     const defaultOptions = [
       { value: "left", label: "Left" },
@@ -383,7 +310,6 @@ const NodeConfigurator = () => {
     const selectedOptions = options.filter((o) =>
       selectedValues.includes(o.value)
     );
-
     const handleMultiSelectChange = (selected) => {
       const values = selected ? selected.map((o) => o.value) : [];
       onConfigChange({
@@ -394,7 +320,6 @@ const NodeConfigurator = () => {
         },
       });
     };
-
     return (
       <div key={field.name} className="mb-2">
         <label className="text-13-bold uppercase">{field.label} :</label>
@@ -419,17 +344,16 @@ const NodeConfigurator = () => {
       </div>
     );
   };
-
   const renderSelectField = (field, data) => {
     const options = field.customOptionsKey
       ? getOptionsList(field.customOptionsKey)
       : field.options || [];
 
     return (
-      <div key={field.name}>
+      <div key={field.name} className="mb-2 p-[0.5vmin_1.5vmin]">
         <label className="text-13-bold uppercase">{field.label} :</label>
         <select
-          className="form-select"
+          className="form-select border border-primary_gray_2 p-[0.5vmin] rounded-[0.3vmin]"
           name={field.name}
           value={data?.[field.name] || ""}
           onChange={onConfigChange}
@@ -437,14 +361,20 @@ const NodeConfigurator = () => {
             fontSize: "1.4vmin",
             width: "100%",
             borderRadius: ".3vmin",
-            border: "none",
+            backgroundColor: "white"
           }}
         >
-          {options.map((resource) => (
-            <option key={resource.id} value={resource.id}>
-              {resource.name}
-            </option>
-          ))}
+          <option value="">Select {field.label}</option>
+          {options.map((option, index) => {
+            const val = option.id !== undefined ? option.id : option.value;
+            const label = option.name !== undefined ? option.name : option.label;
+
+            return (
+              <option key={`${field.name}-${val}-${index}`} value={val}>
+                {label}
+              </option>
+            );
+          })}
         </select>
       </div>
     );
@@ -470,22 +400,21 @@ const NodeConfigurator = () => {
         return renderSwitchField(field, data);
       case "multi-select":
         return renderMultiSelectField(field, data);
+      case "select":
+        return renderSelectField(field, data);
       default:
         return renderSelectField(field, data);
     }
   };
-
   const renderSubSystemSelect = (data) => {
     // Normalize current value to array (handles array, string, or comma-separated string)
     const currentValue = data?.subComponentAssetId;
     const selectedIds = normalizeSubComponentAssetIds(currentValue);
-    
     // Transform subComponentList to MultiSelect format (tag_name and display_name)
     const multiSelectData = subComponentList.map((subComponent) => ({
       tag_name: String(subComponent.entityID),
       display_name: subComponent.entityName
     }));
-
     // Get initial selected values in MultiSelect format
     const initialValues = selectedIds.map(id => {
       const subComponent = subComponentList.find(sc => String(sc.entityID) === String(id));
@@ -494,12 +423,10 @@ const NodeConfigurator = () => {
         display_name: subComponent.entityName
       } : null;
     }).filter(Boolean);
-
     // Handle multi-select change - store as array of IDs
     const handleMultiSelectChange = (selectedTags) => {
       // Extract IDs from selected tags and store as array
       const selectedIds = selectedTags ? selectedTags.map(tag => tag.tag_name) : [];
-      
       const syntheticEvent = {
         target: {
           name: "subComponentAssetId",
@@ -510,13 +437,11 @@ const NodeConfigurator = () => {
       };
       onConfigChange(syntheticEvent);
     };
-
     return (
       <div key="sub-system-select" className="p-[1vmin_1.5vmin]">
         <label className="text-16 text-primary_dark_blue uppercase">
           Sub Component:
         </label>
-
         <div style={{ minHeight: "3.5vmin", border: "1px solid #d1d5db", borderRadius: "0.3vmin" }}>
           <MultiSelectV2
             data={multiSelectData}
@@ -528,26 +453,22 @@ const NodeConfigurator = () => {
       </div>
     );
   };
-
-  const data = getData(selectedEdgeId, config);
-  const fieldsToRender = nodeTypesConfig[config?.nodeType]?.fields || [];
-
   if (!selectedNodeId && !selectedEdgeId) {
     return (
       <div className="h-100">
-        <div className="flex justify-between items-center bg-primary_blue_bg p-[1vmin_1.5vmin]">
+        <div className="bg-primary_blue_bg p-[1vmin_1.5vmin]">
           <h3 className="text-16 font-bold text-primary_dark_blue uppercase">
             Configure Node
           </h3>
         </div>
-
         <p className="text-16 p-[2vmin_1.5vmin]">
           Please select a node/edge to configure
         </p>
       </div>
     );
   }
-
+  const data = selectedEdgeId ? config : config?.data;
+  const fieldsToRender = nodeTypesConfig[config?.nodeType]?.fields || [];
   if (selectedNodeId) {
     return (
       <div className="h-100">
@@ -556,13 +477,11 @@ const NodeConfigurator = () => {
             Configure Node
           </h3>
         </div>
-
         <div className="p-[1vmin_1.5vmin]">
           <p className="text-18 text-primary_dark_blue uppercase mb-1">
             Node id :
             <span className="text-13-bold text-primary_gray">{config.id}</span>
           </p>
-
           <p className="text-18 text-primary_dark_blue uppercase">
             Node Name :
             <span className="text-13-bold text-primary_gray">
@@ -570,12 +489,9 @@ const NodeConfigurator = () => {
             </span>
           </p>
         </div>
-
         <>
           {fieldsToRender.map((field) => getInputField(field, data))}
-
           {renderSubSystemSelect(data)}
-
           <div className="flex justify-around items-center mt-[1vmin] flex-wrap gap-[1vmin]">
             <button
               className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
@@ -583,14 +499,12 @@ const NodeConfigurator = () => {
             >
               Apply
             </button>
-
             <button
               className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
               onClick={() => setSelectedNodeId(null)}
             >
               Close
             </button>
-
             <button
               className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
               onClick={() => setDelete(true)}
@@ -598,7 +512,6 @@ const NodeConfigurator = () => {
               Delete
             </button>
           </div>
-
           <div className="text-16 text-primary_gray_2 uppercase p-[1vmin_1.5vmin]">
             <b>Note :</b> All changes will only be applied after clicking the
             Apply button.
@@ -607,16 +520,13 @@ const NodeConfigurator = () => {
       </div>
     );
   }
-
   return (
     <div className="h-100">
       <h3 className="text-14-bold mb-1">Configure Edge</h3>
-
       <p className="text-18">
         Edge id :
         <span className="text_primary_gray_2">{config.id}</span>
       </p>
-
       <div>
         <label className="text-13-bold uppercase">Edge Type :</label>
         <select
@@ -638,7 +548,6 @@ const NodeConfigurator = () => {
           ))}
         </select>
       </div>
-
       <div className="text-14 p-[1vmin_1.5vmin]">
         <label className="text-15 text-primary_dark_blue uppercase">
           Edge Color :
@@ -656,7 +565,7 @@ const NodeConfigurator = () => {
                 stroke: color,
               },
               // Update markerEnd color if it exists
-              markerEnd: prev.markerEnd 
+              markerEnd: prev.markerEnd
                 ? { ...prev.markerEnd, color }
                 : prev.markerEnd,
             }));
@@ -665,7 +574,6 @@ const NodeConfigurator = () => {
           style={{ width: "100%", marginTop: "0.5vmin" }}
         />
       </div>
-
       <div className="text-14 p-[1vmin_1.5vmin]">
         <label className="text-15 text-primary_dark_blue uppercase">
           Edge Width :
@@ -691,7 +599,6 @@ const NodeConfigurator = () => {
           style={{ width: "100%", marginTop: "0.5vmin", fontSize: "1.4vmin", padding: "0.5vmin" }}
         />
       </div>
-
       {config?.markerEnd && (
         <div className="text-14 p-[1vmin_1.5vmin]">
           <label className="text-15 text-primary_dark_blue uppercase">
@@ -708,7 +615,7 @@ const NodeConfigurator = () => {
               const size = parseInt(e.target.value) || 20;
               setConfig((prev) => ({
                 ...prev,
-                markerEnd: prev.markerEnd 
+                markerEnd: prev.markerEnd
                   ? { ...prev.markerEnd, width: size, height: size }
                   : { type: 'arrowclosed', width: size, height: size, color: prev.style?.stroke || '#000' }
               }));
@@ -718,7 +625,6 @@ const NodeConfigurator = () => {
           />
         </div>
       )}
-
       <div className="flex flex-wrap gap-1 mt-2">
         <button
           className="text-14-regular uppercase"
@@ -726,14 +632,12 @@ const NodeConfigurator = () => {
         >
           Apply
         </button>
-
         <button
           className="text-14-regular uppercase"
           onClick={() => setSelectedEdgeId(null)}
         >
           Close
         </button>
-
         <button
           className="text-14-regular uppercase"
           onClick={() => setDelete(true)}
@@ -744,5 +648,4 @@ const NodeConfigurator = () => {
     </div>
   );
 };
-
 export default NodeConfigurator;

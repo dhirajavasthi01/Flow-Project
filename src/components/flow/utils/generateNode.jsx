@@ -23,10 +23,11 @@ export function generateNodeFieldConfig(filename) {
  * Generates a NodeConfig for a given SVG filename
  */
 export function generateNodeConfig(filename) {
-  const pascalName = toPascalCase(filename);
   const kebabName = toKebabCase(filename);
   const camelName = toCamelCase(filename);
   const displayName = getDisplayName(filename);
+  
+const isSpecial = kebabName.includes('gear') || kebabName.includes('tank');
   return {
     name: displayName,
     nodeType: kebabName,
@@ -34,13 +35,12 @@ export function generateNodeConfig(filename) {
     position: { x: 0, y: 0 },
     data: {
       subSystem: null,
-      nodeColor: "#a9a6a6",
-      strokeColor: "#000000",
-      nodeType: kebabName, // Store nodeType in data for easy access in components
+      nodeColor: isSpecial ? undefined : "#a9a6a6", 
+      strokeColor: isSpecial ? undefined : "#000000",
+      nodeType: kebabName,
     },
   };
 }
-
 /**
  * Generates a Node component for a given SVG filename
  */
