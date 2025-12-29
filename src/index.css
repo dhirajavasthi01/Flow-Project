@@ -177,3 +177,6 @@ html, body {
   animation: blink 1s ease-in-out infinite;
   will-change: filter;
 }
+.react-flow__node-textBoxNode{
+  align-content: center !important;
+}

@@ -107,5 +107,7 @@ export const edgeTypes = {
   flowingPipeStraightArrow: (props) => FlowingPipeEdge({ ...props,label:'straight', type: "bezier" }),
   flowingPipe: (props) => FlowingPipeEdge({ ...props, type: "straight" }),
   flowingPipeDotted: (props) => FlowingPipeEdge({ ...props, type: "dotted" }),
-  flowingPipeDottedArrow: (props) => FlowingPipeEdge({ ...props, type: "dottedArrow" })
+  flowingPipeDottedArrow: (props) => FlowingPipeEdge({ ...props, type: "dottedArrow" }),
+  straightArrow: (props) => FlowingPipeEdge({ ...props, type: "straightArrow" }),
+  bezierArrow: (props) => FlowingPipeEdge({ ...props, type: "bezier" }),
 };

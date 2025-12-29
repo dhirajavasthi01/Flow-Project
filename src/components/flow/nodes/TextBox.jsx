@@ -10,6 +10,24 @@ export const TextBoxNodeFieldConfig = {
         { label: "Label", name: "label", type: "text" },
         { label: "Text Color", name: "color", type: "color" },
         {
+            label: "Orientation",
+            name: "orientation",
+            type: "select",
+            options: [
+                { label: "Horizontal", value: "horizontal" },
+                { label: "Vertical", value: "vertical" }
+            ]
+        },
+        {
+            label: "Target Handles",
+            name: "targetHandles",
+            type: "multi-select",
+        },
+        {
+            label: "Outlet (Right)",
+            name: "numSourceHandlesRight",
+        },
+        {
             label: "Rotation (Degrees)",
             name: "rotation",
             type: "number",
@@ -34,6 +52,7 @@ export const TextBoxNodeConfig = {
         color: "#000000",
         linkedTag: null,
         targetHandles: [],
+        orientation: "horizontal",
         rotation: 0,
     },
     template: null,
@@ -94,7 +113,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
 
     const handleInterceptClick = (e) => {
         if (isDeveloperMode) return; // normal editing behavior
-        
+
         e.preventDefault();
         e.stopPropagation();
 
@@ -106,20 +125,20 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         for (const node of nodeLookup.values()) {
             if (!node || node.id === id) continue; // skip self
             if (node.type === 'textBoxNode') continue; // ignore other text boxes
-            
+
             const w = node.measured?.width || 0;
             const h = node.measured?.height || 0;
             if (w === 0 || h === 0) continue;
-            
+
             const left = node.internals.positionAbsolute.x;
             const top = node.internals.positionAbsolute.y;
             const right = left + w;
             const bottom = top + h;
-            
+
             // Check if click point is inside this node
             const contains = point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
             if (!contains) continue;
-            
+
             // Prefer node with highest z-index
             const z = node.internals?.z || 0;
             if (!bestMatch || z > bestMatch.z) {
@@ -130,7 +149,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         if (bestMatch) {
             const allNodes = getNodes();
             const targetNode = allNodes.find(n => n.id === bestMatch.id);
-            
+
             if (targetNode) {
                 // Update React Flow selection state
                 setNodes((nodes) =>
@@ -139,7 +158,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                         selected: node.id === bestMatch.id
                     }))
                 );
-                
+
                 // Update Jotai state
                 setFailureNodeClicked(targetNode.data.subSystem);
                 setSelectedEdgeId(null);
@@ -271,7 +290,15 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         };
         calculateFontSize();
     }, [currentDimensions.width, currentDimensions.height, label, tagData]);
-    const textContent = tagData ? tagData?.actual ?? "-" : label;
+
+    const { orientation = "horizontal"} = data;
+
+    const rawText = tagData ? tagData?.actual ?? "-" : label;
+
+    const textContent = orientation === "vertical"
+        ? rawText.split('').join('<br/>')
+        : rawText;
+
     return (
         <div
             ref={nodeRef}
@@ -341,11 +368,11 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                         margin: 0,
                         padding: 0,
                         fontWeight: 'bold',
-                        lineHeight: '1.2',
+                        display: "block",
+                        lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
                         overflow: "hidden",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
+                        wordBreak: 'break-all',
+                        whiteSpace: 'nowrap',
                     }}
                     className="text-uppercase"
                 />
