@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { memo, useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { NodeResizer, useReactFlow, useStore } from '@xyflow/react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { EXTRA_NODE_COLORS } from "../utils";
@@ -26,26 +26,14 @@ export const TextBoxNodeFieldConfig = {
         {
             label: "Outlet (Right)",
             name: "numSourceHandlesRight",
-            type: "number",
-            min: 0,
         },
         {
-            label: "Inlet (Top)",
-            name: "numTargetHandlesTop",
+            label: "Rotation (Degrees)",
+            name: "rotation",
             type: "number",
-            min: 0,
-        },
-        {
-            label: "Outlet (Bottom)",
-            name: "numSourceHandlesBottom",
-            type: "number",
-            min: 0,
-        },
-        {
-            label: "Inlet (Left)",
-            name: "numTargetHandlesLeft",
-            type: "number",
-            min: 0,
+            min: -360,
+            max: 360,
+            step: 1
         },
     ],
 };
@@ -65,6 +53,7 @@ export const TextBoxNodeConfig = {
         linkedTag: null,
         targetHandles: [],
         orientation: "horizontal",
+        rotation: 0,
     },
     template: null,
 };
@@ -80,7 +69,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
     const textRef = useRef(null);
     const containerRef = useRef(null);
-
+     const nodeRef = useRef(null);
     const {
         width: initialWidth = 200,
         height: initialHeight = 100,
@@ -93,14 +82,21 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         linkedTag,
         template,
         targetHandles = [],
+        rotation: initialRotation = 0,
     } = data;
-
+    const [rotation, setRotation] = useState(initialRotation);
+    const rotationRef = useRef(initialRotation);
+    const isRotating = useRef(false);
     const [currentDimensions, setCurrentDimensions] = useState({
         width: initialWidth,
         height: initialHeight
     });
     const [fontSize, setFontSize] = useState(16);
 
+    useEffect(() => {
+        setRotation(initialRotation);
+        rotationRef.current = initialRotation;
+    }, [initialRotation]);
     useEffect(() => {
         // Toggle draggability/selectability only (keep pointer events so we can intercept click in view mode)
         setNodes((nodes) =>
@@ -194,14 +190,60 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                 if (node.id === id) {
                     return {
                         ...node,
-                        data: { ...node.data, width: params.width, height: params.height },
+                        data: {
+                            ...node.data,
+                            width: params.width,
+                            height: params.height,
+                            rotation: rotationRef.current
+                        },
                     };
                 }
                 return node;
             })
         );
     };
-
+    const startRotation = useCallback((event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        isRotating.current = true;
+        const nodeBounds = nodeRef.current.getBoundingClientRect();
+        const centerX = nodeBounds.left + nodeBounds.width / 2;
+        const centerY = nodeBounds.top + nodeBounds.height / 2;
+        const onMouseMove = (moveEvent) => {
+            if (!isRotating.current) return;
+            const deltaX = moveEvent.clientX - centerX;
+            const deltaY = moveEvent.clientY - centerY;
+            const angleRadians = Math.atan2(deltaY, deltaX) + Math.PI / 2;
+            let newRotationDegrees = angleRadians * (180 / Math.PI);
+            if (newRotationDegrees < 0) {
+                newRotationDegrees += 360;
+            } else if (newRotationDegrees >= 360) {
+                newRotationDegrees -= 360;
+            }
+            setRotation(newRotationDegrees);
+            rotationRef.current = newRotationDegrees;
+        };
+        const onMouseUp = () => {
+            if (!isRotating.current) return;
+            isRotating.current = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            const finalRotation = rotationRef.current;
+            setNodes((nds) =>
+                nds.map((node) => {
+                    if (node.id === id) {
+                        return {
+                            ...node,
+                            data: { ...node.data, rotation: finalRotation },
+                        };
+                    }
+                    return node;
+                })
+            );
+        };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }, [id, setNodes]);
     useLayoutEffect(() => {
         const calculateFontSize = () => {
             if (!textRef.current) return;
@@ -258,7 +300,37 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         : rawText;
 
     return (
-        <>
+        <div
+            ref={nodeRef}
+            style={{
+                transform: `rotate(${rotation}deg)`,
+                width: currentDimensions.width,
+                height: currentDimensions.height,
+                position: 'relative',
+                cursor: 'grab',
+            }}
+        >
+            {selected && (
+                <div
+                    className="rotate-handle nodrag"
+                    onMouseDown={startRotation}
+                    style={{
+                        position: 'absolute',
+                        top: -30,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        backgroundColor: '#0098cfff',
+                        cursor: 'grab',
+                        zIndex: 10,
+                        border: '2px solid white',
+                    }}
+                >
+                    <div style={{ color: 'white', fontSize: '14px', textAlign: 'center', lineHeight: '18px' }}>↻</div>
+                </div>
+            )}
             <NodeResizer
                 isVisible={selected && isDeveloperMode}
                 minWidth={80}
@@ -273,9 +345,8 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                     alignItems: "center",
                     position: "relative",
                     backgroundColor: bgColor || "transparent",
-                    width: currentDimensions.width,
-                    // height: currentDimensions.height,
-                    height: 'fit-content',
+                    width: '100%',
+                    height: '100%',
                     padding: "4px",
                     boxSizing: "border-box",
                     pointerEvents: 'auto',
@@ -286,6 +357,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             >
                 <p
                     ref={textRef}
+                    onMouseDown={(e) => e.stopPropagation()}
                     dangerouslySetInnerHTML={{
                         __html: textContent,
                     }}
@@ -314,6 +386,6 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                     key="textBoxNode"
                 />
             </div>
-        </>
+        </div>
     );
 });

@@ -241,8 +241,8 @@ const handleColorExtraction = async (svgPath) => {
     </div>
   );
   const renderGradientColorField = (field, data) => {
-    const startVal = data.gradientStart || "#ffffff";
-    const endVal = data.gradientEnd || "#ffffff";
+    const startVal = data.gradientStart ?? extractedColors?.gradientStart;
+    const endVal = data.gradientEnd ?? extractedColors?.gradientEnd;
 
     return (
       <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">

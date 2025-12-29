@@ -1,8 +1,7 @@
-import { memo, Suspense, lazy } from 'react';
+import { memo } from 'react';
 import { NodeResizer } from '@xyflow/react';
 import Handles from '../handles/Handles';
-// Lazy load federated components
-const SvgNode = lazy(() => import('uivisual/SvgNode'));
+import SvgNode from 'uivisual/SvgNode';
 import { useNodeResize } from './useNodeResize';
 import { svgMap } from '../svgMap';
 
@@ -51,22 +50,20 @@ const BaseSvgNode = ({
         minHeight={resizeOptions.minHeight}
         onResizeEnd={onResizeEnd}
       />
-      <Suspense fallback={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading node...</div>}>
-        <SvgNode
-          id={id}
-          data={data}
-          svgPath={svgPath}
-          nodeType={type}
-          defaultNodeColor={defaultNodeColor}
-          defaultStrokeColor={defaultStrokeColor}
+      <SvgNode
+        id={id}
+        data={data}
+        svgPath={svgPath}
+        nodeType={type}
+        defaultNodeColor={defaultNodeColor}
+        defaultStrokeColor={defaultStrokeColor}
         HandlesComponent={Handles}
-          isHighlighted={isHighlighted}
-          selected={selected}
-          isSelected={isSelected}
-          isDeveloperMode={isDeveloperMode}
-          {...restSvgNodeProps}
-        />
-      </Suspense>
+        isHighlighted={isHighlighted}
+        selected={selected}
+        isSelected={isSelected}
+        isDeveloperMode={isDeveloperMode}
+        {...restSvgNodeProps}
+      />
     </>
   );
 };
