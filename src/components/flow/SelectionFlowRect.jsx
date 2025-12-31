@@ -20,7 +20,6 @@ export function SelectionFlowRect({ partial }) {
     }
   }, [width, height]);
   function handlePointerDown(e) {
-    console.log('check handle fun')
     e.target.setPointerCapture(e.pointerId);
     const canvasRect = canvas.current.getBoundingClientRect();
     const startX = e.clientX - canvasRect.left;
@@ -98,6 +97,7 @@ export function SelectionFlowRect({ partial }) {
         left: 0,
         pointerEvents: 'auto',
         cursor: 'crosshair',
+        zIndex: 4,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
