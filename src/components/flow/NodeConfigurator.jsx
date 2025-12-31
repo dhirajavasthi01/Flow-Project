@@ -20,6 +20,7 @@ import {
   normalizeSubComponentAssetIds,
 } from "../../utills/flowUtills/FlowUtills";
 import { svgMap } from "./svgMap";
+import { isSpecialNode } from "./utils/nodeSpecialHandling";
 const switchStyles = {
   display: "flex",
   alignItems: "center",
@@ -88,8 +89,25 @@ const NodeConfigurator = () => {
 const handleColorExtraction = async (svgPath) => {
   setExtractedColors(null);
 
-  const isSpecial = config?.nodeType?.includes('tank') || config?.nodeType?.includes('gear');
-  if (isSpecial) return;
+  // Skip color extraction for special nodes that preserve their original SVG colors
+  // Analyze the SVG to determine if it should preserve its original colors
+  const isSpecial = await isSpecialNode(config?.nodeType, svgPath);
+  console.log("isSpecial", isSpecial, config);
+  if (isSpecial) {
+    // For special nodes, ensure colors are undefined to preserve original SVG colors
+    setConfig((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          nodeColor: undefined,
+          strokeColor: undefined,
+        },
+      };
+    });
+    return;
+  }
 
   try {
     const colors = await extractColorsFromSvg(svgPath);
@@ -97,6 +115,25 @@ const handleColorExtraction = async (svgPath) => {
     if (colors.gradientStart && colors.gradientEnd) {
       setConfig((prev) => updateConfigWithColors(colors, prev));
     }
+    
+    // Set default colors for non-special nodes if they don't have colors yet
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const hasNodeColor = prev.data?.nodeColor !== undefined;
+      const hasStrokeColor = prev.data?.strokeColor !== undefined;
+      
+      if (!hasNodeColor || !hasStrokeColor) {
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            nodeColor: hasNodeColor ? prev.data.nodeColor : "#a9a6a6",
+            strokeColor: hasStrokeColor ? prev.data.strokeColor : "#000000",
+          },
+        };
+      }
+      return prev;
+    });
   } catch (error) {
     console.error('Error extracting colors:', error);
   }
