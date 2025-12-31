@@ -1,9 +1,5 @@
-import { EDGE_COLORS } from "../utils";
-
 const Marker = ({ type }) => {
-    const { borderColor, strokeDasharray } = EDGE_COLORS[type] || {};
     const hidePolyline = type === "flowingPipe" || type === "flowingPipeDotted";
-
     return (
         <svg
             className="react-flow__marker"
@@ -14,30 +10,25 @@ const Marker = ({ type }) => {
                     id={type}
                     markerWidth="5"
                     markerHeight="5"
-                    viewBox="-6 -6 12 12"
+                    viewBox="-10 -10 20 20"
                     markerUnits="strokeWidth"
                     orient="auto-start-reverse"
-                    refX="0"
+                    refX="-3"
                     refY="0"
                 >
                     {!hidePolyline &&
                         <polyline
-                            points="-5,-4 0,0 -5,4 -5,-4"
+                            points="-8,-6 0,0 -8,6 -8,-9"
                             style={{
-                                stroke: borderColor,
-                                fill: borderColor,
                                 strokeWidth: 1.5,
                                 strokeLinecap: "round",
                                 strokeLinejoin: "round",
-                                strokeDasharray: strokeDasharray,
                             }}
                         />
                     }
                 </marker>
-
             </defs>
         </svg>
     );
 };
-
 export default Marker;

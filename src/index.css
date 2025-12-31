@@ -180,3 +180,11 @@ html, body {
 .react-flow__node-textBoxNode{
   align-content: center !important;
 }
+/* Ensure the selection rectangle is visible and on top */
+.react-flow__nodesselection-rect,
+.react-flow__selection {
+  background: rgba(0, 89, 220, 0.08) !important;
+  border: 1px dashed rgb(0, 89, 220) !important;
+  z-index: 1000 !important;
+  pointer-events: none;
+}

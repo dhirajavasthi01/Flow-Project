@@ -142,7 +142,7 @@ export const atomWithToggle = (initialValue = false) => {
 export const showHandlesAtom = atomWithToggle(false);
 
 export const updateConfigAtom = atomWithToggle(false);
-
+export const isFullViewAtom = atom(false);
 
 
 export const nodeConfigAtom = atom(null);

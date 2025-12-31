@@ -9,80 +9,60 @@ import {
 import { useAtomValue, useSetAtom } from "jotai";
 import { allNodes } from "./NodeEdgeTypes";
 import Dot from '../../assets/flowIcons/dot.svg';
-
 const HandleNodeList = () => {
   const setConfig = useSetAtom(nodeConfigAtom);
   const setNewNode = useSetAtom(newNodeAtom);
   const setSelectedNodeId = useSetAtom(selectedNodeIdAtom);
   const setSelectedEdgeId = useSetAtom(selectedEdgeIdAtom);
   const setNodeType = useSetAtom(dragNodeTypeAtom);
-
-  const showHandles = useAtomValue(showHandlesAtom);
-
+  const showHandles = useAtomValue(showHandlesAtom)
   const handleNodeClick = (node) => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setConfig(null);
     setNewNode(node);
   };
-
   const onDragStart = (event, nodeType) => {
     setNodeType(nodeType);
-    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.effectAllowed = 'move';
   };
-
   return (
-    <div>
-      {showHandles && (
-        <div className="flex justify-between items-center bg-primary_blue_bg p-[1vmin_1.5vmin]">
-          <h3 className="text-16 font-weight-600 text-primary_dark_blue uppercase">
-            Handle Node List
-          </h3>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-[0.5vmin] p-[1vmin_1.5vmin]">
-        {allNodes
-          .filter((node) => node.name === "Dot Node")
-          .map((node) => (
+    <div className='border-b-[0.025vmin] border-b-primary_gray_3'>
+      {showHandles && <div className='flex justify-between items-center bg-primary_blue_bg p-[1.5vmin] border-b-[0.025vmin] border-b-primary_gray_3'>
+        <h3 className="text-14 text-primary_dark_blue uppercase font-sabic_text_bold">
+          Handle Node List
+        </h3>
+      </div>}
+      <div className="flex flex-wrap items-center justify-between gap-[0.5vmin] p-[1vmin_1.5vmin]" >
+        {allNodes.filter((node) => node.name === 'Dot Node').map((node) => {
+          return node.nodeType !== "dot-node" ? (
             <div
               data-testid={`node-${node.name}`}
               id={`node-list-${node.name}`}
-              key={node.name}
+              className={`${!showHandles ? "hidden" : "border border-primary_gray_14 rounded hover:bg-primary_blue hover:text-primary_white flex justify-center items-center p-[0.8vmin_0.8vmin] bg-primary_blue_4"}`}
+              onDragStart={(event) => onDragStart(event, node.type)}
               draggable
               onClick={() => handleNodeClick(node)}
-              onDragStart={(event) => onDragStart(event, node.type)}
-              className={`${
-                !showHandles
-                  ? "hidden"
-                  : "border border-primary_gray_14 rounded hover:bg-primary_blue flex justify-center items-center p-[0.8vmin_0.8vmin] bg-primary_blue_4"
-              }`}
+              key={node.nodeType}
             >
-              <div className="flex justify-center items-center flex-row-reverse gap-[0.5vmin]">
-                <div className="pt-[0.3vmin] text-14 uppercase">
-                  {node?.data?.dotPosition}
-                </div>
-
-                {node?.nodeType ? (
-                  <img
-                    src={Dot}
-                    alt={node.name}
-                    style={{
-                      width: node.name === "Dot Node" ? "1vmin" : "80px",
-                      height: node.name === "Dot Node" ? "1vmin" : "80px",
-                      marginLeft:
-                        node?.data?.dotPosition === "bottom" ? "5px" : "0px"
-                    }}
-                  />
-                ) : (
-                  <div style={{ color: "black" }}>{node.name}</div>
-                )}
+              <div className='flex justify-center items-center flex-row-reverse gap-[0.9vmin]'>
+                {(<div className=" pt-[0.3vmin] text-12 uppercase ">{node?.data?.dotPosition}</div>)}
+                <img
+                  src={DotSvg}
+                  alt={node.name}
+                  style={{
+                    width: node.name === 'Dot Node' ? '1vmin' : '80px',
+                    height: node.name === 'Dot Node' ? '1vmin' : '80px',
+                    marginLeft: node?.data?.dotPosition === 'bottom' ? '5px' : '0px'
+                  }}
+                />
               </div>
             </div>
-          ))}
+          ) : null
+        })}
       </div>
     </div>
   );
 };
-
 export default HandleNodeList;
+ 

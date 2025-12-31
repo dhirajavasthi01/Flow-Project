@@ -87,10 +87,8 @@ const NodeConfigurator = () => {
   };
 const handleColorExtraction = async (svgPath) => {
   setExtractedColors(null);
-
   const isSpecial = config?.nodeType?.includes('tank') || config?.nodeType?.includes('gear');
   if (isSpecial) return;
-
   try {
     const colors = await extractColorsFromSvg(svgPath);
     setExtractedColors(colors);
@@ -102,7 +100,10 @@ const handleColorExtraction = async (svgPath) => {
   }
 };
   useEffect(() => {
-    const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
+    // Change this line in your useEffect:
+const typeToLookup = config?.nodeType || config?.type;
+const svgPath = typeToLookup ? svgMap[typeToLookup] : null;
+    // const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
     if (!svgPath || !config) {
       setExtractedColors(null);
       return;
@@ -243,7 +244,6 @@ const handleColorExtraction = async (svgPath) => {
   const renderGradientColorField = (field, data) => {
     const startVal = data.gradientStart ?? extractedColors?.gradientStart;
     const endVal = data.gradientEnd ?? extractedColors?.gradientEnd;
-
     return (
       <div key={field.name} className="text-14 p-[1vmin_1.5vmin]">
         <label className="text-15 text-primary_dark_blue uppercase mb-2">
@@ -348,7 +348,6 @@ const handleColorExtraction = async (svgPath) => {
     const options = field.customOptionsKey
       ? getOptionsList(field.customOptionsKey)
       : field.options || [];
-
     return (
       <div key={field.name} className="mb-2 p-[0.5vmin_1.5vmin]">
         <label className="text-13-bold uppercase">{field.label} :</label>
@@ -368,7 +367,6 @@ const handleColorExtraction = async (svgPath) => {
           {options.map((option, index) => {
             const val = option.id !== undefined ? option.id : option.value;
             const label = option.name !== undefined ? option.name : option.label;
-
             return (
               <option key={`${field.name}-${val}-${index}`} value={val}>
                 {label}
@@ -379,13 +377,11 @@ const handleColorExtraction = async (svgPath) => {
       </div>
     );
   };
-
   const getInputField = (field, data) => {
     // Check field.name first for special cases
     if (field.name === "strokeColor") {
       return renderStrokeColorField(field, data);
     }
-
     // Route by field.type
     switch (field.type) {
       case "number":

@@ -78,6 +78,8 @@ export function useFlowData(caseId = 1) {
   return {
     // Data
     nodes: data?.nodes || [],
+
+
     edges: data?.edges || [],
     diagramId: data?.diagramId,
     saved: data?.saved,
@@ -94,4 +96,5 @@ export function useFlowData(caseId = 1) {
     isUpdating: updateFlow.isPending,
     isDeleting: deleteFlow.isPending
   };
+  
 }
