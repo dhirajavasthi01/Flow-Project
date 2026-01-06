@@ -333,8 +333,8 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             )}
             <NodeResizer
                 isVisible={selected && isDeveloperMode}
-                minWidth={80}
-                minHeight={40}
+                minWidth={20}
+                minHeight={10}
                 onResizeEnd={onResizeEnd}
             />
             <div

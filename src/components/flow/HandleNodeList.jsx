@@ -48,7 +48,7 @@ const HandleNodeList = () => {
               <div className='flex justify-center items-center flex-row-reverse gap-[0.9vmin]'>
                 {(<div className=" pt-[0.3vmin] text-12 uppercase ">{node?.data?.dotPosition}</div>)}
                 <img
-                  src={DotSvg}
+                  src={Dot}
                   alt={node.name}
                   style={{
                     width: node.name === 'Dot Node' ? '1vmin' : '80px',

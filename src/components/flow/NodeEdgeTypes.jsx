@@ -6,9 +6,10 @@ import FlowingPipeEdge from './edges/FlowingPipEdge';
 // Dynamic node generation utilities
 import { generateNodeExports } from './utils/generateNode';
 import { toKebabCase, toCamelCase } from './utils/nodeNameUtils';
+import TemplateGroupNode from './TemplateGroupNode';
 // Dynamically import all SVG files from the flowIcons folder
 const svgModules = import.meta.glob('../../assets/flowIcons/*.svg', { eager: true });
-/**
+/** 
  * Dynamically generates all node types, configs, and field configs from SVG files
  */
 const dynamicNodes = Object.keys(svgModules).reduce((acc, path) => {
@@ -56,6 +57,7 @@ nodeTypes.dotNodeBottom = Dot;
 nodeTypes.dotNodeRight = Dot;
 nodeTypes.dotNodeLeft = Dot;
 nodeTypes.textBoxNode = TextboxNode;
+nodeTypes.templateGroup = TemplateGroupNode;
 // Build allNodes array dynamically
 export const allNodes = Object.values(dynamicNodes).map(node => {
   // Get the NodeConfig from exports (e.g., BearingNodeConfig)
@@ -70,6 +72,14 @@ allNodes.push(DotConfigBottom);
 allNodes.push(DotConfigRight);
 allNodes.push(DotConfigLeft);
 allNodes.push(TextBoxNodeConfig);
+allNodes.push({
+  name: 'Template Group',
+  nodeType: 'templateGroup',
+  type: 'templateGroup',
+  data: { label: 'New Group' },
+  // Default size for a manual drag
+  style: { width: 300, height: 200 } 
+});
 // Build nodeTypesConfig object dynamically
 export const nodeTypesConfig = Object.values(dynamicNodes).reduce((acc, node) => {
   // Get the NodeFieldConfig from exports (e.g., BearingNodeFieldConfig)
