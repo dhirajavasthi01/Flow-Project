@@ -1,3 +1,27 @@
+/**
+ * Utility functions for identifying nodes that require special color handling.
+ * 
+ * SPECIAL NODE CRITERIA:
+ * A node is considered "special" if it meets ONE of the following conditions:
+ * 
+ * 1. Has gradients AND additional fill colors beyond gradient colors
+ *    - Example: SVG with gradient fills plus solid color elements
+ * 
+ * 2. Has 2+ distinct fill colors (without gradients)
+ *    - Example: GearBox.svg has background (#F4F4F6) + gear shapes (#4D4D4D)
+ * 
+ * EXCLUSIONS:
+ * - Elements with masks are excluded (decorative borders/outlines)
+ * - Elements inside mask definitions are excluded
+ * - Stroke colors are NOT considered (only fill colors)
+ * - SVGs with only 1 distinct fill color are NOT special
+ *    - Example: S&TExchangerV2.svg has multiple elements but all use #4D4D4D
+ * 
+ * This is determined dynamically by analyzing the SVG file itself,
+ * using logic similar to extractColorsFromSvg, rather than using a hardcoded list.
+ */
+
+// Cache for SVG analysis results to avoid re-analyzing the same SVG multiple times
 const svgAnalysisCache = new Map();
 
 /**
@@ -12,85 +36,133 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     const doc = parser.parseFromString(svgText, "image/svg+xml");
     const svgElement = doc.documentElement;
 
-    /* ---------- Gradient checks ---------- */
+    /* ---------- Collect gradient colors ---------- */
 
     const gradients = svgElement.querySelectorAll(
       "linearGradient, radialGradient"
     );
 
-    if (gradients.length > 0) {
-      // Check for gradients with same start/end colors (e.g., RectangularTank)
-      for (const gradient of gradients) {
-        const stops = Array.from(gradient.querySelectorAll("stop"));
+    const gradientColors = new Set();
+    const getStopColor = (stop) => {
+      let color = stop.getAttribute("stop-color");
+      if (color) return color.trim();
 
-        if (stops.length >= 3) {
-          const getStopColor = (stop) => {
-            let color = stop.getAttribute("stop-color");
-            if (color) return color.trim();
+      const style = stop.getAttribute("style");
+      if (style) {
+        const match = style.match(/stop-color:\s*([^;]+)/i);
+        if (match) return match[1].trim();
+      }
 
-            const style = stop.getAttribute("style");
-            if (style) {
-              const match = style.match(/stop-color:\s*([^;]+)/i);
-              if (match) return match[1].trim();
-            }
+      return null;
+    };
 
-            return null;
-          };
+    // Collect all unique colors from all gradient stops
+    for (const gradient of gradients) {
+      const stops = Array.from(gradient.querySelectorAll("stop"));
+      for (const stop of stops) {
+        const color = getStopColor(stop);
+        if (color) {
+          gradientColors.add(color.trim().toUpperCase());
+        }
+      }
+    }
 
-          const stopColors = stops
-            .map((stop) => getStopColor(stop))
-            .filter(Boolean);
-
-          if (stopColors.length > 3) {
-            const firstColor = stopColors[0]?.trim().toUpperCase();
-            const lastColor =
-              stopColors[stopColors.length - 1]?.trim().toUpperCase();
-
-            // Symmetric gradient → special node
-            if (firstColor && lastColor && firstColor === lastColor) {
-              return true;
-            }
+    // If no gradients exist, check for multiple distinct fill colors
+    if (gradients.length === 0) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      const allElements = svgElement.querySelectorAll("*");
+      const allFillColors = new Set();
+      
+      for (const el of allElements) {
+        // Skip the root SVG element
+        if (el.tagName === "svg") {
+          continue;
+        }
+        
+        // Skip mask elements and their children (masks use fill="white" for masking, not actual colors)
+        if (el.tagName === "mask" || el.closest("mask")) {
+          continue;
+        }
+        
+        // Skip elements that use masks (often decorative borders/outlines, not main fill colors)
+        if (el.hasAttribute("mask")) {
+          continue;
+        }
+        
+        // Skip defs, style, and other non-visual elements
+        if (["defs", "style", "script", "title", "desc", "metadata"].includes(el.tagName)) {
+          continue;
+        }
+        
+        // Check fill colors only (excluding gradient references)
+        const fill = el.getAttribute("fill");
+        if (fill && fill !== "none" && !fill.startsWith("url(")) {
+          const normalizedColor = fill.trim().toUpperCase();
+          if (normalizedColor && normalizedColor !== "NONE") {
+            allFillColors.add(normalizedColor);
           }
         }
       }
+      
+      // If there are 2+ distinct fill colors, it's special
+      // This catches cases like GearBox.svg (background + gear shapes with different colors)
+      // But excludes cases like S&TExchangerV2.svg (all elements use same color)
+      if (allFillColors.size >= 2) {
+        return true;
+      }
+      
+      return false;
     }
 
-    /* ---------- Mask checks ---------- */
+    /* ---------- Collect all non-gradient fill colors ---------- */
 
-    // Elements that use masks
-    const elementsWithMask = svgElement.querySelectorAll("[mask]");
-    if (elementsWithMask.length > 0) {
-      return true;
-    }
-
-    // Mask elements themselves
     const svgNS = "http://www.w3.org/2000/svg";
-    const maskElements = svgElement.getElementsByTagNameNS(svgNS, "mask");
-    if (maskElements.length > 0) {
-      return true;
-    }
-
-    /* ---------- Fill color complexity ---------- */
-
     const allElements = svgElement.querySelectorAll("*");
-    const uniqueFillColors = new Set();
+    const nonGradientColors = new Set();
 
     for (const el of allElements) {
+      // Skip the root SVG element
+      if (el.tagName === "svg") {
+        continue;
+      }
+      
+      // Skip mask elements and their children (masks use fill="white" for masking, not actual colors)
+      if (el.tagName === "mask" || el.closest("mask")) {
+        continue;
+      }
+      
+      // Skip elements that use masks (often decorative borders/outlines, not main fill colors)
+      if (el.hasAttribute("mask")) {
+        continue;
+      }
+      
+      // Skip defs, style, and other non-visual elements
+      if (["defs", "style", "script", "title", "desc", "metadata"].includes(el.tagName)) {
+        continue;
+      }
+      
+      // Check fill colors only (excluding gradient references)
       const fill = el.getAttribute("fill");
-
       if (fill && fill !== "none" && !fill.startsWith("url(")) {
         const normalizedColor = fill.trim().toUpperCase();
         if (normalizedColor && normalizedColor !== "NONE") {
-          uniqueFillColors.add(normalizedColor);
+          nonGradientColors.add(normalizedColor);
         }
       }
     }
 
-    // Two or more distinct fill colors → complex design
-    if (uniqueFillColors.size >= 2) {
-      return true;
+    /* ---------- Check if there are additional colors beyond gradients ---------- */
+
+    // A node is special only if it has gradients AND additional colors
+    // that are different from the gradient colors
+    for (const color of nonGradientColors) {
+      if (!gradientColors.has(color)) {
+        // Found a color that's not in the gradients → special node
+        return true;
+      }
     }
 
+    // No additional colors beyond gradients → not special
     return false;
   } catch (error) {
     console.error(
