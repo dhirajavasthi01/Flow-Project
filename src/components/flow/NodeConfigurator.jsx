@@ -101,6 +101,7 @@ const handleColorExtraction = async (svgPath) => {
         ...prev,
         data: {
           ...prev.data,
+          isSpecialNode: true,
           nodeColor: undefined,
           strokeColor: undefined,
         },
