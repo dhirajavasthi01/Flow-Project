@@ -16,7 +16,7 @@
 <path d="M33 40V40.5H33.5V40H33ZM24 40H23.5V40.5H24V40ZM33 4H32.5V40H33H33.5V4H33ZM33 40V39.5H24V40V40.5H33V40ZM24 40H24.5V4H24H23.5V40H24Z" fill="#707070" mask="url(#path-8-inside-2_9578_383097)"/>
 <rect x="22.25" y="0.25" width="12.5" height="3.5" fill="url(#paint7_linear_9578_383097)" stroke="#707070" stroke-width="0.5"/>
 <rect x="14.25" y="16.25" width="7.5" height="23.5" fill="url(#paint8_linear_9578_383097)" stroke="#707070" stroke-width="0.5"/>
-<line x1="21.5743" y1="16.8585" x2="14.2384" y2="40.0753" stroke="#707070" stroke-width="0.5"/>
+<line x1="21.5743" y1="16.8585" x2="14.2384" y2="40.0753" stroke="#F3F3F3" stroke-width="0.5"/>
 <line x1="14.239" y1="16.9266" x2="21.239" y2="39.7191" stroke="#707070" stroke-width="0.5"/>
 <defs>
 <linearGradient id="paint0_linear_9578_383097" x1="12.5" y1="20" x2="12.5" y2="26" gradientUnits="userSpaceOnUse">

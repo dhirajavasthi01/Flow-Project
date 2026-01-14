@@ -157,7 +157,7 @@ function Flow(props) {
           ...edge,
           style: {
             stroke: '#000000',
-            strokeWidth: 5,
+ 
             ...edge.style,
             // Ensure strokeWidth is set, use existing or default to 5
             strokeWidth: edge.style?.strokeWidth || 5

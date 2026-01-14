@@ -45,7 +45,7 @@ function analyzeSvgTextForSpecialHandling(svgText) {
           };
 
           const stopColors = stops.map(stop => getStopColor(stop)).filter(Boolean);
-          if (stopColors.length >= 3) {
+          if (stopColors.length >= 2) {
             const firstColor = stopColors[0]?.trim().toUpperCase();
             const lastColor = stopColors[stopColors.length - 1]?.trim().toUpperCase();
             
@@ -95,7 +95,9 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     // Require 4 or more distinct fill colors to be considered special
     // This excludes simple icons with just a few colors (like GearBox with 3 colors)
     // Special nodes like Hopper2 have 4+ distinct colors forming complex designs
-    if (uniqueFillColors.size >= 4) {
+
+
+    if (uniqueFillColors.size >= 2) {
       return true;
     }
 

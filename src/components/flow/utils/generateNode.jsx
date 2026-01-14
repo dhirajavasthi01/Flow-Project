@@ -35,8 +35,8 @@ const isSpecial = kebabName.includes('gear') || kebabName.includes('tank');
     position: { x: 0, y: 0 },
     data: {
       subSystem: null,
-      nodeColor: isSpecial ? undefined : "#a9a6a6", 
-      strokeColor: isSpecial ? undefined : "#000000",
+      nodeColor:  undefined, 
+      strokeColor: undefined,
       nodeType: kebabName,
     },
   };

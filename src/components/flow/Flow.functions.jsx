@@ -1,6 +1,10 @@
-import { shouldNodeBlink, hasSubComponentAssetIdMatch } from '../../utills/flowUtills/FlowUtills';
 
-const HIGHLIGHT_COLOR = '#cc0000';
+import {
+  shouldNodeBlink,
+  hasSubComponentAssetIdMatch,
+} from "../../utills/flowUtills/FlowUtills";
+
+const HIGHLIGHT_COLOR = "#E35205";
 
 /**
  * Restores original color properties from original node data
@@ -10,120 +14,204 @@ const HIGHLIGHT_COLOR = '#cc0000';
  */
 export const restoreOriginalColors = (nodeData, originalNodeData) => {
   if (!originalNodeData) {
-    // Fallback: remove highlighting colors if we can't find original
+    // Fallback: remove highlighting colors if original data is missing
     if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
       delete nodeData.nodeColor;
     }
-    if (nodeData.gradientStart === HIGHLIGHT_COLOR && nodeData.gradientEnd === HIGHLIGHT_COLOR) {
+
+    if (
+      nodeData.gradientStart === HIGHLIGHT_COLOR &&
+      nodeData.gradientEnd === HIGHLIGHT_COLOR
+    ) {
       delete nodeData.gradientStart;
       delete nodeData.gradientEnd;
     }
+
+    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
+      delete nodeData.specialNodeColor;
+    }
+
     return nodeData;
   }
 
   // Restore original gradients if they existed
-  if (originalNodeData.gradientStart !== undefined || originalNodeData.gradientEnd !== undefined) {
+  if (
+    originalNodeData.gradientStart !== undefined ||
+    originalNodeData.gradientEnd !== undefined
+  ) {
     nodeData.gradientStart = originalNodeData.gradientStart;
     nodeData.gradientEnd = originalNodeData.gradientEnd;
+
     // Remove highlighting nodeColor if restoring gradients
-    if ('nodeColor' in nodeData && nodeData.nodeColor === HIGHLIGHT_COLOR) {
+    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
+      delete nodeData.nodeColor;
+    }
+
+    // Remove highlighting specialNodeColor if restoring gradients
+    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
+      delete nodeData.specialNodeColor;
+    }
+
+    return nodeData;
+  }
+
+  // Restore original specialNodeColor if it existed and wasn't the highlight color
+  if (
+    originalNodeData.specialNodeColor !== undefined &&
+    originalNodeData.specialNodeColor !== HIGHLIGHT_COLOR
+  ) {
+    nodeData.specialNodeColor = originalNodeData.specialNodeColor;
+    // Remove highlighting nodeColor if restoring specialNodeColor
+    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
       delete nodeData.nodeColor;
     }
     return nodeData;
   }
 
-  // Restore original nodeColor if it existed and wasn't highlighting color
-  if (originalNodeData.nodeColor !== undefined && originalNodeData.nodeColor !== HIGHLIGHT_COLOR) {
+  // Restore original nodeColor if it existed and wasn't the highlight color
+  if (
+    originalNodeData.nodeColor !== undefined &&
+    originalNodeData.nodeColor !== HIGHLIGHT_COLOR
+  ) {
     nodeData.nodeColor = originalNodeData.nodeColor;
+    // Remove highlighting specialNodeColor if restoring nodeColor
+    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
+      delete nodeData.specialNodeColor;
+    }
     return nodeData;
   }
 
-  // Remove highlighting red color if original didn't have nodeColor
+  // Remove highlight color if original didn't have nodeColor
   if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
     delete nodeData.nodeColor;
+  }
+
+  // Remove highlight color if original didn't have specialNodeColor
+  if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
+    delete nodeData.specialNodeColor;
   }
 
   return nodeData;
 };
 
 /**
- * Applies highlighting (red color) to a node based on matching tableData entries
+ * Applies highlighting to a node based on matching tableData entries
  * @param {Object} nodeData - Node data to update
  * @param {Array} matchingTableDataEntries - Matching tableData entries
  * @param {number} actualTime - Current time for blink calculation
- * @returns {Object} Updated node data with highlighting applied
+ * @returns {Object} Updated node data
  */
-export const applyHighlighting = (nodeData, matchingTableDataEntries, actualTime) => {
-  // Check if ANY activeSince is within last 24 hours
+export const applyHighlighting = (
+  nodeData,
+  matchingTableDataEntries,
+  actualTime
+) => {
   let shouldBlink = false;
+
+  // Check if any entry should blink within the last 24 hours
   for (const entry of matchingTableDataEntries) {
     if (entry.activeSince) {
-      const blinkResult = shouldNodeBlink(actualTime, entry.activeSince, 24);
-      if (blinkResult.shouldBlink) {
+      const { shouldBlink: blink } = shouldNodeBlink(
+        actualTime,
+        entry.activeSince,
+        24
+      );
+
+      if (blink) {
         shouldBlink = true;
         break;
       }
     }
   }
 
-  // Apply red highlighting color
+  // Apply highlight color
   if (nodeData.gradientStart || nodeData.gradientEnd) {
     nodeData.gradientStart = HIGHLIGHT_COLOR;
     nodeData.gradientEnd = HIGHLIGHT_COLOR;
+  } else if (nodeData.isSpecialNode) {
+    nodeData.specialNodeColor = HIGHLIGHT_COLOR;
   } else {
     nodeData.nodeColor = HIGHLIGHT_COLOR;
   }
 
-  // Set failure mode names and blinking
+  // Collect unique failure mode names
   const failureModeNames = Array.from(
     new Set(
       matchingTableDataEntries
-        .map(entry => entry.failureModeName ?? entry.activeFailureMode)
+        .map(
+          entry => entry.failureModeName ?? entry.activeFailureMode
+        )
         .filter(Boolean)
     )
   );
 
+  // Calculate minimum TTF days
+  const daysArr = matchingTableDataEntries
+    .map(item => item.forecastDays)
+    .filter(item => item !== undefined && item !== null);
+
+  const ttfDays = daysArr.length > 0 ? Math.min(...daysArr) : null;
+
+  nodeData.ttfDays = ttfDays;
   nodeData.failureModeNames = failureModeNames;
   nodeData.shouldBlink = shouldBlink;
+
+  console.log("nodeData ==========>", nodeData);
 
   return nodeData;
 };
 
 /**
  * Processes a single node based on tableData matching
- * @param {Object} node - Node to process
- * @param {number} index - Index of node in array
- * @param {Array} originalNodes - Original nodes for color restoration
- * @param {Array} tableData - Table data for matching
- * @param {number} actualTime - Current time for blink calculation
- * @returns {Object} Processed node
  */
-export const processSingleNode = (node, index, originalNodes, tableData, actualTime) => {
-  const originalNode = originalNodes[index] || originalNodes.find(n => n.id === node.id);
+export const processSingleNode = (
+  node,
+  index,
+  originalNodes,
+  tableData,
+  actualTime
+) => {
+  const originalNode =
+    originalNodes[index] ||
+    originalNodes.find(n => n.id === node.id);
+
   const nodeData = { ...node.data };
-  const subComponentAssetId = node.data?.subComponentAssetId;
+  const subComponentAssetId = nodeData?.subComponentAssetId;
 
   // Handle nodes without subComponentAssetId
   if (!subComponentAssetId) {
-    const restoredData = restoreOriginalColors(nodeData, originalNode?.data);
+    const restoredData = restoreOriginalColors(
+      nodeData,
+      originalNode?.data
+    );
+
     delete restoredData.failureModeNames;
     delete restoredData.shouldBlink;
+    delete restoredData.ttfDays;
+
     return { ...node, data: restoredData };
   }
 
-  // Find matching tableData entries
-  const matchingTableDataEntries = tableData.filter(
-    item => hasSubComponentAssetIdMatch(subComponentAssetId, item.subComponentAssetId)
+  // Find matching table data entries
+  const matchingTableDataEntries = tableData.filter(item =>
+    hasSubComponentAssetIdMatch(
+      subComponentAssetId,
+      item.subComponentAssetId
+    )
   );
 
   if (matchingTableDataEntries.length > 0) {
-    // Apply highlighting
     applyHighlighting(nodeData, matchingTableDataEntries, actualTime);
   } else {
-    // Reset to original colors
-    const restoredData = restoreOriginalColors(nodeData, originalNode?.data);
+    const restoredData = restoreOriginalColors(
+      nodeData,
+      originalNode?.data
+    );
+
     delete restoredData.failureModeNames;
     delete restoredData.shouldBlink;
+    delete restoredData.ttfDays;
+
     Object.assign(nodeData, restoredData);
   }
 
@@ -131,13 +219,7 @@ export const processSingleNode = (node, index, originalNodes, tableData, actualT
 };
 
 /**
- * Processes nodes to match with tableData when not in developer mode
- * @param {Array} nodesToProcess - Nodes to process
- * @param {Array} originalNodesForReset - Original nodes for color restoration
- * @param {Array} tableData - Table data for matching
- * @param {boolean} isDeveloperMode - Whether in developer mode
- * @param {number} actualTime - Current time for blink calculation
- * @returns {Array} Processed nodes
+ * Processes nodes with tableData when not in developer mode
  */
 export const processNodesWithTableData = (
   nodesToProcess,
@@ -146,137 +228,147 @@ export const processNodesWithTableData = (
   isDeveloperMode,
   actualTime
 ) => {
-  // Return nodes as-is in developer mode
   if (isDeveloperMode) {
     return nodesToProcess;
   }
 
-  // Use original nodes for reset if provided, otherwise use nodesToProcess
   const originalNodes = originalNodesForReset || nodesToProcess;
 
-  // If no tableData, reset all nodes to original state
+  // Reset all nodes if no tableData
   if (!tableData || tableData.length === 0) {
     return nodesToProcess.map((node, index) => {
-      const originalNode = originalNodes[index] || originalNodes.find(n => n.id === node.id);
+      const originalNode =
+        originalNodes[index] ||
+        originalNodes.find(n => n.id === node.id);
+
       const nodeData = { ...node.data };
-      const restoredData = restoreOriginalColors(nodeData, originalNode?.data);
+      const restoredData = restoreOriginalColors(
+        nodeData,
+        originalNode?.data
+      );
+
       delete restoredData.failureModeNames;
       delete restoredData.shouldBlink;
+      delete restoredData.ttfDays;
+
       return { ...node, data: restoredData };
     });
   }
 
-  // Process each node
   return nodesToProcess.map((node, index) =>
-    processSingleNode(node, index, originalNodes, tableData, actualTime)
+    processSingleNode(
+      node,
+      index,
+      originalNodes,
+      tableData,
+      actualTime
+    )
   );
 };
 
 /**
  * Creates a key from tableData for change detection
- * @param {Array} tableData - Table data
- * @returns {string} Key string for comparison
  */
-export const createTableDataKey = (tableData) => {
+export const createTableDataKey = tableData => {
   if (!tableData || tableData.length === 0) {
-    return 'EMPTY_TABLEDATA';
+    return "EMPTY_TABLEDATA";
   }
 
   return JSON.stringify(
     tableData.map(item => ({
       subComponentAssetId: item.subComponentAssetId,
-      failureModeName: item.failureModeName ?? item.activeFailureMode,
-      activeSince: item.activeSince
+      failureModeName:
+        item.failureModeName ?? item.activeFailureMode,
+      activeSince: item.activeSince,
     }))
   );
 };
 
 /**
- * Updates color properties in node data based on processed node
- * @param {Object} updatedData - Current node data to update
- * @param {Object} processedData - Processed node data
- * @returns {Object} Updated data with color properties set
+ * Updates color properties in node data
  */
 const updateColorProperties = (updatedData, processedData) => {
   if (processedData.gradientStart || processedData.gradientEnd) {
     updatedData.gradientStart = processedData.gradientStart;
     updatedData.gradientEnd = processedData.gradientEnd;
-    if ('nodeColor' in updatedData) {
-      delete updatedData.nodeColor;
-    }
+    delete updatedData.nodeColor;
+    delete updatedData.specialNodeColor;
+    return updatedData;
+  }
+
+  if (processedData.specialNodeColor !== undefined) {
+    updatedData.specialNodeColor = processedData.specialNodeColor;
+    delete updatedData.nodeColor;
+    delete updatedData.gradientStart;
+    delete updatedData.gradientEnd;
     return updatedData;
   }
 
   if (processedData.nodeColor !== undefined) {
     updatedData.nodeColor = processedData.nodeColor;
-    if ('gradientStart' in updatedData) {
-      delete updatedData.gradientStart;
-    }
-    if ('gradientEnd' in updatedData) {
-      delete updatedData.gradientEnd;
-    }
+    delete updatedData.specialNodeColor;
+    delete updatedData.gradientStart;
+    delete updatedData.gradientEnd;
     return updatedData;
   }
 
-  // Remove all color properties if node doesn't match
-  if ('nodeColor' in updatedData) {
-    delete updatedData.nodeColor;
-  }
-  if ('gradientStart' in updatedData) {
-    delete updatedData.gradientStart;
-  }
-  if ('gradientEnd' in updatedData) {
-    delete updatedData.gradientEnd;
-  }
+  delete updatedData.nodeColor;
+  delete updatedData.specialNodeColor;
+  delete updatedData.gradientStart;
+  delete updatedData.gradientEnd;
 
   return updatedData;
 };
 
 /**
- * Updates highlighting properties in node data
- * @param {Object} updatedData - Current node data to update
- * @param {Object} processedData - Processed node data
- * @returns {Object} Updated data with highlighting properties set
+ * Updates highlighting-related properties
  */
 const updateHighlightingProperties = (updatedData, processedData) => {
   if (processedData.failureModeNames !== undefined) {
     updatedData.failureModeNames = processedData.failureModeNames;
-  } else if ('failureModeNames' in updatedData) {
+  } else {
     delete updatedData.failureModeNames;
   }
 
   if (processedData.shouldBlink !== undefined) {
     updatedData.shouldBlink = processedData.shouldBlink;
-  } else if ('shouldBlink' in updatedData) {
+  } else {
     delete updatedData.shouldBlink;
+  }
+
+  if (processedData.ttfDays !== undefined) {
+    updatedData.ttfDays = processedData.ttfDays;
+  } else {
+    delete updatedData.ttfDays;
   }
 
   return updatedData;
 };
 
 /**
- * Merges processed nodes with current nodes, preserving current state
- * @param {Array} processedNodes - Nodes processed from original data
- * @param {Array} currentNodes - Current nodes with user modifications
- * @returns {Array} Merged nodes
+ * Merges processed nodes with current nodes
  */
-export const mergeProcessedNodesWithCurrent = (processedNodes, currentNodes) => {
+export const mergeProcessedNodesWithCurrent = (
+  processedNodes,
+  currentNodes
+) => {
   if (currentNodes.length === 0) {
     return processedNodes;
   }
 
-  const currentNodeMap = new Map(currentNodes.map(node => [node.id, node]));
+  const currentNodeMap = new Map(
+    currentNodes.map(node => [node.id, node])
+  );
 
   return processedNodes.map(processedNode => {
     const currentNode = currentNodeMap.get(processedNode.id);
+
     if (!currentNode) {
       return processedNode;
     }
 
-    // Preserve ALL current state but update highlighting properties
     const updatedData = { ...currentNode.data };
 
-    // Update color and highlighting properties
     updateColorProperties(updatedData, processedNode.data);
     updateHighlightingProperties(updatedData, processedNode.data);
 
@@ -286,8 +378,7 @@ export const mergeProcessedNodesWithCurrent = (processedNodes, currentNodes) => 
       position: currentNode.position,
       positionAbsolute: currentNode.positionAbsolute,
       measured: currentNode.measured,
-      data: updatedData
+      data: updatedData,
     };
   });
 };
-

@@ -37,7 +37,7 @@ const BaseSvgNode = ({
   const svgPathValue = svgMap[nodeType];
   const svgPath = (typeof svgPathValue === 'string') ? svgPathValue : null;
   const {
-    defaultNodeColor = '#d3d3d3',
+    defaultNodeColor,
     defaultStrokeColor = '#000000',
     ...restSvgNodeProps
   } = svgNodeProps;
