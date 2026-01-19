@@ -49,6 +49,10 @@ import {
   createTableDataKey,
 } from "./Flow.functions";
 import {
+  handleFetchedNodesEdgesChange,
+  handleTableDataChange,
+} from "./flowHelper";
+import {
   generateRandom8DigitNumber,
   hasSubComponentAssetIdMatch,
 } from "../../utills/flowUtills/FlowUtills";
@@ -203,62 +207,21 @@ function Flow(props) {
 
   useEffect(() => {
     //NOSONAR
-    if (fetchedNodes.length > 0 && !loadingFlow) {
-      const currentOriginalIds = originalFetchedNodesRef.current
-        .map((n) => n.id)
-        .sort()
-        .join(",");
-      const fetchedIds = fetchedNodes.map((n) => n.id).sort().join(","); //NOSONAR
-
-      if (
-        originalFetchedNodesRef.current.length === 0 ||
-        currentOriginalIds !== fetchedIds
-      ) {
-        originalFetchedNodesRef.current = fetchedNodes.map((node) => ({
-          ...node,
-          data: { ...node.data },
-          style: node.style ? { ...node.style } : undefined,
-        }));
-      }
-
-      if (!isDeveloperMode) {
-        const processedNodes = processNodesWithTableDataRef.current
-          ? processNodesWithTableDataRef.current(fetchedNodes, fetchedNodes)
-          : fetchedNodes;
-        const processedEdges = fetchedEdges.map((edge) => ({
-          ...edge,
-          style: {
-            stroke: "#000000",
-            ...edge.style,
-            strokeWidth: edge.style?.strokeWidth || 1,
-          },
-        }));
-        setNodes(processedNodes);
-        setEdges(processedEdges);
-        setLegendPosition(fetchedLegendPosition);
-        setTimeout(() => {
-          zoomTo(0.5);
-          fitView({ duration: 800 });
-        }, 100);
-      } else {
-        setNodes(fetchedNodes);
-        setLegendPosition(fetchedLegendPosition);
-        const processedEdges = fetchedEdges.map((edge) => ({
-          ...edge,
-          style: {
-            stroke: "#000000",
-            ...edge.style,
-            strokeWidth: edge.style?.strokeWidth || 5,
-          },
-        }));
-        setEdges(processedEdges);
-      }
-    } else if (error) {
-      console.error("Error loading flow data:", error);
-      setNodes([]);
-      setEdges([]);
-      setLegendPosition(fetchedLegendPosition);
-    }
+    handleFetchedNodesEdgesChange({
+      fetchedNodes,
+      fetchedEdges,
+      fetchedLegendPosition,
+      loadingFlow,
+      error,
+      isDeveloperMode,
+      originalFetchedNodesRef,
+      processNodesWithTableDataRef,
+      setNodes,
+      setEdges,
+      setLegendPosition,
+      zoomTo,
+      fitView,
+    });
   }, [
     fetchedNodes,
     fetchedEdges,
@@ -273,46 +236,14 @@ function Flow(props) {
 
   useEffect(() => {
     //NOSONAR
-    if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode) {
-      const tableDataKey = createTableDataKey(tableData);
-      if (lastProcessedTableDataRef.current === tableDataKey) {
-        return;
-      }
-      lastProcessedTableDataRef.current = tableDataKey;
-      setNodes((currentNodes) => {
-        const processedNodes = processNodesWithTableDataRef.current
-          ? processNodesWithTableDataRef.current(
-              originalFetchedNodesRef.current,
-              originalFetchedNodesRef.current
-            )
-          : originalFetchedNodesRef.current;
-        return mergeProcessedNodesWithCurrent(processedNodes, currentNodes);
-      });
-    } else if (originalFetchedNodesRef.current.length > 0 && isDeveloperMode) {
-      const wasInDeveloperMode =
-        lastProcessedTableDataRef.current === "DEVELOPER_MODE";
-      if (!wasInDeveloperMode) {
-        lastProcessedTableDataRef.current = "DEVELOPER_MODE";
-        setNodes((currentNodes) => {
-          if (currentNodes.length > 0) {
-            const originalNodeMap = new Map(
-              originalFetchedNodesRef.current.map((node) => [node.id, node])
-            );
-            return currentNodes.map((currentNode) => {
-              const originalNode = originalNodeMap.get(currentNode.id);
-              if (originalNode) {
-                return {
-                  ...currentNode,
-                  data: originalNode.data,
-                };
-              }
-              return currentNode;
-            });
-          }
-          return originalFetchedNodesRef.current;
-        });
-      }
-    }
+    handleTableDataChange({
+      tableData,
+      isDeveloperMode,
+      originalFetchedNodesRef,
+      lastProcessedTableDataRef,
+      processNodesWithTableDataRef,
+      setNodes,
+    });
   }, [tableData, isDeveloperMode]);
 
   const fitViewWithPadding = useCallback(() => {
