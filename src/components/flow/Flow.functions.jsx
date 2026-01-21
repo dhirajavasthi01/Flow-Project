@@ -7,90 +7,88 @@ import {
 const HIGHLIGHT_COLOR = "#E35205";
 
 /**
+ * Removes highlight color from a specific property if it exists
+ * @param {Object} nodeData - Node data to modify
+ * @param {string} property - Property name to check and remove
+ */
+const removeHighlightColor = (nodeData, property) => {
+  if (nodeData[property] === HIGHLIGHT_COLOR) {
+    delete nodeData[property];
+  }
+};
+
+/**
+ * Removes all highlight colors from node data
+ * @param {Object} nodeData - Node data to modify
+ */
+const removeAllHighlightColors = (nodeData) => {
+  removeHighlightColor(nodeData, 'nodeColor');
+  removeHighlightColor(nodeData, 'specialNodeColor');
+  if (nodeData.gradientStart === HIGHLIGHT_COLOR && nodeData.gradientEnd === HIGHLIGHT_COLOR) {
+    delete nodeData.gradientStart;
+    delete nodeData.gradientEnd;
+  }
+};
+
+/**
+ * Checks if a property exists in original data and is not the highlight color
+ * @param {Object} originalNodeData - Original node data
+ * @param {string} property - Property name to check
+ * @returns {boolean} True if property exists and is not highlight color
+ */
+const hasValidOriginalColor = (originalNodeData, property) => {
+  return originalNodeData[property] !== undefined && 
+         originalNodeData[property] !== HIGHLIGHT_COLOR;
+};
+
+/**
+ * Checks if original data has gradient properties
+ * @param {Object} originalNodeData - Original node data
+ * @returns {boolean} True if gradient properties exist
+ */
+const hasOriginalGradients = (originalNodeData) => {
+  return originalNodeData.gradientStart !== undefined || 
+         originalNodeData.gradientEnd !== undefined;
+};
+
+/**
  * Restores original color properties from original node data
  * @param {Object} nodeData - Current node data
  * @param {Object} originalNodeData - Original node data to restore from
  * @returns {Object} Updated node data with restored colors
  */
 export const restoreOriginalColors = (nodeData, originalNodeData) => {
+  // If no original data, just remove all highlight colors
   if (!originalNodeData) {
-    // Fallback: remove highlighting colors if original data is missing
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
-
-    if (
-      nodeData.gradientStart === HIGHLIGHT_COLOR &&
-      nodeData.gradientEnd === HIGHLIGHT_COLOR
-    ) {
-      delete nodeData.gradientStart;
-      delete nodeData.gradientEnd;
-    }
-
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
-
+    removeAllHighlightColors(nodeData);
     return nodeData;
   }
 
-  // Restore original gradients if they existed
-  if (
-    originalNodeData.gradientStart !== undefined ||
-    originalNodeData.gradientEnd !== undefined
-  ) {
+  // Priority 1: Restore gradients if they existed
+  if (hasOriginalGradients(originalNodeData)) {
     nodeData.gradientStart = originalNodeData.gradientStart;
     nodeData.gradientEnd = originalNodeData.gradientEnd;
-
-    // Remove highlighting nodeColor if restoring gradients
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
-
-    // Remove highlighting specialNodeColor if restoring gradients
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
-
+    removeHighlightColor(nodeData, 'nodeColor');
+    removeHighlightColor(nodeData, 'specialNodeColor');
     return nodeData;
   }
 
-  // Restore original specialNodeColor if it existed and wasn't the highlight color
-  if (
-    originalNodeData.specialNodeColor !== undefined &&
-    originalNodeData.specialNodeColor !== HIGHLIGHT_COLOR
-  ) {
+  // Priority 2: Restore specialNodeColor if it existed and wasn't highlight
+  if (hasValidOriginalColor(originalNodeData, 'specialNodeColor')) {
     nodeData.specialNodeColor = originalNodeData.specialNodeColor;
-    // Remove highlighting nodeColor if restoring specialNodeColor
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
+    removeHighlightColor(nodeData, 'nodeColor');
     return nodeData;
   }
 
-  // Restore original nodeColor if it existed and wasn't the highlight color
-  if (
-    originalNodeData.nodeColor !== undefined &&
-    originalNodeData.nodeColor !== HIGHLIGHT_COLOR
-  ) {
+  // Priority 3: Restore nodeColor if it existed and wasn't highlight
+  if (hasValidOriginalColor(originalNodeData, 'nodeColor')) {
     nodeData.nodeColor = originalNodeData.nodeColor;
-    // Remove highlighting specialNodeColor if restoring nodeColor
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
+    removeHighlightColor(nodeData, 'specialNodeColor');
     return nodeData;
   }
 
-  // Remove highlight color if original didn't have nodeColor
-  if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-    delete nodeData.nodeColor;
-  }
-
-  // Remove highlight color if original didn't have specialNodeColor
-  if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-    delete nodeData.specialNodeColor;
-  }
-
+  // Fallback: Remove any remaining highlight colors
+  removeAllHighlightColors(nodeData);
   return nodeData;
 };
 

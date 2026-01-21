@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import MultiSelectV2 from "../multiSelect/MultiSelect";
+import NodeConfigurationForm from "./components/NodeConfigurationForm";
+import EdgeConfigurationForm from "./components/EdgeConfigurationForm";
 import {
   allTagsDataAtom,
   deleteAtom,
@@ -232,8 +234,6 @@ const handleColorExtraction = async (svgPath) => {
     }
     return [];
   };
-  const getData = (selectedEdgeId, config) =>
-    selectedEdgeId ? config : config?.data;
   const renderNumberField = (field, data) => (
     <div key={field.name} className="mb-2 p-[0.5vmin_1.5vmin]">
       <label className="text-13-bold uppercase">{field.label} :</label>
@@ -509,181 +509,28 @@ const handleColorExtraction = async (svgPath) => {
   const fieldsToRender = nodeTypesConfig[config?.nodeType]?.fields || [];
   if (selectedNodeId) {
     return (
-      <div className="h-100">
-        <div className="flex justify-between items-center bg-primary_blue_bg p-[1vmin_1.5vmin]">
-          <h3 className="text-16 font-bold text-primary_dark_blue uppercase">
-            Configure Node
-          </h3>
-        </div>
-        <div className="p-[1vmin_1.5vmin]">
-          <p className="text-18 text-primary_dark_blue uppercase mb-1">
-            Node id :
-            <span className="text-13-bold text-primary_gray">{config.id}</span>
-          </p>
-          <p className="text-18 text-primary_dark_blue uppercase">
-            Node Name :
-            <span className="text-13-bold text-primary_gray">
-              {config.name}
-            </span>
-          </p>
-        </div>
-        <>
-          {fieldsToRender.map((field) => getInputField(field, data))}
-          {renderSubSystemSelect(data)}
-          <div className="flex justify-around items-center mt-[1vmin] flex-wrap gap-[1vmin]">
-            <button
-              className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
-              onClick={() => setShouldUpdateConfig(true)}
-            >
-              Apply
-            </button>
-            <button
-              className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
-              onClick={() => setSelectedNodeId(null)}
-            >
-              Close
-            </button>
-            <button
-              className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"
-              onClick={() => setDelete(true)}
-            >
-              Delete
-            </button>
-          </div>
-          <div className="text-16 text-primary_gray_2 uppercase p-[1vmin_1.5vmin]">
-            <b>Note :</b> All changes will only be applied after clicking the
-            Apply button.
-          </div>
-        </>
-      </div>
+      <NodeConfigurationForm
+        config={config}
+        fieldsToRender={fieldsToRender}
+        data={data}
+        getInputField={getInputField}
+        renderSubSystemSelect={renderSubSystemSelect}
+        setShouldUpdateConfig={setShouldUpdateConfig}
+        setSelectedNodeId={setSelectedNodeId}
+        setDelete={setDelete}
+      />
     );
   }
   return (
-    <div className="h-100">
-      <h3 className="text-14-bold mb-1">Configure Edge</h3>
-      <p className="text-18">
-        Edge id :
-        <span className="text_primary_gray_2">{config.id}</span>
-      </p>
-      <div>
-        <label className="text-13-bold uppercase">Edge Type :</label>
-        <select
-          className="form-select"
-          name="type"
-          value={data?.type || ""}
-          onChange={onEdgeConfigChange}
-          style={{
-            fontSize: "1.4vmin",
-            width: "100%",
-            borderRadius: ".3vmin",
-            border: "none",
-          }}
-        >
-          {edgeOptions.map((resource) => (
-            <option key={resource.id} value={resource.id}>
-              {resource.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="text-14 p-[1vmin_1.5vmin]">
-        <label className="text-15 text-primary_dark_blue uppercase">
-          Edge Color :
-        </label>
-        <input
-          type="color"
-          name="strokeColor"
-          value={config?.style?.stroke || "#000000"}
-          onChange={(e) => {
-            const color = e.target.value;
-            setConfig((prev) => ({
-              ...prev,
-              style: {
-                ...prev.style,
-                stroke: color,
-              },
-              // Update markerEnd color if it exists
-              markerEnd: prev.markerEnd
-                ? { ...prev.markerEnd, color }
-                : prev.markerEnd,
-            }));
-          }}
-          className="form-control text-16"
-          style={{ width: "100%", marginTop: "0.5vmin" }}
-        />
-      </div>
-      <div className="text-14 p-[1vmin_1.5vmin]">
-        <label className="text-15 text-primary_dark_blue uppercase">
-          Edge Width :
-        </label>
-        <input
-          type="number"
-          name="strokeWidth"
-          min="1"
-          max="20"
-          step="1"
-          value={config?.style?.strokeWidth || 5}
-          onChange={(e) => {
-            const width = parseInt(e.target.value) || 5;
-            setConfig((prev) => ({
-              ...prev,
-              style: {
-                ...prev.style,
-                strokeWidth: width,
-              },
-            }));
-          }}
-          className="form-control text-14-regular"
-          style={{ width: "100%", marginTop: "0.5vmin", fontSize: "1.4vmin", padding: "0.5vmin" }}
-        />
-      </div>
-      {config?.markerEnd && (
-        <div className="text-14 p-[1vmin_1.5vmin]">
-          <label className="text-15 text-primary_dark_blue uppercase">
-            Arrow Size :
-          </label>
-          <input
-            type="number"
-            name="arrowSize"
-            min="5"
-            max="50"
-            step="1"
-            value={config?.markerEnd?.width || 20}
-            onChange={(e) => {
-              const size = parseInt(e.target.value) || 20;
-              setConfig((prev) => ({
-                ...prev,
-                markerEnd: prev.markerEnd
-                  ? { ...prev.markerEnd, width: size, height: size }
-                  : { type: 'arrowclosed', width: size, height: size, color: prev.style?.stroke || '#000' }
-              }));
-            }}
-            className="form-control text-14-regular"
-            style={{ width: "100%", marginTop: "0.5vmin", fontSize: "1.4vmin", padding: "0.5vmin" }}
-          />
-        </div>
-      )}
-      <div className="flex flex-wrap gap-1 mt-2">
-        <button
-          className="text-14-regular uppercase"
-          onClick={() => setShouldUpdateConfig(true)}
-        >
-          Apply
-        </button>
-        <button
-          className="text-14-regular uppercase"
-          onClick={() => setSelectedEdgeId(null)}
-        >
-          Close
-        </button>
-        <button
-          className="text-14-regular uppercase"
-          onClick={() => setDelete(true)}
-        >
-          Delete
-        </button>
-      </div>
-    </div>
+    <EdgeConfigurationForm
+      config={config}
+      data={data}
+      onEdgeConfigChange={onEdgeConfigChange}
+      setConfig={setConfig}
+      setShouldUpdateConfig={setShouldUpdateConfig}
+      setSelectedEdgeId={setSelectedEdgeId}
+      setDelete={setDelete}
+    />
   );
 };
 export default NodeConfigurator;

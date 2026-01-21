@@ -223,23 +223,25 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             setRotation(newRotationDegrees);
             rotationRef.current = newRotationDegrees;
         };
+        const updateNodeRotation = (nodes, nodeId, rotationValue) => {
+            return nodes.map((node) => {
+                if (node.id === nodeId) {
+                    return {
+                        ...node,
+                        data: { ...node.data, rotation: rotationValue },
+                    };
+                }
+                return node;
+            });
+        };
+
         const onMouseUp = () => {
             if (!isRotating.current) return;
             isRotating.current = false;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             const finalRotation = rotationRef.current;
-            setNodes((nds) =>
-                nds.map((node) => {
-                    if (node.id === id) {
-                        return {
-                            ...node,
-                            data: { ...node.data, rotation: finalRotation },
-                        };
-                    }
-                    return node;
-                })
-            );
+            setNodes((nds) => updateNodeRotation(nds, id, finalRotation));
         };
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
@@ -293,11 +295,34 @@ export const TextboxNode = memo(({ data, id, selected }) => {
 
     const { orientation = "horizontal"} = data;
 
-    const rawText = tagData ? tagData?.actual ?? "-" : label;
+    /**
+     * Gets the raw text content from tagData or falls back to label
+     * @param {Object|null} tagData - Tag data object
+     * @param {string} label - Fallback label text
+     * @returns {string} Raw text content
+     */
+    const getRawText = (tagData, label) => {
+        if (tagData?.actual) {
+            return tagData.actual;
+        }
+        return tagData ? "-" : label;
+    };
 
-    const textContent = orientation === "vertical"
-        ? rawText.split('').join('<br/>')
-        : rawText;
+    /**
+     * Formats text content based on orientation
+     * @param {string} text - Text to format
+     * @param {string} orientation - Text orientation ("vertical" or "horizontal")
+     * @returns {string} Formatted text content
+     */
+    const formatTextContent = (text, orientation) => {
+        if (orientation === "vertical") {
+            return text.split('').join('<br/>');
+        }
+        return text;
+    };
+
+    const rawText = getRawText(tagData, label);
+    const textContent = formatTextContent(rawText, orientation);
 
     return (
         <div
