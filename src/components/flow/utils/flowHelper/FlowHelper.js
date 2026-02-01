@@ -1,4 +1,5 @@
 import { createTableDataKey, mergeProcessedNodesWithCurrent } from "../../Flow.functions";
+import { syncNodeDimensions, isResizingRef } from "../../hooks/useNodeResize/useNodeResize";
 
 // Processes edges with default styling
 export const processEdges = (edges, strokeWidth = 1) => {
@@ -13,6 +14,7 @@ export const processEdges = (edges, strokeWidth = 1) => {
 };
 
 // Updates original fetched nodes reference if nodes have changed
+// IMPORTANT: Preserves dimensions that were persisted from resize operations
 export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodesRef) => {
   const currentOriginalIds = originalFetchedNodesRef.current
     .map((n) => n.id)
@@ -24,11 +26,62 @@ export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodes
     originalFetchedNodesRef.current.length === 0 ||
     currentOriginalIds !== fetchedIds
   ) {
-    originalFetchedNodesRef.current = fetchedNodes.map((node) => ({
-      ...node,
-      data: { ...node.data },
-      style: node.style ? { ...node.style } : undefined,
-    }));
+    // Create a map of existing nodes to preserve persisted dimensions
+    const existingNodeMap = new Map(
+      originalFetchedNodesRef.current.map((node) => [node.id, node])
+    );
+    
+    // Sync dimensions from data to style for backward compatibility
+    // BUT: Preserve dimensions from existing nodes if they exist (from resize operations)
+    originalFetchedNodesRef.current = fetchedNodes.map((node) => {
+      const existingNode = existingNodeMap.get(node.id);
+      
+      // If we have an existing node with persisted dimensions, preserve them
+      if (existingNode) {
+        const existingWidth = existingNode.width || existingNode.data?.width || existingNode.style?.width;
+        const existingHeight = existingNode.height || existingNode.data?.height || existingNode.style?.height;
+        const fetchedWidth = node.width || node.data?.width || node.style?.width;
+        const fetchedHeight = node.height || node.data?.height || node.style?.height;
+        
+        // If dimensions differ, use the existing (persisted) dimensions
+        // This ensures resize changes are not lost when nodes are refetched
+        if (existingWidth !== fetchedWidth || existingHeight !== fetchedHeight) {
+          const syncedNode = syncNodeDimensions({
+            ...node,
+            width: existingWidth,
+            height: existingHeight,
+            style: {
+              ...node.style,
+              width: existingWidth,
+              height: existingHeight,
+            },
+            data: {
+              ...node.data,
+              width: existingWidth,
+              height: existingHeight,
+            },
+          });
+          
+          return {
+            ...syncedNode,
+            // Preserve other properties from existing node (parentId, position, etc.)
+            parentId: existingNode.parentId,
+            position: existingNode.position,
+            positionAbsolute: existingNode.positionAbsolute,
+            data: { ...syncedNode.data },
+            style: syncedNode.style ? { ...syncedNode.style } : undefined,
+          };
+        }
+      }
+      
+      // New node or dimensions match - use fetched node
+      const syncedNode = syncNodeDimensions(node);
+      return {
+        ...syncedNode,
+        data: { ...syncedNode.data },
+        style: syncedNode.style ? { ...syncedNode.style } : undefined,
+      };
+    });
     return true;
   }
   return false;
@@ -52,7 +105,6 @@ export const handleFetchedNodesEdgesChange = ({
 }) => {
   // Handle error state
   if (error) {
-    console.error("Error loading flow data:", error);
     setNodes([]);
     setEdges([]);
     setLegendPosition(fetchedLegendPosition);
@@ -65,15 +117,24 @@ export const handleFetchedNodesEdgesChange = ({
   }
 
   // Update original fetched nodes reference if needed
+  // This preserves persisted dimensions from resize operations
   updateOriginalFetchedNodesRef(fetchedNodes, originalFetchedNodesRef);
 
+  // IMPORTANT: Use originalFetchedNodesRef.current instead of fetchedNodes
+  // This ensures persisted dimensions from resize operations are applied
+  const nodesToUse = originalFetchedNodesRef.current.length > 0 
+    ? originalFetchedNodesRef.current 
+    : fetchedNodes;
+  
   // Process nodes and edges based on developer mode
   if (!isDeveloperMode) {
     const processedNodes = processNodesWithTableDataRef.current
-      ? processNodesWithTableDataRef.current(fetchedNodes, fetchedNodes)
-      : fetchedNodes;
+      ? processNodesWithTableDataRef.current(nodesToUse, nodesToUse)
+      : nodesToUse;
+    // Sync dimensions from data to style for backward compatibility
+    const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
     const processedEdges = processEdges(fetchedEdges, 1);
-    setNodes(processedNodes);
+    setNodes(nodesWithSyncedDimensions);
     setEdges(processedEdges);
     setLegendPosition(fetchedLegendPosition);
     
@@ -83,7 +144,15 @@ export const handleFetchedNodesEdgesChange = ({
       fitView({ duration: 800 });
     }, 100);
   } else {
-    setNodes(fetchedNodes);
+    // IMPORTANT: Use originalFetchedNodesRef.current instead of fetchedNodes
+    // This ensures persisted dimensions from resize operations are applied
+    const nodesToUse = originalFetchedNodesRef.current.length > 0 
+      ? originalFetchedNodesRef.current 
+      : fetchedNodes;
+    
+    // Sync dimensions from data to style for backward compatibility
+    const nodesWithSyncedDimensions = nodesToUse.map(syncNodeDimensions);
+    setNodes(nodesWithSyncedDimensions);
     setLegendPosition(fetchedLegendPosition);
     const processedEdges = processEdges(fetchedEdges, 5);
     setEdges(processedEdges);
@@ -101,6 +170,11 @@ export const handleTableDataChange = ({
   processNodesWithTableDataRef,
   setNodes,
 }) => {
+  // Skip if a node is currently being resized to prevent interference
+  if (isResizingRef?.current) {
+    return { shouldUpdate: false };
+  }
+  
   // Only process if we have original nodes
   if (originalFetchedNodesRef.current.length === 0) {
     return { shouldUpdate: false };
@@ -124,13 +198,18 @@ export const handleTableDataChange = ({
             originalFetchedNodesRef.current
           )
         : originalFetchedNodesRef.current;
-      return mergeProcessedNodesWithCurrent(processedNodes, currentNodes);
+      // Sync dimensions from data to style for backward compatibility
+      const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
+      const merged = mergeProcessedNodesWithCurrent(nodesWithSyncedDimensions, currentNodes);
+      return merged;
     });
     
     return { shouldUpdate: true };
   }
 
   // Handle developer mode: reset to original nodes
+  // IMPORTANT: Only reset when first entering developer mode, not on every node update
+  // This prevents resize changes from being lost
   const wasInDeveloperMode =
     lastProcessedTableDataRef.current === "DEVELOPER_MODE";
   
@@ -142,21 +221,68 @@ export const handleTableDataChange = ({
         const originalNodeMap = new Map(
           originalFetchedNodesRef.current.map((node) => [node.id, node])
         );
-        return currentNodes.map((currentNode) => {
+        const result = currentNodes.map((currentNode) => {
           const originalNode = originalNodeMap.get(currentNode.id);
           if (originalNode) {
-            return {
+            // Preserve current node's dimensions (width, height, style) when resetting data
+            // This prevents resize changes from being lost when switching to developer mode
+            // CRITICAL: Preserve manually resized dimensions - don't let syncNodeDimensions reset them
+            // CRITICAL: Get dimensions from root first (most reliable), then style, then data
+            // This ensures we use the actual resized dimensions, not stale data dimensions
+            const currentWidth = currentNode.width || currentNode.style?.width || currentNode.data?.width;
+            const currentHeight = currentNode.height || currentNode.style?.height || currentNode.data?.height;
+            
+            // CRITICAL: Get original dimensions from originalFetchedNodesRef (which has persisted dimensions)
+            const originalWidth = originalNode.width || originalNode.style?.width || originalNode.data?.width;
+            const originalHeight = originalNode.height || originalNode.style?.height || originalNode.data?.height;
+            
+            // CRITICAL: Use current dimensions if they exist, otherwise use original (persisted) dimensions
+            // This prevents resetting to old dimensions when current node has been resized
+            const finalWidth = currentWidth || originalWidth;
+            const finalHeight = currentHeight || originalHeight;
+            
+            const updatedNode = {
               ...currentNode,
-              data: originalNode.data,
+              // Preserve dimensions that may have been changed by resize
+              // Use current dimensions if available, otherwise use persisted original dimensions
+              width: finalWidth,
+              height: finalHeight,
+              style: {
+                ...currentNode.style,
+                width: finalWidth,
+                height: finalHeight,
+              },
+              position: currentNode.position,
+              positionAbsolute: currentNode.positionAbsolute,
+              parentId: currentNode.parentId, // Preserve parent-child relationships
+              data: {
+                ...originalNode.data,
+                width: finalWidth,
+                height: finalHeight,
+              },
             };
+            // Only sync if dimensions are missing - don't overwrite existing dimensions
+            if (!updatedNode.style?.width || !updatedNode.style?.height) {
+              return syncNodeDimensions(updatedNode);
+            }
+            return updatedNode;
           }
           return currentNode;
         });
+        return result;
       }
-      return originalFetchedNodesRef.current;
+      // IMPORTANT: Use originalFetchedNodesRef.current which has persisted dimensions
+      // Sync dimensions from data to style for backward compatibility
+      const nodesToUse = originalFetchedNodesRef.current.length > 0 
+        ? originalFetchedNodesRef.current 
+        : [];
+      return nodesToUse.map(syncNodeDimensions);
     });
     
     return { shouldUpdate: true };
+  } else {
+    // Already in developer mode - don't reset nodes
+    // This prevents resize changes from being lost
   }
 
   return { shouldUpdate: false };

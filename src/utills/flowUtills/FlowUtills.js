@@ -42,6 +42,118 @@ export function generateRandom8DigitNumber() {
   window.crypto.getRandomValues(array);
   return array[0] % 90000000 + 10000000;
 }
+
+// Cache for SVG dimensions to avoid repeated fetches
+export const svgDimensionsCache = new Map();
+
+/**
+ * Measures SVG bounding box and calculates dimensions
+ * This is ONLY called when dragging a node from the node list
+ * NOTE: We don't modify the actual rendered SVG - we only measure for dimension extraction
+ * @param {SVGElement} svgElement - The SVG element to measure (parsed, not in DOM)
+ * @returns {Object|null} - Returns {width, height, viewBox} or null if measurement fails
+ */
+export const setupSvgViewBox = (svgElement) => {
+  try {
+    // Create a temporary SVG element in the DOM to measure bounding box
+    // This is necessary because getBBox() only works on elements in the DOM
+    const tempSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg"
+    );
+
+    tempSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    Object.assign(tempSvg.style, {
+      position: "absolute",
+      visibility: "hidden",
+      width: "0",
+      height: "0",
+    });
+
+    document.body.appendChild(tempSvg);
+
+    // Clone all child nodes from the parsed SVG to measure
+    Array.from(svgElement.childNodes).forEach((node) =>
+      tempSvg.appendChild(node.cloneNode(true))
+    );
+
+    // Measure the bounding box
+    const bbox = tempSvg.getBBox();
+    document.body.removeChild(tempSvg);
+
+    const padding = 0.2;
+    const viewBoxX = bbox.x - padding;
+    const viewBoxY = bbox.y - padding;
+    const viewBoxWidth = bbox.width + 2 * padding;
+    const viewBoxHeight = bbox.height + 2 * padding;
+    
+    // Calculate viewBox string (but don't modify the original SVG element)
+    // The original SVG element is only in memory (parsed), not in the DOM
+    // We return the viewBox info but don't apply it to avoid affecting rendered SVGs
+    const viewBox = `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`;
+
+    return {
+      width: viewBoxWidth,
+      height: viewBoxHeight,
+      viewBox: viewBox
+    };
+  } catch (error) {
+    console.error('Error measuring SVG bounding box:', error);
+    return null;
+  }
+};
+
+/**
+ * Extracts dimensions from SVG by measuring its bounding box and sets up viewBox
+ * This is ONLY called when dragging a node from the node list
+ * @param {string} svgPath - Path to the SVG file
+ * @returns {Promise<{width: number, height: number, modifiedSvgText?: string} | null>} - Dimensions and optionally modified SVG text
+ */
+export const extractDimensionsFromSvgByBBox = async (svgPath) => {
+  if (!svgPath) return null;
+  
+  // Check cache first
+  if (svgDimensionsCache.has(svgPath)) {
+    return svgDimensionsCache.get(svgPath);
+  }
+  
+  try {
+    const response = await fetch(svgPath);
+    const svgText = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const svgElement = doc.querySelector('svg');
+    
+    if (!svgElement) {
+      return null;
+    }
+    
+    // Use setupSvgViewBox to measure bounding box (doesn't modify the parsed SVG)
+    // This ONLY happens when dragging from node list, not during resize
+    const dimensions = setupSvgViewBox(svgElement);
+    
+    if (dimensions && dimensions.width && dimensions.height) {
+      // Store dimensions and viewBox info, but don't modify the actual SVG file
+      // The rendered SVG will use its original viewBox from the file
+      // We only use these dimensions to set the node's initial size
+      const result = {
+        width: dimensions.width,
+        height: dimensions.height,
+        viewBox: dimensions.viewBox
+      };
+      
+      // Cache the dimensions
+      svgDimensionsCache.set(svgPath, result);
+      return result;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting SVG dimensions by bounding box:', error);
+    return null;
+  }
+};
+
 export const extractColorsFromSvg = async (svgPath) => {
   try {
     const response = await fetch(svgPath);

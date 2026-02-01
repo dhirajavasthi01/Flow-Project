@@ -75,7 +75,13 @@ export const handleTemplateDropHelper = ({
           "Adding nodes:",
           newNodes.map((n) => ({ id: n.id, type: n.type }))
         );
-        setNodes((prev) => [...prev, ...newNodes]);
+        // CRITICAL: Ensure all nodes have dimensions before adding
+        // syncNodeDimensions will set default 250x250 for nodes without dimensions
+        const nodesWithDimensions = newNodes.map(node => {
+          // If node doesn't have dimensions, syncNodeDimensions will set default 250x250
+          return syncNodeDimensions(node);
+        });
+        setNodes((prev) => [...prev, ...nodesWithDimensions]);
       },
       (newEdges) => {
         console.log(

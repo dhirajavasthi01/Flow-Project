@@ -17,7 +17,10 @@ const BaseSvgNode = ({
   resizeOptions = { minWidth: 10, minHeight: 20 },
   svgNodeProps = {},
 }) => {
-  const onResizeEnd = useNodeResize(id);
+  // CRITICAL: Don't provide onResize/onResizeEnd to NodeResizer for existing nodes
+  // React Flow's NodeResizer needs to handle resize through handleNodesChange
+  // Custom handlers can prevent React Flow from properly initializing resize functionality
+  // We'll track resize state separately and persist in handleNodesChange
   const {
     defaultNodeColor,
     defaultStrokeColor = '#000000',
@@ -30,7 +33,8 @@ const BaseSvgNode = ({
         isVisible={selected && isDeveloperMode}
         minWidth={resizeOptions.minWidth}
         minHeight={resizeOptions.minHeight}
-        onResizeEnd={onResizeEnd}
+        // Don't provide onResize/onResizeEnd - let React Flow handle it through handleNodesChange
+        // This ensures NodeResizer works for both new and existing nodes
       />
         <SvgNode
           id={id}
