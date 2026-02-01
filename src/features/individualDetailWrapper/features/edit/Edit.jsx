@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { developerModeAtom } from "../../store/OverviewStore";
+import { developerModeAtom } from "../overview/store/OverviewStore";
 
 import { ReactFlowProvider } from "@xyflow/react";
 import Flow from "../../../../components/flow";

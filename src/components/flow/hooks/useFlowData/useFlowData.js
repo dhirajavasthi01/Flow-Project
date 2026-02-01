@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getFlowDiagram, updateFlowDiagram, deleteFlowDiagram, addFlowDiagram } from "../../../../services/FlowServices";
-import { svgMap } from "../../svgMap";
 
 const FLOW_DIAGRAM_QUERY_KEY = ['flow-diagram'];
 

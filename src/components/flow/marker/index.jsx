@@ -1,4 +1,4 @@
-import { EDGE_COLORS } from "../utils";
+import { EDGE_COLORS } from "../../../utills/flowUtills/FlowUtills";
 
 const Marker = ({ type }) => {
     const { borderColor, strokeDasharray } = EDGE_COLORS[type] || {};

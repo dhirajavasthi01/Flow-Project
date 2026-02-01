@@ -1,113 +1,81 @@
-
 import {
   shouldNodeBlink,
   hasSubComponentAssetIdMatch,
 } from "../../utills/flowUtills/FlowUtills";
-
 const HIGHLIGHT_COLOR = "#E35205";
 
-/**
- * Restores original color properties from original node data
- * @param {Object} nodeData - Current node data
- * @param {Object} originalNodeData - Original node data to restore from
- * @returns {Object} Updated node data with restored colors
- */
-export const restoreOriginalColors = (nodeData, originalNodeData) => {
-  if (!originalNodeData) {
-    // Fallback: remove highlighting colors if original data is missing
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
-
-    if (
-      nodeData.gradientStart === HIGHLIGHT_COLOR &&
-      nodeData.gradientEnd === HIGHLIGHT_COLOR
-    ) {
-      delete nodeData.gradientStart;
-      delete nodeData.gradientEnd;
-    }
-
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
-
-    return nodeData;
+// Removes highlight color from a specific property if it exists
+const removeHighlightColor = (nodeData, property) => {
+  if (nodeData[property] === HIGHLIGHT_COLOR) {
+    delete nodeData[property];
   }
-
-  // Restore original gradients if they existed
-  if (
-    originalNodeData.gradientStart !== undefined ||
-    originalNodeData.gradientEnd !== undefined
-  ) {
-    nodeData.gradientStart = originalNodeData.gradientStart;
-    nodeData.gradientEnd = originalNodeData.gradientEnd;
-
-    // Remove highlighting nodeColor if restoring gradients
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
-
-    // Remove highlighting specialNodeColor if restoring gradients
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
-
-    return nodeData;
-  }
-
-  // Restore original specialNodeColor if it existed and wasn't the highlight color
-  if (
-    originalNodeData.specialNodeColor !== undefined &&
-    originalNodeData.specialNodeColor !== HIGHLIGHT_COLOR
-  ) {
-    nodeData.specialNodeColor = originalNodeData.specialNodeColor;
-    // Remove highlighting nodeColor if restoring specialNodeColor
-    if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.nodeColor;
-    }
-    return nodeData;
-  }
-
-  // Restore original nodeColor if it existed and wasn't the highlight color
-  if (
-    originalNodeData.nodeColor !== undefined &&
-    originalNodeData.nodeColor !== HIGHLIGHT_COLOR
-  ) {
-    nodeData.nodeColor = originalNodeData.nodeColor;
-    // Remove highlighting specialNodeColor if restoring nodeColor
-    if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-      delete nodeData.specialNodeColor;
-    }
-    return nodeData;
-  }
-
-  // Remove highlight color if original didn't have nodeColor
-  if (nodeData.nodeColor === HIGHLIGHT_COLOR) {
-    delete nodeData.nodeColor;
-  }
-
-  // Remove highlight color if original didn't have specialNodeColor
-  if (nodeData.specialNodeColor === HIGHLIGHT_COLOR) {
-    delete nodeData.specialNodeColor;
-  }
-
-  return nodeData;
 };
 
-/**
- * Applies highlighting to a node based on matching tableData entries
- * @param {Object} nodeData - Node data to update
- * @param {Array} matchingTableDataEntries - Matching tableData entries
- * @param {number} actualTime - Current time for blink calculation
- * @returns {Object} Updated node data
- */
+//Removes all highlight colors from node data
+const removeAllHighlightColors = (nodeData) => {
+  removeHighlightColor(nodeData, 'nodeColor');
+  removeHighlightColor(nodeData, 'specialNodeColor');
+  if (nodeData.gradientStart === HIGHLIGHT_COLOR && nodeData.gradientEnd === HIGHLIGHT_COLOR) {
+    delete nodeData.gradientStart;
+    delete nodeData.gradientEnd;
+  }
+};
+
+//Checks if a property exists in original data and is not the highlight color
+const hasValidOriginalColor = (originalNodeData, property) => {
+  return originalNodeData[property] !== undefined && 
+         originalNodeData[property] !== HIGHLIGHT_COLOR;
+};
+
+// Checks if original data has gradient properties
+const hasOriginalGradients = (originalNodeData) => {
+  return originalNodeData.gradientStart !== undefined || 
+         originalNodeData.gradientEnd !== undefined;
+};
+
+//S Restores original color properties from original node data
+export const restoreOriginalColors = (nodeData, originalNodeData) => {
+  // If no original data, just remove all highlight colors
+  if (!originalNodeData) {
+    removeAllHighlightColors(nodeData);
+    return nodeData;
+  }
+
+  // Priority 1: Restore gradients if they existed
+  if (hasOriginalGradients(originalNodeData)) {
+    nodeData.gradientStart = originalNodeData.gradientStart;
+    nodeData.gradientEnd = originalNodeData.gradientEnd;
+    removeHighlightColor(nodeData, 'nodeColor');
+    removeHighlightColor(nodeData, 'specialNodeColor');
+    return nodeData;
+  }
+
+  // Priority 2: Restore specialNodeColor if it existed and wasn't highlight
+  if (hasValidOriginalColor(originalNodeData, 'specialNodeColor')) {
+    nodeData.specialNodeColor = originalNodeData.specialNodeColor;
+    removeHighlightColor(nodeData, 'nodeColor');
+    return nodeData;
+  }
+
+  // Priority 3: Restore nodeColor if it existed and wasn't highlight
+  if (hasValidOriginalColor(originalNodeData, 'nodeColor')) {
+    nodeData.nodeColor = originalNodeData.nodeColor;
+    removeHighlightColor(nodeData, 'specialNodeColor');
+    return nodeData;
+  }
+
+  // Fallback: Remove any remaining highlight colors
+  removeAllHighlightColors(nodeData);
+  return nodeData;
+};
+ 
+// Applies highlighting to a node based on matching tableData entries
 export const applyHighlighting = (
   nodeData,
   matchingTableDataEntries,
   actualTime
 ) => {
   let shouldBlink = false;
-
   // Check if any entry should blink within the last 24 hours
   for (const entry of matchingTableDataEntries) {
     if (entry.activeSince) {
@@ -116,14 +84,12 @@ export const applyHighlighting = (
         entry.activeSince,
         24
       );
-
       if (blink) {
         shouldBlink = true;
         break;
       }
     }
   }
-
   // Apply highlight color
   if (nodeData.gradientStart || nodeData.gradientEnd) {
     nodeData.gradientStart = HIGHLIGHT_COLOR;
@@ -133,7 +99,6 @@ export const applyHighlighting = (
   } else {
     nodeData.nodeColor = HIGHLIGHT_COLOR;
   }
-
   // Collect unique failure mode names
   const failureModeNames = Array.from(
     new Set(
@@ -144,27 +109,18 @@ export const applyHighlighting = (
         .filter(Boolean)
     )
   );
-
   // Calculate minimum TTF days
   const daysArr = matchingTableDataEntries
     .map(item => item.forecastDays)
     .filter(item => item !== undefined && item !== null);
-
   const ttfDays = daysArr.length > 0 ? Math.min(...daysArr) : null;
-
   nodeData.ttfDays = ttfDays;
   nodeData.failureModeNames = failureModeNames;
   nodeData.shouldBlink = shouldBlink;
-
-  console.log("nodeData ==========>", nodeData);
-
   return nodeData;
 };
 
-/**
- * Processes a single node based on tableData matching
- */
-export const processSingleNode = (
+export const processSingleNode = ( // Processes a single node based on tableData matching
   node,
   index,
   originalNodes,
@@ -174,24 +130,19 @@ export const processSingleNode = (
   const originalNode =
     originalNodes[index] ||
     originalNodes.find(n => n.id === node.id);
-
   const nodeData = { ...node.data };
   const subComponentAssetId = nodeData?.subComponentAssetId;
-
   // Handle nodes without subComponentAssetId
   if (!subComponentAssetId) {
     const restoredData = restoreOriginalColors(
       nodeData,
       originalNode?.data
     );
-
     delete restoredData.failureModeNames;
     delete restoredData.shouldBlink;
     delete restoredData.ttfDays;
-
     return { ...node, data: restoredData };
   }
-
   // Find matching table data entries
   const matchingTableDataEntries = tableData.filter(item =>
     hasSubComponentAssetIdMatch(
@@ -199,7 +150,6 @@ export const processSingleNode = (
       item.subComponentAssetId
     )
   );
-
   if (matchingTableDataEntries.length > 0) {
     applyHighlighting(nodeData, matchingTableDataEntries, actualTime);
   } else {
@@ -207,21 +157,15 @@ export const processSingleNode = (
       nodeData,
       originalNode?.data
     );
-
     delete restoredData.failureModeNames;
     delete restoredData.shouldBlink;
     delete restoredData.ttfDays;
-
     Object.assign(nodeData, restoredData);
   }
-
   return { ...node, data: nodeData };
 };
 
-/**
- * Processes nodes with tableData when not in developer mode
- */
-export const processNodesWithTableData = (
+export const processNodesWithTableData = ( // Processes nodes with tableData when not in developer mode
   nodesToProcess,
   originalNodesForReset,
   tableData,
@@ -231,30 +175,24 @@ export const processNodesWithTableData = (
   if (isDeveloperMode) {
     return nodesToProcess;
   }
-
   const originalNodes = originalNodesForReset || nodesToProcess;
-
   // Reset all nodes if no tableData
   if (!tableData || tableData.length === 0) {
     return nodesToProcess.map((node, index) => {
       const originalNode =
         originalNodes[index] ||
         originalNodes.find(n => n.id === node.id);
-
       const nodeData = { ...node.data };
       const restoredData = restoreOriginalColors(
         nodeData,
         originalNode?.data
       );
-
       delete restoredData.failureModeNames;
       delete restoredData.shouldBlink;
       delete restoredData.ttfDays;
-
       return { ...node, data: restoredData };
     });
   }
-
   return nodesToProcess.map((node, index) =>
     processSingleNode(
       node,
@@ -266,14 +204,10 @@ export const processNodesWithTableData = (
   );
 };
 
-/**
- * Creates a key from tableData for change detection
- */
-export const createTableDataKey = tableData => {
+export const createTableDataKey = tableData => { //Creates a key from tableData for change detection
   if (!tableData || tableData.length === 0) {
     return "EMPTY_TABLEDATA";
   }
-
   return JSON.stringify(
     tableData.map(item => ({
       subComponentAssetId: item.subComponentAssetId,
@@ -284,10 +218,7 @@ export const createTableDataKey = tableData => {
   );
 };
 
-/**
- * Updates color properties in node data
- */
-const updateColorProperties = (updatedData, processedData) => {
+const updateColorProperties = (updatedData, processedData) => { // Updates color properties in node data
   if (processedData.gradientStart || processedData.gradientEnd) {
     updatedData.gradientStart = processedData.gradientStart;
     updatedData.gradientEnd = processedData.gradientEnd;
@@ -295,7 +226,6 @@ const updateColorProperties = (updatedData, processedData) => {
     delete updatedData.specialNodeColor;
     return updatedData;
   }
-
   if (processedData.specialNodeColor !== undefined) {
     updatedData.specialNodeColor = processedData.specialNodeColor;
     delete updatedData.nodeColor;
@@ -303,7 +233,6 @@ const updateColorProperties = (updatedData, processedData) => {
     delete updatedData.gradientEnd;
     return updatedData;
   }
-
   if (processedData.nodeColor !== undefined) {
     updatedData.nodeColor = processedData.nodeColor;
     delete updatedData.specialNodeColor;
@@ -311,67 +240,50 @@ const updateColorProperties = (updatedData, processedData) => {
     delete updatedData.gradientEnd;
     return updatedData;
   }
-
   delete updatedData.nodeColor;
   delete updatedData.specialNodeColor;
   delete updatedData.gradientStart;
   delete updatedData.gradientEnd;
-
   return updatedData;
 };
 
-/**
- * Updates highlighting-related properties
- */
-const updateHighlightingProperties = (updatedData, processedData) => {
+const updateHighlightingProperties = (updatedData, processedData) => { // Updates highlighting-related properties
   if (processedData.failureModeNames !== undefined) {
     updatedData.failureModeNames = processedData.failureModeNames;
   } else {
     delete updatedData.failureModeNames;
   }
-
   if (processedData.shouldBlink !== undefined) {
     updatedData.shouldBlink = processedData.shouldBlink;
   } else {
     delete updatedData.shouldBlink;
   }
-
   if (processedData.ttfDays !== undefined) {
     updatedData.ttfDays = processedData.ttfDays;
   } else {
     delete updatedData.ttfDays;
   }
-
   return updatedData;
 };
 
-/**
- * Merges processed nodes with current nodes
- */
-export const mergeProcessedNodesWithCurrent = (
+export const mergeProcessedNodesWithCurrent = ( // Merges processed nodes with current nodes
   processedNodes,
   currentNodes
 ) => {
   if (currentNodes.length === 0) {
     return processedNodes;
   }
-
   const currentNodeMap = new Map(
     currentNodes.map(node => [node.id, node])
   );
-
   return processedNodes.map(processedNode => {
     const currentNode = currentNodeMap.get(processedNode.id);
-
     if (!currentNode) {
       return processedNode;
     }
-
     const updatedData = { ...currentNode.data };
-
     updateColorProperties(updatedData, processedNode.data);
     updateHighlightingProperties(updatedData, processedNode.data);
-
     return {
       ...currentNode,
       style: currentNode.style,

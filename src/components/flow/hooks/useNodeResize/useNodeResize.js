@@ -1,11 +1,30 @@
 import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
 
-/**
- * Custom hook that provides resize handler for nodes
- * @param {string} id - Node ID
- * @returns {function} onResizeEnd callback function
- */
+//Applies resize changes to nodes
+export const applyResizeChanges = (nodes, changesWithSnapping) => {
+  return nodes.map((node) => {
+    const resizeChange = changesWithSnapping.find(
+      (change) => change.type === "resize" && change.id === node.id
+    );
+    if (!resizeChange) return node;
+    return {
+      ...node,
+      style: {
+        ...node.style,
+        width: resizeChange.dimensions.width,
+        height: resizeChange.dimensions.height,
+      },
+      data: {
+        ...node.data,
+        width: resizeChange.dimensions.width,
+        height: resizeChange.dimensions.height,
+      },
+    };
+  });
+};
+
+// Custom hook that provides resize handler for nodes
 export const useNodeResize = (id) => {
   const { setNodes } = useReactFlow();
 
@@ -28,4 +47,3 @@ export const useNodeResize = (id) => {
 
   return onResizeEnd;
 };
-

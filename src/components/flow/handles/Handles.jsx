@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react'
-import { showHandlesAtom } from '../../../features/individualDetailWrapper/store/OverviewStore'
-import { useAtomValue } from 'jotai'
+import { useAtomValue } from 'jotai';
+import { showHandlesAtom } from '../../../features/individualDetailWrapper/features/overview/store/OverviewStore';
 
 const Handles = ({ id }) => {
     const showHandles = useAtomValue(showHandlesAtom);
@@ -16,9 +16,9 @@ const Handles = ({ id }) => {
     
     const verticalHandleStyle = {
       ...handleStyle,
-      top: 'auto', 
       left: '50%',
       transform: 'translateX(-50%)',
+      top: -4,
     }
 
     return (

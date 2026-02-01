@@ -1,0 +1,142 @@
+
+// Special nodes that don't have SVG files - keep these manual
+import { TextBoxNodeConfig, TextBoxNodeFieldConfig } from "../../components/textBox/TextboxConfig"
+import { generateNodeExports } from "../../components/generateNode/GenerateNode";
+import { toKebabCase, toCamelCase } from "../../../../utills/nodeNameUtils/nodeNameUtils";
+import { DotConfigBottom, DotConfigLeft, DotConfigRight, DotConfigTop, DotFieldConfig } from '../../nodes/dot/dotConfig';
+import { Dot } from "../../nodes/dot";
+import { TextboxNode } from "../../components/textBox/TextBox";
+import FlowingPipeEdge from '../../edges/FlowingPipEdge';
+
+
+// Dynamically import all SVG files from the flowIcons folder
+const svgModules = import.meta.glob('../../../../assets/flowIcons/*.svg', { eager: true });
+// Dynamically generates all node types, configs, and field configs from SVG files
+const dynamicNodes = Object.keys(svgModules).reduce((acc, path) => {
+  // Extract filename from path
+  const filename = path.split('/').pop();
+
+  if (!filename) return acc;
+
+  try {
+    // Generate node exports for this SVG file
+    const nodeExports = generateNodeExports(filename);
+    // Verify that exports were generated correctly
+    if (!nodeExports || typeof nodeExports !== 'object') {
+      return acc;
+    }
+    // Verify all required exports exist
+    const exportKeys = Object.keys(nodeExports);
+    const hasFieldConfig = exportKeys.some(k => k.endsWith('NodeFieldConfig'));
+    const hasNodeConfig = exportKeys.some(k => k.endsWith('NodeConfig'));
+    const hasNode = exportKeys.some(k => k.endsWith('Node') && !k.includes('Config') && !k.includes('Field'));
+
+    if (!hasFieldConfig || !hasNodeConfig || !hasNode) {
+      return acc;
+    }
+    // Store by filename for later use
+    acc[filename] = {
+      exports: nodeExports,
+      kebabName: toKebabCase(filename),
+      camelName: toCamelCase(filename),
+    };
+  } catch (error) {
+    console.log("Error", error)
+  }
+
+  return acc;
+}, {});
+
+export const nodeTypes = Object.values(dynamicNodes).reduce((acc, node) => {
+  const nodeComponentKey = Object.keys(node.exports).find(key => key.endsWith('Node') && !key.includes('Config') && !key.includes('Field'));
+  if (nodeComponentKey) {
+    acc[node.camelName] = node.exports[nodeComponentKey];
+  }
+  return acc;
+}, {});
+// Add special nodes manually
+nodeTypes.dotNodeTop = Dot;
+nodeTypes.dotNodeBottom = Dot;
+nodeTypes.dotNodeRight = Dot;
+nodeTypes.dotNodeLeft = Dot;
+nodeTypes.textBoxNode = TextboxNode;
+
+// Build allNodes array dynamically
+export const allNodes = Object.values(dynamicNodes).map(node => {
+  // Get the NodeConfig from exports (e.g., BearingNodeConfig)
+  const configKey = Object.keys(node.exports || {}).find(key => key.endsWith('NodeConfig'));
+  return configKey ? node.exports[configKey] : null;
+}).filter(config => {
+  return config && typeof config === 'object' && config.name && config.nodeType;
+});
+
+// Add special node configs manually
+allNodes.push(DotConfigTop);
+allNodes.push(DotConfigBottom);
+allNodes.push(DotConfigRight);
+allNodes.push(DotConfigLeft);
+allNodes.push(TextBoxNodeConfig);
+
+
+export const nodeTypesConfig = Object.values(dynamicNodes).reduce((acc, node) => {
+  // Get the NodeFieldConfig from exports (e.g., BearingNodeFieldConfig)
+  const fieldConfigKey = Object.keys(node.exports).find(key => key.endsWith('NodeFieldConfig'));
+  if (fieldConfigKey) {
+    acc[node.kebabName] = node.exports[fieldConfigKey];
+  }
+  return acc;
+}, {});
+
+// Add special node field configs manually
+nodeTypesConfig["dot-node-top"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-bottom"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-right"] = DotFieldConfig || {};
+nodeTypesConfig["dot-node-left"] = DotFieldConfig || {};
+nodeTypesConfig["text-box-node"] = TextBoxNodeFieldConfig;
+
+// Create edgeTypes - FlowingPipeEdge will be loaded before first use
+export const edgeTypes = {
+  flowingPipeStraightArrow: (props) => {
+    if (!FlowingPipeEdge) {
+      // If not loaded yet, return a placeholder (shouldn't happen if preload works)
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "straight" });
+  },
+  flowingPipe: (props) => {
+    if (!FlowingPipeEdge) {
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "flowingPipeStraightWithoutArrow" });
+  },
+  flowingPipeDotted: (props) => {
+    if (!FlowingPipeEdge) {
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "dotted" });
+  },
+  flowingPipeDottedArrow: (props) => {
+    if (!FlowingPipeEdge) {
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "dottedArrow" });
+  },
+  straightArrow: (props) => {
+    if (!FlowingPipeEdge) {
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "straightArrow" });
+  },
+  bezierArrow: (props) => {
+    if (!FlowingPipeEdge) {
+      console.warn('FlowingPipeEdge not loaded yet');
+      return null;
+    }
+    return FlowingPipeEdge({ ...props, type: "bezier" });
+  }
+};
