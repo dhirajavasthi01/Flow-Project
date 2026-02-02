@@ -286,10 +286,14 @@ export const mergeProcessedNodesWithCurrent = ( // Merges processed nodes with c
     updateHighlightingProperties(updatedData, processedNode.data);
     return {
       ...currentNode,
+      // Preserve all current node properties including dimensions
+      width: currentNode.width,
+      height: currentNode.height,
       style: currentNode.style,
       position: currentNode.position,
       positionAbsolute: currentNode.positionAbsolute,
       measured: currentNode.measured,
+      parentId: currentNode.parentId, // Preserve parent-child relationships
       data: updatedData,
     };
   });

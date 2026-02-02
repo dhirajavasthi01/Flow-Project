@@ -12,7 +12,7 @@ import Handles from '../../handles/Handles';
 
 import { NodeTooltip, NodeTooltipContent, useNodeTooltip } from '../../nodes/nodeTooltip/NodeTooltip';
 import { RotateHandle, TextContent } from './TextBox.function';
-import { calculateOptimalFontSize, formatTextContent, getRawText } from './TextboxConfig';
+import { calculateOptimalFontSize, formatTextContent, getRawText, calculateAngle } from './TextboxConfig';
 
 // Inner component that uses the tooltip hook - must be inside NodeTooltip context
 const TextBoxContent = memo(({

@@ -1,5 +1,6 @@
 import { Panel } from "@xyflow/react";
-import { relativeToAbsolute } from "../../../../utils/parentChildUtils/ParentChildUtils";
+import { useMemo } from "react";
+import { relativeToAbsolute, sortNodesByParentChild } from "../../../../utils/parentChildUtils/ParentChildUtils";
 
 /**
  * ModeControls Component
@@ -27,6 +28,15 @@ const ModeControls = ({
   if (!showDeveloperMode || !isDeveloperMode) {
     return null;
   }
+
+  // Get the currently selected node to check if it has a parent
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId || !getNodes) return null;
+    const currentNodes = getNodes();
+    return currentNodes.find(n => n.id === selectedNodeId);
+  }, [selectedNodeId, getNodes]);
+
+  const canDetach = selectedNode && selectedNode.parentId;
 
   return (
     <>
@@ -85,26 +95,32 @@ const ModeControls = ({
                     if (parentAbsolutePos && relativePos) {
                       const absolutePos = relativeToAbsolute(relativePos, parentAbsolutePos);
 
-                      setNodes((nds) =>
-                        nds.map((n) =>
+                      setNodes((nds) => {
+                        const updated = nds.map((n) =>
                           n.id === selectedNodeId
                             ? {
                               ...n,
                               parentId: undefined,
-                              position: absolutePos
-                              // React Flow will calculate positionAbsolute automatically
+                              position: absolutePos,
+                              extent: undefined,
+                              data: {
+                                ...n.data,
+                                isAttachedToGroup: false
+                              }
                             }
                             : n
-                        )
-                      );
+                        );
+                        // Ensure parent-child ordering
+                        return sortNodesByParentChild(updated);
+                      });
                     }
                   }
                 }
               }
             }}
-            disabled={!selectedNodeId || !nodes.find(n => n.id === selectedNodeId)?.parentId}
+            disabled={!canDetach}
             className="w-fit flex justify-center items-center cursor-pointer uppercase text-14 font-medium bg-orange-600 text-white rounded-[0.3vmin] h-full px-[1.5vmin] py-[1vmin] hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title={selectedNodeId && nodes.find(n => n.id === selectedNodeId)?.parentId ? "Remove child from parent group" : "Select a child node to detach"}
+            title={canDetach ? "Remove child from parent group" : "Select a child node to detach"}
           >
             Detach
           </button>

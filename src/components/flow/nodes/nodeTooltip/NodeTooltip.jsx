@@ -67,7 +67,7 @@ export function NodeTooltip({ children, nodeId }) {
 
     return (
         <TooltipContext.Provider value={{ isVisible, showTooltip, hideTooltip }}>
-            <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>{children}</div>
+            <div style={{ width: "100%", height: "auto", position: "relative", display: "flex", flexDirection: "column" }}>{children}</div>
         </TooltipContext.Provider>
     );
 }
