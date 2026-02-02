@@ -1,5 +1,6 @@
 import { createTableDataKey, mergeProcessedNodesWithCurrent } from "../../Flow.functions";
 import { syncNodeDimensions, isResizingRef } from "../../hooks/useNodeResize/useNodeResize";
+import { sortNodesByParentChild } from "../parentChildUtils/ParentChildUtils";
 
 // Processes edges with default styling
 export const processEdges = (edges, strokeWidth = 1) => {
@@ -133,8 +134,24 @@ export const handleFetchedNodesEdgesChange = ({
       : nodesToUse;
     // Sync dimensions from data to style for backward compatibility
     const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
+    // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+    const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+      if (node.parentId) {
+        return {
+          ...node,
+          extent: 'parent',
+          data: {
+            ...node.data,
+            isAttachedToGroup: true
+          }
+        };
+      }
+      return node;
+    });
+    // Ensure parent-child ordering
+    const sortedNodes = sortNodesByParentChild(nodesWithLockState);
     const processedEdges = processEdges(fetchedEdges, 1);
-    setNodes(nodesWithSyncedDimensions);
+    setNodes(sortedNodes);
     setEdges(processedEdges);
     setLegendPosition(fetchedLegendPosition);
     
@@ -152,7 +169,23 @@ export const handleFetchedNodesEdgesChange = ({
     
     // Sync dimensions from data to style for backward compatibility
     const nodesWithSyncedDimensions = nodesToUse.map(syncNodeDimensions);
-    setNodes(nodesWithSyncedDimensions);
+    // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+    const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+      if (node.parentId) {
+        return {
+          ...node,
+          extent: 'parent',
+          data: {
+            ...node.data,
+            isAttachedToGroup: true
+          }
+        };
+      }
+      return node;
+    });
+    // Ensure parent-child ordering
+    const sortedNodes = sortNodesByParentChild(nodesWithLockState);
+    setNodes(sortedNodes);
     setLegendPosition(fetchedLegendPosition);
     const processedEdges = processEdges(fetchedEdges, 5);
     setEdges(processedEdges);
@@ -170,15 +203,31 @@ export const handleTableDataChange = ({
   processNodesWithTableDataRef,
   setNodes,
 }) => {
+  console.log('[handleTableDataChange] Called:', {
+    isDeveloperMode,
+    hasOriginalNodes: originalFetchedNodesRef.current.length > 0,
+    isResizing: isResizingRef?.current,
+    originalNodesCount: originalFetchedNodesRef.current.length
+  });
+  
   // Skip if a node is currently being resized to prevent interference
   if (isResizingRef?.current) {
+    console.log('[handleTableDataChange] Skipping - node is resizing');
     return { shouldUpdate: false };
   }
   
   // Only process if we have original nodes
   if (originalFetchedNodesRef.current.length === 0) {
+    console.log('[handleTableDataChange] Skipping - no original nodes');
     return { shouldUpdate: false };
   }
+  
+  console.log('[handleTableDataChange] Original nodes positions:', originalFetchedNodesRef.current.map(n => ({
+    id: n.id,
+    parentId: n.parentId,
+    position: n.position,
+    positionAbsolute: n.positionAbsolute
+  })));
 
   // Handle non-developer mode: process nodes with table data
   if (!isDeveloperMode) {
@@ -200,8 +249,23 @@ export const handleTableDataChange = ({
         : originalFetchedNodesRef.current;
       // Sync dimensions from data to style for backward compatibility
       const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
-      const merged = mergeProcessedNodesWithCurrent(nodesWithSyncedDimensions, currentNodes);
-      return merged;
+      // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+      const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+        if (node.parentId) {
+          return {
+            ...node,
+            extent: 'parent',
+            data: {
+              ...node.data,
+              isAttachedToGroup: true
+            }
+          };
+        }
+        return node;
+      });
+      const merged = mergeProcessedNodesWithCurrent(nodesWithLockState, currentNodes);
+      // Ensure parent-child ordering
+      return sortNodesByParentChild(merged);
     });
     
     return { shouldUpdate: true };
@@ -213,10 +277,23 @@ export const handleTableDataChange = ({
   const wasInDeveloperMode =
     lastProcessedTableDataRef.current === "DEVELOPER_MODE";
   
+  console.log('[handleTableDataChange] Developer mode check:', {
+    wasInDeveloperMode,
+    lastProcessedTableDataRef: lastProcessedTableDataRef.current
+  });
+  
   if (!wasInDeveloperMode) {
+    console.log('[handleTableDataChange] First time entering developer mode - resetting nodes');
     lastProcessedTableDataRef.current = "DEVELOPER_MODE";
     
     setNodes((currentNodes) => {
+      console.log('[handleTableDataChange] Current nodes before reset:', currentNodes.map(n => ({
+        id: n.id,
+        parentId: n.parentId,
+        position: n.position,
+        positionAbsolute: n.positionAbsolute
+      })));
+      
       if (currentNodes.length > 0) {
         const originalNodeMap = new Map(
           originalFetchedNodesRef.current.map((node) => [node.id, node])
@@ -224,6 +301,13 @@ export const handleTableDataChange = ({
         const result = currentNodes.map((currentNode) => {
           const originalNode = originalNodeMap.get(currentNode.id);
           if (originalNode) {
+            console.log('[handleTableDataChange] Processing node:', {
+              id: currentNode.id,
+              currentParentId: currentNode.parentId,
+              originalParentId: originalNode.parentId,
+              currentPosition: currentNode.position,
+              originalPosition: originalNode.position
+            });
             // Preserve current node's dimensions (width, height, style) when resetting data
             // This prevents resize changes from being lost when switching to developer mode
             // CRITICAL: Preserve manually resized dimensions - don't let syncNodeDimensions reset them
@@ -252,6 +336,7 @@ export const handleTableDataChange = ({
                 width: finalWidth,
                 height: finalHeight,
               },
+              // CRITICAL: Preserve current position and parentId to maintain re-parenting
               position: currentNode.position,
               positionAbsolute: currentNode.positionAbsolute,
               parentId: currentNode.parentId, // Preserve parent-child relationships
@@ -261,6 +346,18 @@ export const handleTableDataChange = ({
                 height: finalHeight,
               },
             };
+            
+            console.log('[handleTableDataChange] Updated node:', {
+              id: updatedNode.id,
+              parentId: updatedNode.parentId,
+              position: updatedNode.position,
+              positionAbsolute: updatedNode.positionAbsolute,
+              preservedFromCurrent: {
+                parentId: currentNode.parentId,
+                position: currentNode.position
+              }
+            });
+            
             // Only sync if dimensions are missing - don't overwrite existing dimensions
             if (!updatedNode.style?.width || !updatedNode.style?.height) {
               return syncNodeDimensions(updatedNode);
@@ -269,20 +366,67 @@ export const handleTableDataChange = ({
           }
           return currentNode;
         });
-        return result;
+        
+        console.log('[handleTableDataChange] Result nodes after reset:', result.map(n => ({
+          id: n.id,
+          parentId: n.parentId,
+          position: n.position,
+          positionAbsolute: n.positionAbsolute
+        })));
+        
+        // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+        const nodesWithLockState = result.map(node => {
+          if (node.parentId) {
+            return {
+              ...node,
+              extent: 'parent',
+              data: {
+                ...node.data,
+                isAttachedToGroup: true
+              }
+            };
+          }
+          return node;
+        });
+        
+        // Ensure parent-child ordering
+        return sortNodesByParentChild(nodesWithLockState);
       }
       // IMPORTANT: Use originalFetchedNodesRef.current which has persisted dimensions
       // Sync dimensions from data to style for backward compatibility
       const nodesToUse = originalFetchedNodesRef.current.length > 0 
         ? originalFetchedNodesRef.current 
         : [];
-      return nodesToUse.map(syncNodeDimensions);
+      const syncedNodes = nodesToUse.map(syncNodeDimensions);
+      // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+      const nodesWithLockState = syncedNodes.map(node => {
+        if (node.parentId) {
+          return {
+            ...node,
+            extent: 'parent',
+            data: {
+              ...node.data,
+              isAttachedToGroup: true
+            }
+          };
+        }
+        return node;
+      });
+      console.log('[handleTableDataChange] Synced nodes (no current nodes):', nodesWithLockState.map(n => ({
+        id: n.id,
+        parentId: n.parentId,
+        position: n.position,
+        positionAbsolute: n.positionAbsolute
+      })));
+      // Ensure parent-child ordering
+      return sortNodesByParentChild(nodesWithLockState);
     });
     
     return { shouldUpdate: true };
   } else {
     // Already in developer mode - don't reset nodes
     // This prevents resize changes from being lost
+    console.log('[handleTableDataChange] Already in developer mode - skipping reset');
   }
 
   return { shouldUpdate: false };

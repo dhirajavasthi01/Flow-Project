@@ -38,7 +38,7 @@ import { createEdge, updateEdgeWithConfig } from './utils/edgeHelper/EdgeHelper'
 import { useFlowSnapshot } from './hooks/useFlowSnapshot/useFlowSnapshot';
 import { applyResizeChanges, isResizingRef, persistResizeChangesRef, syncNodeDimensions } from './hooks/useNodeResize/useNodeResize';
 import { handleDragOver, handleTemplateDropHelper, handleSaveTemplate as handleSaveTemplateHelper } from './utils/templateHelper/TemplateHelper';
-import { absoluteToRelative, canBeParent, getDescendantIds, isPointInNode, relativeToAbsolute, wouldCreateCircularDependency } from './utils/parentChildUtils/ParentChildUtils';
+import { absoluteToRelative, canBeParent, getDescendantIds, isPointInNode, relativeToAbsolute, wouldCreateCircularDependency, findGroupNodeAtPoint, sortNodesByParentChild } from './utils/parentChildUtils/ParentChildUtils';
 import Marker from './marker';
 function Flow(props) {
     const { tableData = [], isLoading: isLoadingFailerMode = false } = props;
@@ -136,9 +136,14 @@ function Flow(props) {
                 const nodeToCreate = {
                     ...newNode,
                     id: newId,
-                    // CRITICAL: Ensure new node doesn't have parentId (new nodes from list are standalone)
-                    // This prevents affecting parent-child relationships
-                    parentId: undefined,
+                    // If newNode has parentId (dropped into a group), preserve it and auto-lock
+                    parentId: newNode.parentId,
+                    // Automatically lock if node has a parent
+                    extent: newNode.parentId ? 'parent' : undefined,
+                    data: {
+                        ...newNode.data,
+                        isAttachedToGroup: !!newNode.parentId
+                    }
                 };
                 
                 // If we have SVG dimensions from bounding box measurement, use them (multiplied by 10)
@@ -193,7 +198,10 @@ function Flow(props) {
                     originalFetchedNodesRef.current.push(newNodeWithDimensions);
                 }
                 
-                setNodes([...nodes, newNodeWithDimensions]);
+                // Ensure parent-child ordering when adding new node
+                const updatedNodes = [...nodes, newNodeWithDimensions];
+                const sortedNodes = sortNodesByParentChild(updatedNodes);
+                setNodes(sortedNodes);
                 setSelectedNodeId(newId);
                 setConfig({ ...newNode, id: newId });
                 setNewNode(null);
@@ -402,28 +410,45 @@ function Flow(props) {
         
         if (resizedNodeIds.size === 0) {
             // Even if no nodes were resized, check if any new nodes need to be added
-            finalNodes.forEach(node => {
-                if (!originalFetchedNodesRef.current.find(n => n.id === node.id)) {
-                    const nodeWidth = node.width || node.data?.width || node.style?.width;
-                    const nodeHeight = node.height || node.data?.height || node.style?.height;
-                    originalFetchedNodesRef.current.push({
-                        ...node,
-                        width: nodeWidth,
-                        height: nodeHeight,
-                        style: {
-                            ...node.style,
-                            width: nodeWidth,
-                            height: nodeHeight,
-                        },
-                        data: {
-                            ...node.data,
-                            width: nodeWidth,
-                            height: nodeHeight,
-                        },
-                    });
+            // OR if any nodes have parentId/position changes (re-parenting scenario)
+            const hasParentOrPositionChanges = finalNodes.some(node => {
+                const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
+                if (originalNode) {
+                    const parentIdChanged = node.parentId !== originalNode.parentId;
+                    const positionChanged = node.position && originalNode.position && 
+                        (node.position.x !== originalNode.position.x || node.position.y !== originalNode.position.y);
+                    return parentIdChanged || positionChanged;
                 }
+                return false;
             });
-            return;
+            
+            // If there are parentId/position changes, we need to update originalFetchedNodesRef
+            // Otherwise, just add new nodes and return
+            if (!hasParentOrPositionChanges) {
+                finalNodes.forEach(node => {
+                    if (!originalFetchedNodesRef.current.find(n => n.id === node.id)) {
+                        const nodeWidth = node.width || node.data?.width || node.style?.width;
+                        const nodeHeight = node.height || node.data?.height || node.style?.height;
+                        originalFetchedNodesRef.current.push({
+                            ...node,
+                            width: nodeWidth,
+                            height: nodeHeight,
+                            style: {
+                                ...node.style,
+                                width: nodeWidth,
+                                height: nodeHeight,
+                            },
+                            data: {
+                                ...node.data,
+                                width: nodeWidth,
+                                height: nodeHeight,
+                            },
+                        });
+                    }
+                });
+                return;
+            }
+            // If there are parentId/position changes, continue to the update logic below
         }
         
         // Only update the resized nodes, preserve all others exactly as they were
@@ -437,18 +462,25 @@ function Flow(props) {
                 const updatedWidth = updatedNode.width || updatedNode.style?.width || updatedNode.data?.width;
                 const updatedHeight = updatedNode.height || updatedNode.style?.height || updatedNode.data?.height;
                 
+                // CRITICAL: Check if parentId or position changed (re-parenting scenario)
+                // If parentId changed, we need to update it to preserve the new parent-child relationship
+                // If position changed (and parentId is the same or both changed), update position
+                const parentIdChanged = updatedNode.parentId !== originalNode.parentId;
+                const positionChanged = updatedNode.position && originalNode.position && 
+                    (updatedNode.position.x !== originalNode.position.x || updatedNode.position.y !== originalNode.position.y);
+                
                 const updated = {
                     ...originalNode,
                     // Update root level dimensions
                     width: updatedWidth,
                     height: updatedHeight,
-                    // CRITICAL: Preserve parent-child relationships
-                    // parentId must be preserved from originalNode, not from updatedNode
-                    // because updatedNode might have incorrect parentId during resize operations
-                    parentId: originalNode.parentId,
-                    // Preserve position and positionAbsolute (React Flow maintains these for parent-child)
-                    position: originalNode.position,
-                    positionAbsolute: originalNode.positionAbsolute,
+                    // CRITICAL: Update parentId and position if they changed (re-parenting scenario)
+                    // This ensures re-parented nodes maintain their new position when clicking on canvas
+                    parentId: parentIdChanged ? updatedNode.parentId : originalNode.parentId,
+                    // Update position if parentId changed (new relative position) or if position explicitly changed
+                    position: (parentIdChanged || positionChanged) ? updatedNode.position : originalNode.position,
+                    // positionAbsolute is calculated by React Flow, but we should update it if parentId changed
+                    positionAbsolute: parentIdChanged ? updatedNode.positionAbsolute : originalNode.positionAbsolute,
                     // CRITICAL: Update style dimensions - don't spread updatedNode.style first as it may have stale dimensions
                     // Set width/height explicitly to ensure they match the root dimensions
                     style: {
@@ -469,7 +501,41 @@ function Flow(props) {
                 
                 return updated;
             }
-            // For non-resized nodes, return the original unchanged
+            // For non-resized nodes, check if parentId or position changed (re-parenting without resize)
+            if (updatedNode) {
+                const parentIdChanged = updatedNode.parentId !== originalNode.parentId;
+                const positionChanged = updatedNode.position && originalNode.position && 
+                    (updatedNode.position.x !== originalNode.position.x || updatedNode.position.y !== originalNode.position.y);
+                
+                console.log('[updateOriginalFetchedNodesRef] Checking non-resized node for parent/position changes:', {
+                    nodeId: updatedNode.id,
+                    parentIdChanged,
+                    positionChanged,
+                    originalParentId: originalNode.parentId,
+                    updatedParentId: updatedNode.parentId,
+                    originalPosition: originalNode.position,
+                    updatedPosition: updatedNode.position
+                });
+                
+                // If parentId or position changed, update them to preserve re-parenting
+                if (parentIdChanged || positionChanged) {
+                    const updated = {
+                        ...originalNode,
+                        parentId: parentIdChanged ? updatedNode.parentId : originalNode.parentId,
+                        position: (parentIdChanged || positionChanged) ? updatedNode.position : originalNode.position,
+                        positionAbsolute: parentIdChanged ? updatedNode.positionAbsolute : originalNode.positionAbsolute,
+                    };
+                    console.log('[updateOriginalFetchedNodesRef] Updating non-resized node with new parent/position:', {
+                        nodeId: updated.id,
+                        oldParentId: originalNode.parentId,
+                        newParentId: updated.parentId,
+                        oldPosition: originalNode.position,
+                        newPosition: updated.position
+                    });
+                    return updated;
+                }
+            }
+            // For non-resized nodes with no parent/position changes, return the original unchanged
             return originalNode;
         });
         
@@ -496,9 +562,21 @@ function Flow(props) {
                         height: nodeHeight,
                     },
                 };
+                console.log('[updateOriginalFetchedNodesRef] Adding new node:', {
+                    id: nodeToAdd.id,
+                    parentId: nodeToAdd.parentId,
+                    position: nodeToAdd.position
+                });
                 originalFetchedNodesRef.current.push(nodeToAdd);
             }
         });
+        
+        console.log('[updateOriginalFetchedNodesRef] Final originalFetchedNodesRef state:', originalFetchedNodesRef.current.map(n => ({
+            id: n.id,
+            parentId: n.parentId,
+            position: n.position,
+            positionAbsolute: n.positionAbsolute
+        })));
     }, []);
 
     // Set up the global callback for persisting resize changes
@@ -729,7 +807,7 @@ function Flow(props) {
         setPotentialParentId(null);
     }, [isDeveloperMode, takeSnapshot]);
 
-    // Handle node drag - detect when node is over a potential parent
+    // Handle node drag - detect when node is over a potential group/parent node
     const onNodeDrag = useCallback((event, node) => {
         if (!isDeveloperMode) return;
 
@@ -739,62 +817,101 @@ function Flow(props) {
 
         if (!dragPoint) return;
 
-        // Find potential parent (a node that the dragged node is over)
-        const potentialParent = currentNodes.find((n) => {
-            if (n.id === node.id) return false; // Can't be parent of itself
-            if (n.parentId) return false; // Parents can't have parents (for simplicity)
-            if (!canBeParent(n)) return false;
-            if (wouldCreateCircularDependency(currentNodes, node.id, n.id)) return false;
+        // If node has a parent, it's locked by default - but we still allow drag to detect new parent or detach
+        // Find potential group/parent node - any node can be a parent
+        const potentialParent = findGroupNodeAtPoint(currentNodes, dragPoint, node.id);
+        
+        if (potentialParent) {
+            // Check if this is a valid attachment
+            if (potentialParent.id !== node.id && 
+                potentialParent.id !== node.parentId &&
+                !wouldCreateCircularDependency(currentNodes, node.id, potentialParent.id)) {
+                setPotentialParentId(potentialParent.id);
+                return;
+            }
+        }
 
-            // Use absolute position for parent check (React Flow provides positionAbsolute)
-            const parentPos = n.positionAbsolute || n.position;
-            return isPointInNode(dragPoint, {
-                ...n,
-                position: parentPos
-            });
-        });
-
-        setPotentialParentId(potentialParent ? potentialParent.id : null);
+        // If not over a group node, clear potential parent (will detach if node has parentId)
+        setPotentialParentId(null);
     }, [isDeveloperMode, getNodes]);
 
 
 
-    // Handle drag stop - clear dragging node ID
+    // Handle drag stop - implement attach/detach logic for group nodes (any node can be a parent)
     const onNodeDragStop = useCallback((event, node) => {
         if (!isDeveloperMode) return;
         takeSnapshot();
         const currentNodes = getNodes();
 
-        // Check if we should attach to a parent
-        if (potentialParentId && potentialParentId !== node.parentId) {
-            const parentNode = currentNodes.find(n => n.id === potentialParentId);
-            const draggedNode = currentNodes.find(n => n.id === node.id);
+        const draggedNode = currentNodes.find(n => n.id === node.id);
+        if (!draggedNode) return;
 
-            if (parentNode && draggedNode) {
-                // Get absolute position of dragged node
+        const hasParent = !!draggedNode.parentId;
+        const oldParentId = draggedNode.parentId;
+
+        // ATTACH: Node is dropped over a group/parent node
+        if (potentialParentId && potentialParentId !== oldParentId) {
+            const newParent = currentNodes.find(n => n.id === potentialParentId);
+            
+            // Any node without a parent can be a group node
+            if (newParent && !newParent.parentId) {
                 const draggedAbsolutePos = draggedNode.positionAbsolute || draggedNode.position;
-                const parentAbsolutePos = parentNode.positionAbsolute || parentNode.position;
+                const parentAbsolutePos = newParent.positionAbsolute || newParent.position;
 
                 if (draggedAbsolutePos && parentAbsolutePos) {
-                    // Convert absolute position to relative to parent
-                    // React Flow will automatically maintain this relationship
-                    const relativePos = absoluteToRelative(draggedAbsolutePos, parentAbsolutePos);
+                    let relativePos;
+                    
+                    // MOVE BETWEEN GROUPS: Convert from old parent's relative to new parent's relative
+                    if (oldParentId) {
+                        const oldParent = currentNodes.find(n => n.id === oldParentId);
+                        if (oldParent) {
+                            const oldParentAbsolutePos = oldParent.positionAbsolute || oldParent.position;
+                            // Convert: oldRelative -> absolute -> newRelative
+                            const absoluteFromOld = relativeToAbsolute(draggedNode.position, oldParentAbsolutePos);
+                            relativePos = absoluteToRelative(absoluteFromOld, parentAbsolutePos);
+                        } else {
+                            relativePos = absoluteToRelative(draggedAbsolutePos, parentAbsolutePos);
+                        }
+                    } else {
+                        // ATTACH: Convert absolute to relative
+                        relativePos = absoluteToRelative(draggedAbsolutePos, parentAbsolutePos);
+                    }
 
-                    // Update node with parent relationship
-                    // React Flow automatically handles parent-child positioning when parentId is set
-                    setNodes((nds) =>
-                        nds.map((n) => {
+                    setNodes((nds) => {
+                        const updatedNodes = nds.map((n) => {
                             if (n.id === node.id) {
                                 return {
                                     ...n,
                                     parentId: potentialParentId,
-                                    position: relativePos
-                                    // React Flow will calculate positionAbsolute automatically
+                                    position: relativePos,
+                                    // Automatically lock when node has a parent
+                                    extent: 'parent',
+                                    data: {
+                                        ...n.data,
+                                        isAttachedToGroup: true
+                                    }
                                 };
                             }
                             return n;
-                        })
-                    );
+                        });
+                        
+                        // Ensure parent-child ordering
+                        const sortedNodes = sortNodesByParentChild(updatedNodes);
+                        
+                        // Update originalFetchedNodesRef
+                        const reParentedNode = sortedNodes.find(n => n.id === node.id);
+                        if (reParentedNode) {
+                            setTimeout(() => {
+                                const finalNodes = getNodes();
+                                const finalNode = finalNodes.find(n => n.id === node.id);
+                                if (finalNode) {
+                                    updateOriginalFetchedNodesRef([finalNode]);
+                                }
+                            }, 100);
+                        }
+                        
+                        return sortedNodes;
+                    });
 
                     setPotentialParentId(null);
                     setDraggingNodeId(null);
@@ -803,7 +920,59 @@ function Flow(props) {
             }
         }
 
-        // Apply final snap position when drag stops (only if not attaching to parent)
+        // DETACH: Node with parentId is dropped outside any group
+        // Note: Nodes with parents are always locked, but we allow detach by dragging outside
+        if (hasParent && !potentialParentId) {
+            const oldParent = currentNodes.find(n => n.id === oldParentId);
+            
+            if (oldParent) {
+                const oldParentAbsolutePos = oldParent.positionAbsolute || oldParent.position;
+                // Convert relative to absolute
+                const absolutePos = relativeToAbsolute(draggedNode.position, oldParentAbsolutePos);
+
+                setNodes((nds) => {
+                    const updatedNodes = nds.map((n) => {
+                        if (n.id === node.id) {
+                            const updated = {
+                                ...n,
+                                parentId: undefined,
+                                position: absolutePos,
+                                extent: undefined,
+                                data: {
+                                    ...n.data,
+                                    isAttachedToGroup: false
+                                }
+                            };
+                            return updated;
+                        }
+                        return n;
+                    });
+                    
+                    // Ensure parent-child ordering
+                    const sortedNodes = sortNodesByParentChild(updatedNodes);
+                    
+                    // Update originalFetchedNodesRef
+                    const detachedNode = sortedNodes.find(n => n.id === node.id);
+                    if (detachedNode) {
+                        setTimeout(() => {
+                            const finalNodes = getNodes();
+                            const finalNode = finalNodes.find(n => n.id === node.id);
+                            if (finalNode) {
+                                updateOriginalFetchedNodesRef([finalNode]);
+                            }
+                        }, 100);
+                    }
+                    
+                    return sortedNodes;
+                });
+
+                setPotentialParentId(null);
+                setDraggingNodeId(null);
+                return;
+            }
+        }
+
+        // Apply final snap position when drag stops (only if not attaching/detaching)
         const isDotNode = node.type?.includes('dotNode') || node.nodeType?.includes('dot-node');
         if (!isDotNode && node.position) {
             // Use absolute position for snapping if available
@@ -827,7 +996,6 @@ function Flow(props) {
                                         return {
                                             ...n,
                                             position: relativePos
-                                            // React Flow will calculate positionAbsolute automatically
                                         };
                                     }
                                 }
@@ -835,7 +1003,6 @@ function Flow(props) {
                             return {
                                 ...n,
                                 position: snappedPosition
-                                // React Flow will calculate positionAbsolute automatically
                             };
                         }
                         return n;
@@ -846,7 +1013,7 @@ function Flow(props) {
 
         setPotentialParentId(null);
         setDraggingNodeId(null);
-    }, [isDeveloperMode, snapNodePosition, setNodes, takeSnapshot]);
+    }, [isDeveloperMode, snapNodePosition, setNodes, takeSnapshot, getNodes, updateOriginalFetchedNodesRef, potentialParentId]);
 
 
     const handleEdgesChange = useCallback(
@@ -1123,6 +1290,18 @@ function Flow(props) {
     };
 
     const onPaneClick = () => {
+        console.log('[onPaneClick] Canvas clicked - current nodes state:', nodes.map(n => ({
+            id: n.id,
+            parentId: n.parentId,
+            position: n.position,
+            positionAbsolute: n.positionAbsolute
+        })));
+        console.log('[onPaneClick] originalFetchedNodesRef state:', originalFetchedNodesRef.current.map(n => ({
+            id: n.id,
+            parentId: n.parentId,
+            position: n.position,
+            positionAbsolute: n.positionAbsolute
+        })));
         setConfig(null);
         setSelectedEdgeId(null);
         setSelectedNodeId(null);
@@ -1156,15 +1335,35 @@ function Flow(props) {
                 }
                 const newNodeData = allNodes.find((x) => x.type === type);
                 if (newNodeData) {
+                    // Check if dropped position is inside a group/parent node
+                    const currentNodes = getNodes();
+                    const parentAtDrop = findGroupNodeAtPoint(currentNodes, position);
+                    
+                    let finalPosition = position;
+                    let parentId = undefined;
+                    
+                    if (parentAtDrop && !parentAtDrop.parentId) {
+                        // Convert absolute position to relative to parent
+                        const parentAbsolutePos = parentAtDrop.positionAbsolute || parentAtDrop.position;
+                        if (parentAbsolutePos) {
+                            finalPosition = absoluteToRelative(position, parentAbsolutePos);
+                            parentId = parentAtDrop.id;
+                        }
+                    }
+                    
                     setSelectedNodeId(null);
                     setSelectedEdgeId(null);
                     setConfig(null);
-                    setNewNode({ ...newNodeData, position });
+                    setNewNode({ 
+                        ...newNodeData, 
+                        position: finalPosition,
+                        parentId: parentId
+                    });
                     setType(null);
                 }
             }
         },
-        [screenToFlowPosition, type, handleTemplateDrop, templateDropCounts, setTemplateDropCounts, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig, setNewNode, setType]
+        [screenToFlowPosition, type, handleTemplateDrop, templateDropCounts, setTemplateDropCounts, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig, setNewNode, setType, getNodes]
     );
 
     const handleSaveTemplate = useCallback(() => {

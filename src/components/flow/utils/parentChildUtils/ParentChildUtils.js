@@ -120,4 +120,100 @@ export const getDescendantIds = (nodes, parentId) => {
   
   return descendants;
 };
+
+/**
+ * Check if a node can act as a group/board (any node can be a parent)
+ * @param {object} node - Node to check
+ * @returns {boolean} True if node can be a parent
+ */
+export const canBeGroupNode = (node) => {
+  // Any node without a parent can be a group node
+  return !node.parentId;
+};
+
+/**
+ * Find all nodes that can act as group/board nodes
+ * @param {array} nodes - Array of all nodes
+ * @returns {array} Array of nodes that can be parents
+ */
+export const getGroupNodes = (nodes) => {
+  return nodes.filter(node => canBeGroupNode(node));
+};
+
+/**
+ * Find the node (group/board) that contains a given point
+ * @param {array} nodes - Array of all nodes
+ * @param {object} point - Point coordinates {x, y} (absolute)
+ * @param {string} excludeNodeId - Node ID to exclude from search
+ * @returns {object|null} Node that contains the point, or null
+ */
+export const findGroupNodeAtPoint = (nodes, point, excludeNodeId = null) => {
+  // Find any node that can be a parent and contains the point
+  // Sort by z-index or size (larger nodes first) to handle overlapping nodes
+  const candidateNodes = nodes
+    .filter(node => {
+      if (excludeNodeId && node.id === excludeNodeId) return false;
+      if (node.parentId) return false; // Nodes with parents can't be group nodes
+      return true;
+    })
+    .map(node => {
+      const nodeWidth = node.width || node.data?.width || 150;
+      const nodeHeight = node.height || node.data?.height || 150;
+      const area = nodeWidth * nodeHeight;
+      return { node, area };
+    })
+    .sort((a, b) => b.area - a.area); // Larger nodes first
+  
+  for (const { node } of candidateNodes) {
+    const nodePos = node.positionAbsolute || node.position;
+    if (nodePos && isPointInNode(point, { ...node, position: nodePos })) {
+      return node;
+    }
+  }
+  
+  return null;
+};
+
+/**
+ * Sort nodes to ensure parents appear before their children
+ * @param {array} nodes - Array of nodes to sort
+ * @returns {array} Sorted array of nodes
+ */
+export const sortNodesByParentChild = (nodes) => {
+  const sorted = [];
+  const processed = new Set();
+  
+  // First, add all nodes without parents
+  nodes.forEach(node => {
+    if (!node.parentId) {
+      sorted.push(node);
+      processed.add(node.id);
+    }
+  });
+  
+  // Then, recursively add children
+  const addChildren = (parentId) => {
+    nodes.forEach(node => {
+      if (node.parentId === parentId && !processed.has(node.id)) {
+        sorted.push(node);
+        processed.add(node.id);
+        addChildren(node.id);
+      }
+    });
+  };
+  
+  // Add children for all parent nodes
+  sorted.forEach(node => {
+    addChildren(node.id);
+  });
+  
+  // Add any remaining nodes (shouldn't happen in valid hierarchy)
+  nodes.forEach(node => {
+    if (!processed.has(node.id)) {
+      sorted.push(node);
+    }
+  });
+  
+  return sorted;
+};
  
