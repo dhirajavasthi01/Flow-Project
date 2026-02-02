@@ -87,7 +87,6 @@ export function useNodeProcessing({
         setEdges(processedEdges);
       }
     } else if (error) {
-      console.error('Error loading flow data:', error);
       setNodes([]);
       setEdges([]);
     }

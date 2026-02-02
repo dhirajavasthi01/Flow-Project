@@ -41,7 +41,7 @@ const dynamicNodes = Object.keys(svgModules).reduce((acc, path) => {
       camelName: toCamelCase(filename),
     };
   } catch (error) {
-    console.log("Error", error)
+    // Error handled silently
   }
 
   return acc;
@@ -99,42 +99,36 @@ export const edgeTypes = {
   flowingPipeStraightArrow: (props) => {
     if (!FlowingPipeEdge) {
       // If not loaded yet, return a placeholder (shouldn't happen if preload works)
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "straight" });
   },
   flowingPipe: (props) => {
     if (!FlowingPipeEdge) {
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "flowingPipeStraightWithoutArrow" });
   },
   flowingPipeDotted: (props) => {
     if (!FlowingPipeEdge) {
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "dotted" });
   },
   flowingPipeDottedArrow: (props) => {
     if (!FlowingPipeEdge) {
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "dottedArrow" });
   },
   straightArrow: (props) => {
     if (!FlowingPipeEdge) {
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "straightArrow" });
   },
   bezierArrow: (props) => {
     if (!FlowingPipeEdge) {
-      console.warn('FlowingPipeEdge not loaded yet');
       return null;
     }
     return FlowingPipeEdge({ ...props, type: "bezier" });

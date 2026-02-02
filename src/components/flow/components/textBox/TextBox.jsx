@@ -12,9 +12,12 @@ import Handles from '../../handles/Handles';
 
 import { NodeTooltip, NodeTooltipContent, useNodeTooltip } from '../../nodes/nodeTooltip/NodeTooltip';
 import { RotateHandle, TextContent } from './TextBox.function';
-import { calculateOptimalFontSize, formatTextContent, getRawText } from './TextboxConfig';
+import { calculateOptimalFontSize, formatTextContent, getRawText, calculateAngle } from './TextboxConfig';
 
-// Inner component that uses the tooltip hook - must be inside NodeTooltip context
+/**
+ * Inner component that uses the tooltip hook - must be inside NodeTooltip context
+ * Used for non-developer mode rendering with tooltip support
+ */
 const TextBoxContent = memo(({
     containerRef,
     textRef,
@@ -23,11 +26,7 @@ const TextBoxContent = memo(({
     color,
     fontSize,
     orientation,
-    numSourceHandlesRight,
-    numTargetHandlesTop,
-    numSourceHandlesBottom,
-    numTargetHandlesLeft,
-    targetHandles,
+    nodeId,
     bgColor,
     isDeveloperMode,
 }) => {
@@ -82,97 +81,89 @@ const TextBoxContent = memo(({
                 className="text-uppercase"
             />
 
-            <Handles
-                numSourceHandlesRight={numSourceHandlesRight}
-                numTargetHandlesTop={numTargetHandlesTop}
-                numSourceHandlesBottom={numSourceHandlesBottom}
-                numTargetHandlesLeft={numTargetHandlesLeft}
-                targetHandles={targetHandles}
-                key="textBoxNode"
-            />
+            <Handles id={nodeId} />
         </div>
     );
 });
 
 TextBoxContent.displayName = 'TextBoxContent';
 
-
+/**
+ * Custom hook for node rotation functionality
+ * Handles rotation state and mouse events for rotating nodes
+ */
 const useNodeRotation = (initialRotation, id, setNodes) => {
     const [rotation, setRotation] = useState(initialRotation);
     const rotationRef = useRef(initialRotation);
     const isRotating = useRef(false);
     const nodeRef = useRef(null);
+
+    // Sync rotation state when initialRotation changes
     useEffect(() => {
         setRotation(initialRotation);
         rotationRef.current = initialRotation;
     }, [initialRotation]);
+
     const startRotation = useCallback((event) => {
         event.preventDefault();
         event.stopPropagation();
         isRotating.current = true;
+        
         const nodeBounds = nodeRef.current.getBoundingClientRect();
         const centerX = nodeBounds.left + nodeBounds.width / 2;
         const centerY = nodeBounds.top + nodeBounds.height / 2;
+
         const onMouseMove = (moveEvent) => {
             if (!isRotating.current) return;
             const newRotation = calculateAngle(centerX, centerY, moveEvent.clientX, moveEvent.clientY);
             setRotation(newRotation);
             rotationRef.current = newRotation;
         };
+
         const updateNodeRotation = (nodes, nodeId, rotationValue) => {
             return nodes.map((node) => {
                 if (node.id === nodeId) {
                     return {
                         ...node,
-                        data: { ...node.data, rotation: rotationValue },
+                        // CRITICAL: Explicitly preserve position and parent-child properties
+                        position: node.position,
+                        positionAbsolute: node.positionAbsolute,
+                        parentId: node.parentId,
+                        extent: node.extent,
+                        data: { 
+                            ...node.data, 
+                            rotation: rotationValue 
+                        },
                     };
                 }
                 return node;
-            })
-        }
+            });
+        };
+
         const onMouseUp = () => {
             if (!isRotating.current) return;
             isRotating.current = false;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            
             const finalRotation = rotationRef.current;
-            setNodes((nds) =>
-                updateNodeRotation(nds, id, finalRotation)
-            );
+            setNodes((nds) => updateNodeRotation(nds, id, finalRotation));
         };
+
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
     }, [id, setNodes]);
+
     return { rotation, rotationRef, nodeRef, startRotation };
 };
-const useNodeDimensions = (initialWidth, initialHeight) => {
-    const [currentDimensions, setCurrentDimensions] = useState({
-        width: initialWidth,
-        height: initialHeight
-    });
-    useEffect(() => {
-        setCurrentDimensions({
-            width: initialWidth,
-            height: initialHeight
-        });
-    }, [initialWidth, initialHeight]);
-    return [currentDimensions, setCurrentDimensions];
-};
-const useDeveloperModeSync = (isDeveloperMode, id, setNodes) => {
-    useEffect(() => {
-        setNodes((nodes) =>
-            nodes.map((node) => {
-                return getValsBaseOnCondition(node.id !== id, node, {
-                    ...node,
-                    draggable: isDeveloperMode,
-                    selectable: isDeveloperMode,
-                });
-            })
-        );
-    }, [isDeveloperMode, id, setNodes]);
-};
+
+/**
+ * Custom hook for auto-calculating optimal font size based on dimensions
+ * Uses binary search to find the best fit font size
+ */
 const useAutoFontSize = (textRef, dimensions, label, tagData) => {
     const [fontSize, setFontSize] = useState(16);
+
     useLayoutEffect(() => {
         if (!textRef.current) return;
         const optimalSize = calculateOptimalFontSize(
@@ -182,71 +173,67 @@ const useAutoFontSize = (textRef, dimensions, label, tagData) => {
         );
         setFontSize(optimalSize);
     }, [dimensions.width, dimensions.height, label, tagData]);
+
     return fontSize;
 };
 
-
-export const TextboxNode = memo(({ data, id, selected }) => {
+/**
+ * Main TextBox Node Component
+ * Treated like other nodes - no special processing, goes through same pipeline
+ * Supports: rotation, resizing, developer mode, tooltips, handles, text formatting, tag data, failure modes
+ */
+const TextboxNodeComponent = ({ data, id, selected }) => {
     const isDeveloperMode = useAtomValue(developerModeAtom);
     const allTagsDataList = useAtomValue(allTagsDataAtom);
     const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
     const { setNodes, getNode } = useReactFlow();
+    
     const textRef = useRef(null);
     const containerRef = useRef(null);
+
+    // Extract data properties - read directly from data like other nodes
     const {
         width: initialWidth = 200,
         height: initialHeight = 100,
         color,
         label,
-        numSourceHandlesRight,
-        numSourceHandlesBottom,
-        numTargetHandlesTop,
-        numTargetHandlesLeft,
         linkedTag,
         template,
-        targetHandles = [],
         rotation: initialRotation = 0,
         tooltipContent,
         failureModeNames,
         ttfDays = null,
     } = data;
+
+    // Initialize rotation hook (only feature that needs setNodes)
     const { rotation, rotationRef, nodeRef, startRotation } = useNodeRotation(initialRotation, id, setNodes);
-    const [currentDimensions, setCurrentDimensions] = useNodeDimensions(initialWidth, initialHeight);
-    useDeveloperModeSync(isDeveloperMode, id, setNodes);
+    
+    // Use dimensions directly from node data (like other nodes do)
+    // React Flow handles dimensions through handleNodesChange
+    const currentDimensions = {
+        width: initialWidth,
+        height: initialHeight
+    };
+    
+    // Get tag data for dynamic text content
     const tagData = allTagsDataList.find((x) => x.tagId && x.tagId == linkedTag);
     const fontSize = useAutoFontSize(textRef, currentDimensions, label, tagData);
-    const onResizeEnd = (_, params) => {
-        setCurrentDimensions({
-            width: params.width,
-            height: params.height,
-        });
-        setNodes((nds) =>
-            nds.map((node) => {
-                if (node.id === id) {
-                    return {
-                        ...node,
-                        data: {
-                            ...node.data,
-                            width: params.width,
-                            height: params.height,
-                            rotation: rotationRef.current
-                        },
-                    };
-                }
-                return node;
-            })
-        );
-    };
+
+    // Get background color from template
     const { bgColor } = EXTRA_NODE_COLORS[template] || {};
     const { orientation = "horizontal" } = data;
-    const rawText = getRawText(tagData, label)
+    
+    // Format text content based on orientation and tag data
+    const rawText = getRawText(tagData, label);
     const textContent = formatTextContent(rawText, orientation);
 
     const failureModeList = failureModeNames?.length ? failureModeNames : null;
 
-    // Get the node to check if it has a parent
-    // Use parent's ID for tooltip if node has a parent, otherwise use node's own ID
-    // This ensures tooltip appears at the same position as parent node when text node is a child
+    /**
+     * Determine tooltip node ID
+     * If node has a parent, use parent's ID for tooltip positioning
+     * This ensures tooltip appears at the same position as parent node when text node is a child
+     */
     const tooltipNodeId = useMemo(() => {
         const node = getNode(id);
         const parentId = node?.parentId;
@@ -258,7 +245,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         return id;
     }, [id, getNode]);
 
-    // Content that will be wrapped with NodeTooltip when not in developer mode
+    // Main content wrapper with rotation transform
     const content = (
         <div
             ref={nodeRef}
@@ -270,48 +257,50 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                 cursor: 'grab',
             }}
         >
+            {/* Rotate handle - only visible in developer mode when selected */}
             {selected && isDeveloperMode && <RotateHandle onMouseDown={startRotation} />}
+            
+            {/* Node resizer - only visible in developer mode when selected */}
+            {/* CRITICAL: Don't provide onResize/onResizeEnd - let React Flow handle it through handleNodesChange */}
+            {/* This matches the pattern used in BaseSvgNode and other nodes */}
             <NodeResizer
                 isVisible={getValsBaseOnCondition(selected, isDeveloperMode, null)}
                 minWidth={20}
                 minHeight={20}
-                onResizeEnd={onResizeEnd}
+                // Don't provide onResize/onResizeEnd - let React Flow handle it through handleNodesChange
             />
-            {isDeveloperMode ? (<div
-                ref={containerRef}
-                style={{
-                    display: "inline-flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    position: "relative",
-                    backgroundColor: bgColor || "transparent",
-                    width: '100%',
-                    height: '100%',
-                    padding: "4px 0px",
-                    boxSizing: "border-box",
-                    pointerEvents: 'auto',
-                    lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
-                    cursor: (isDeveloperMode || setFailureNodeClicked) ? 'default' : 'pointer',
-                    wordBreak: 'break-all',
-                    whiteSpace: 'nowrap'
-                }}
-            >
-                <TextContent
-                    textRef={textRef}
-                    content={textContent}
-                    color={color}
-                    label={label}
-                    fontSize={fontSize}
-                />
-                <Handles
-                    numSourceHandlesRight={numSourceHandlesRight}
-                    numTargetHandlesTop={numTargetHandlesTop}
-                    numSourceHandlesBottom={numSourceHandlesBottom}
-                    numTargetHandlesLeft={numTargetHandlesLeft}
-                    targetHandles={targetHandles}
-                    key="textBoxNode"
-                />
-            </div>) : (
+            
+            {/* Content based on developer mode */}
+            {isDeveloperMode ? (
+                <div
+                    ref={containerRef}
+                    style={{
+                        display: "inline-flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        position: "relative",
+                        backgroundColor: bgColor || "transparent",
+                        width: '100%',
+                        height: '100%',
+                        padding: "4px 0px",
+                        boxSizing: "border-box",
+                        pointerEvents: 'auto',
+                        lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
+                        cursor: (isDeveloperMode || setFailureNodeClicked) ? 'default' : 'pointer',
+                        wordBreak: 'break-all',
+                        whiteSpace: 'nowrap'
+                    }}
+                >
+                    <TextContent
+                        textRef={textRef}
+                        content={textContent}
+                        color={color}
+                        label={label}
+                        fontSize={fontSize}
+                    />
+                    <Handles id={id} />
+                </div>
+            ) : (
                 <TextBoxContent
                     containerRef={containerRef}
                     textRef={textRef}
@@ -320,20 +309,15 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                     color={color}
                     fontSize={fontSize}
                     orientation={orientation}
-                    numSourceHandlesRight={numSourceHandlesRight}
-                    numTargetHandlesTop={numTargetHandlesTop}
-                    numSourceHandlesBottom={numSourceHandlesBottom}
-                    numTargetHandlesLeft={numTargetHandlesLeft}
-                    targetHandles={targetHandles}
+                    nodeId={id}
                     bgColor={bgColor}
                     isDeveloperMode={isDeveloperMode}
                 />
             )}
-
-
         </div>
-
     );
+
+    // Wrap with tooltip in non-developer mode
     if (!isDeveloperMode) {
         return (
             <NodeTooltip nodeId={tooltipNodeId}>
@@ -347,7 +331,6 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                             </div>
 
                             <div className="flex flex-col uppercase">
-
                                 <div className="flex text-13 pt-1 gap-1 items-start">
                                     <div className="text-12 font-sabic_text_bold">
                                         Estimated TTF :
@@ -355,9 +338,11 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                                     {ttfDays != undefined && ttfDays != null ? (
                                         <div>
                                             {ttfDays} {ttfDays > 1 ? "Days" : "Day"}
-                                        </div>) : (<div>-</div>)}
+                                        </div>
+                                    ) : (
+                                        <div>-</div>
+                                    )}
                                 </div>
-
 
                                 <div className="flex flex-col text-13 pt-[1vmin] gap-[0.5vmin] items-start">
                                     <div className="text-12 font-sabic_text_bold gap-1">
@@ -365,13 +350,14 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                                         {failureModeList.length > 1 ? "s" : ""} : &nbsp;
                                     </div>
 
-                                    <ul className="flex flex-col gap-[0.5vmin] px-[0vmin] list-disc ml-[2vmin] mt-[-1vmin]" >
+                                    <ul className="flex flex-col gap-[0.5vmin] px-[0vmin] list-disc ml-[2vmin] mt-[-1vmin]">
                                         {failureModeList.map((item) => (
                                             <li key={`${item}-flow`} className="[&::marker]:text-[2.5vmin] [&::marker]:font-bold">
-                                                <span className="max-w-[250px] text-13 whitespace-normal break-words inline-block align-top">{item}</span>
+                                                <span className="max-w-[250px] text-13 whitespace-normal break-words inline-block align-top">
+                                                    {item}
+                                                </span>
                                             </li>
-                                        )
-                                        )}
+                                        ))}
                                     </ul>
                                 </div>
                             </div>
@@ -390,5 +376,9 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     }
 
     return content;
+};
 
-});
+// Simple memo without custom comparison - let React handle re-renders like other nodes
+export const TextboxNode = memo(TextboxNodeComponent);
+
+TextboxNode.displayName = 'TextboxNode';

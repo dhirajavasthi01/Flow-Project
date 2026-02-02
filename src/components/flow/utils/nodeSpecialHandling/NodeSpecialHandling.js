@@ -83,7 +83,6 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     }
     return false;
   } catch (error) {
-    console.error("Error analyzing SVG text for special handling:", error);
     return false;
   }
 }
@@ -104,10 +103,6 @@ async function analyzeSvgForSpecialHandling(svgPath) {
     svgAnalysisCache.set(svgPath, isSpecial);
     return isSpecial;
   } catch (error) {
-    console.error(
-      "Error analyzing SVG for special handling:",
-      error
-    );
     svgAnalysisCache.set(svgPath, false);
     return false;
   }
@@ -134,11 +129,6 @@ export async function isSpecialNode(nodeType, svgPath = null) {
     }
     return analyzeSvgForSpecialHandling(resolvedSvgPath);
   } catch (error) {
-    console.error(
-      "Error resolving SVG path for node type:",
-      nodeType,
-      error
-    );
     return false;
   }
 }

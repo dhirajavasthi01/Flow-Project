@@ -100,7 +100,6 @@ const clonedEdges = template.edges.map(edge => {
       
       return { success: true, nodes, edges };
     } catch (error) {
-      console.error('Error dropping template:', error);
       return { success: false, error: error.message };
     }
   }, [cloneTemplate, calculateOffset]);

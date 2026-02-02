@@ -92,7 +92,7 @@ const NodeConfigurator = () => {
                 return prev;
             });
         } catch (error) {
-            console.error('Error extracting colors:', error);
+            // Error handled silently
         }
     };
 

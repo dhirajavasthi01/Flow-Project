@@ -84,7 +84,6 @@ export function generateNodeExports(filename) {
       [`${pascalName}Node`]: nodeComponent,
     };
   } catch (error) {
-    console.log(error)
     return null;
   }
 }

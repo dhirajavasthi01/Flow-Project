@@ -1,5 +1,6 @@
 import { createTableDataKey, mergeProcessedNodesWithCurrent } from "../../Flow.functions";
 import { syncNodeDimensions, isResizingRef } from "../../hooks/useNodeResize/useNodeResize";
+import { sortNodesByParentChild } from "../parentChildUtils/ParentChildUtils";
 
 // Processes edges with default styling
 export const processEdges = (edges, strokeWidth = 1) => {
@@ -102,6 +103,7 @@ export const handleFetchedNodesEdgesChange = ({
   setLegendPosition,
   zoomTo,
   fitView,
+  getNodes, // Add getNodes to access current nodes
 }) => {
   // Handle error state
   if (error) {
@@ -128,13 +130,42 @@ export const handleFetchedNodesEdgesChange = ({
   
   // Process nodes and edges based on developer mode
   if (!isDeveloperMode) {
-    const processedNodes = processNodesWithTableDataRef.current
-      ? processNodesWithTableDataRef.current(nodesToUse, nodesToUse)
-      : nodesToUse;
-    // Sync dimensions from data to style for backward compatibility
-    const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
+    // CRITICAL: Use setNodes callback to access current nodes state directly
+    // This ensures we always use the most up-to-date nodes with correct positions
+    setNodes((currentNodes) => {
+      // Use current nodes if available (to preserve positions), otherwise use nodesToUse
+      const baseNodes = currentNodes.length > 0 ? currentNodes : nodesToUse;
+      
+      const processedNodes = processNodesWithTableDataRef.current
+        ? processNodesWithTableDataRef.current(baseNodes, nodesToUse) // Use baseNodes for positions, nodesToUse for data restoration
+        : baseNodes;
+      // Sync dimensions from data to style for backward compatibility
+      // CRITICAL: syncNodeDimensions now explicitly preserves positions
+      const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
+      // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+      const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+        if (node.parentId) {
+          return {
+            ...node,
+            extent: 'parent',
+            data: {
+              ...node.data,
+              isAttachedToGroup: true
+            }
+          };
+        }
+        return node;
+      });
+      // CRITICAL: Merge with current nodes to ensure all current properties (especially positions) are preserved
+      // This is a safety measure - even though processedNodes uses baseNodes (which are currentNodes),
+      // merging ensures positions are definitely preserved from the actual current state
+      const mergedNodes = currentNodes.length > 0 
+        ? mergeProcessedNodesWithCurrent(nodesWithLockState, currentNodes)
+        : nodesWithLockState;
+      // Ensure parent-child ordering
+      return sortNodesByParentChild(mergedNodes);
+    });
     const processedEdges = processEdges(fetchedEdges, 1);
-    setNodes(nodesWithSyncedDimensions);
     setEdges(processedEdges);
     setLegendPosition(fetchedLegendPosition);
     
@@ -152,7 +183,23 @@ export const handleFetchedNodesEdgesChange = ({
     
     // Sync dimensions from data to style for backward compatibility
     const nodesWithSyncedDimensions = nodesToUse.map(syncNodeDimensions);
-    setNodes(nodesWithSyncedDimensions);
+    // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+    const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+      if (node.parentId) {
+        return {
+          ...node,
+          extent: 'parent',
+          data: {
+            ...node.data,
+            isAttachedToGroup: true
+          }
+        };
+      }
+      return node;
+    });
+    // Ensure parent-child ordering
+    const sortedNodes = sortNodesByParentChild(nodesWithLockState);
+    setNodes(sortedNodes);
     setLegendPosition(fetchedLegendPosition);
     const processedEdges = processEdges(fetchedEdges, 5);
     setEdges(processedEdges);
@@ -192,16 +239,97 @@ export const handleTableDataChange = ({
     lastProcessedTableDataRef.current = tableDataKey;
     
     setNodes((currentNodes) => {
+      // Use currentNodes as the base to preserve positions (especially relative positions for child nodes)
+      // Only use originalFetchedNodesRef for color/highlighting data restoration
       const processedNodes = processNodesWithTableDataRef.current
         ? processNodesWithTableDataRef.current(
-            originalFetchedNodesRef.current,
-            originalFetchedNodesRef.current
+            currentNodes, // Use current nodes to preserve positions
+            originalFetchedNodesRef.current // Use original nodes for data restoration
           )
-        : originalFetchedNodesRef.current;
+        : currentNodes;
       // Sync dimensions from data to style for backward compatibility
       const nodesWithSyncedDimensions = processedNodes.map(syncNodeDimensions);
-      const merged = mergeProcessedNodesWithCurrent(nodesWithSyncedDimensions, currentNodes);
-      return merged;
+      // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+      // CRITICAL: Only set these if they're not already set to avoid triggering unnecessary updates
+      const nodesWithLockState = nodesWithSyncedDimensions.map(node => {
+        if (node.parentId) {
+          // Only update if extent or isAttachedToGroup is not already set correctly
+          const needsExtent = node.extent !== 'parent';
+          const needsIsAttachedToGroup = node.data?.isAttachedToGroup !== true;
+          
+          if (needsExtent || needsIsAttachedToGroup) {
+            return {
+              ...node,
+              extent: 'parent',
+              data: {
+                ...node.data,
+                isAttachedToGroup: true
+              }
+            };
+          }
+        }
+        return node;
+      });
+      // Merge processed nodes with current nodes to preserve all properties
+      const merged = mergeProcessedNodesWithCurrent(nodesWithLockState, currentNodes);
+      
+      // CRITICAL: Check if nodes actually changed before updating
+      // This prevents unnecessary setNodes calls that trigger position recalculation
+      const currentNodeMap = new Map(currentNodes.map(n => [n.id, n]));
+      let nodesChanged = false;
+      const changedNodes = [];
+      
+      merged.forEach((mergedNode) => {
+        const currentNode = currentNodeMap.get(mergedNode.id);
+        if (!currentNode) {
+          nodesChanged = true;
+          changedNodes.push({ id: mergedNode.id, reason: 'new node' });
+          return;
+        }
+        
+        // Check if data changed (colors, highlighting, etc.)
+        // Only compare relevant data properties, not all data
+        const relevantDataProps = ['nodeColor', 'specialNodeColor', 'gradientStart', 'gradientEnd', 
+                                   'failureModeNames', 'shouldBlink', 'ttfDays', 'isAttachedToGroup'];
+        const dataChanged = relevantDataProps.some(prop => {
+          const currentVal = currentNode.data?.[prop];
+          const mergedVal = mergedNode.data?.[prop];
+          // Handle array comparison for failureModeNames
+          if (prop === 'failureModeNames') {
+            return JSON.stringify(currentVal) !== JSON.stringify(mergedVal);
+          }
+          return currentVal !== mergedVal;
+        });
+        
+        if (dataChanged) {
+          nodesChanged = true;
+          changedNodes.push({ id: mergedNode.id, reason: 'data changed' });
+          return;
+        }
+        
+        // Check if extent or parentId changed
+        if (currentNode.extent !== mergedNode.extent || currentNode.parentId !== mergedNode.parentId) {
+          nodesChanged = true;
+          changedNodes.push({ id: mergedNode.id, reason: 'extent/parentId changed' });
+          return;
+        }
+        
+        // For child nodes, don't check positionAbsolute as it's calculated by React Flow
+        // Only check if position (relative) changed
+        if (currentNode.position?.x !== mergedNode.position?.x || 
+            currentNode.position?.y !== mergedNode.position?.y) {
+          nodesChanged = true;
+          changedNodes.push({ id: mergedNode.id, reason: 'position changed' });
+          return;
+        }
+      });
+      
+      if (!nodesChanged && currentNodes.length === merged.length) {
+        return currentNodes; // Return current nodes unchanged
+      }
+      
+      // Ensure parent-child ordering
+      return sortNodesByParentChild(merged);
     });
     
     return { shouldUpdate: true };
@@ -252,6 +380,7 @@ export const handleTableDataChange = ({
                 width: finalWidth,
                 height: finalHeight,
               },
+              // CRITICAL: Preserve current position and parentId to maintain re-parenting
               position: currentNode.position,
               positionAbsolute: currentNode.positionAbsolute,
               parentId: currentNode.parentId, // Preserve parent-child relationships
@@ -261,6 +390,7 @@ export const handleTableDataChange = ({
                 height: finalHeight,
               },
             };
+            
             // Only sync if dimensions are missing - don't overwrite existing dimensions
             if (!updatedNode.style?.width || !updatedNode.style?.height) {
               return syncNodeDimensions(updatedNode);
@@ -269,14 +399,47 @@ export const handleTableDataChange = ({
           }
           return currentNode;
         });
-        return result;
+        
+        // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+        const nodesWithLockState = result.map(node => {
+          if (node.parentId) {
+            return {
+              ...node,
+              extent: 'parent',
+              data: {
+                ...node.data,
+                isAttachedToGroup: true
+              }
+            };
+          }
+          return node;
+        });
+        
+        // Ensure parent-child ordering
+        return sortNodesByParentChild(nodesWithLockState);
       }
       // IMPORTANT: Use originalFetchedNodesRef.current which has persisted dimensions
       // Sync dimensions from data to style for backward compatibility
       const nodesToUse = originalFetchedNodesRef.current.length > 0 
         ? originalFetchedNodesRef.current 
         : [];
-      return nodesToUse.map(syncNodeDimensions);
+      const syncedNodes = nodesToUse.map(syncNodeDimensions);
+      // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
+      const nodesWithLockState = syncedNodes.map(node => {
+        if (node.parentId) {
+          return {
+            ...node,
+            extent: 'parent',
+            data: {
+              ...node.data,
+              isAttachedToGroup: true
+            }
+          };
+        }
+        return node;
+      });
+      // Ensure parent-child ordering
+      return sortNodesByParentChild(nodesWithLockState);
     });
     
     return { shouldUpdate: true };

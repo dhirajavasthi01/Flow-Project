@@ -71,10 +71,6 @@ export const handleTemplateDropHelper = ({
       templateId,
       position,
       (newNodes) => {
-        console.log(
-          "Adding nodes:",
-          newNodes.map((n) => ({ id: n.id, type: n.type }))
-        );
         // CRITICAL: Ensure all nodes have dimensions before adding
         // syncNodeDimensions will set default 250x250 for nodes without dimensions
         const nodesWithDimensions = newNodes.map(node => {
@@ -84,27 +80,14 @@ export const handleTemplateDropHelper = ({
         setNodes((prev) => [...prev, ...nodesWithDimensions]);
       },
       (newEdges) => {
-        console.log(
-          "Adding edges:",
-          newEdges.map((e) => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-          }))
-        );
         setEdges((prev) => [...prev, ...newEdges]);
       },
       newDropCount
     );
 
-    if (result.success) {
-      console.log("Template dropped successfully:", result);
-    } else {
-      console.error("Failed to drop template:", result.error);
-    }
-    console.log("=== END DROP DEBUG ===");
+    // Template drop handled
   } catch (error) {
-    console.error("Error parsing template data:", error);
+    // Error handled silently
   }
 
   return true;

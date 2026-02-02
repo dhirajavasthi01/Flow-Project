@@ -23,7 +23,6 @@ export function useFlowData(caseId = 1) {
         edges: JSON.parse(data.edgeJson || '[]')
       };
     } catch (error) {
-      console.error('Error parsing flow data:', error);
       return null;
     }
   };

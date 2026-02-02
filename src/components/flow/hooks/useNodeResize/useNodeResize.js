@@ -7,7 +7,14 @@ import { useReactFlow } from '@xyflow/react';
 export const syncNodeDimensions = (node) => {
   // Priority 1: If node already has style dimensions, use them
   if (node.style?.width && node.style?.height) {
-    return node;
+    // Still preserve position and parent-child properties
+    return {
+      ...node,
+      position: node.position,
+      positionAbsolute: node.positionAbsolute,
+      parentId: node.parentId,
+      extent: node.extent
+    };
   }
   
   // Priority 2: Check root level width/height (React Flow format)
@@ -18,6 +25,11 @@ export const syncNodeDimensions = (node) => {
       ...node,
       width: rootWidth,
       height: rootHeight,
+      // CRITICAL: Explicitly preserve position and parent-child properties
+      position: node.position,
+      positionAbsolute: node.positionAbsolute,
+      parentId: node.parentId,
+      extent: node.extent,
       style: {
         ...node.style,
         width: rootWidth,
@@ -37,6 +49,11 @@ export const syncNodeDimensions = (node) => {
       ...node,
       width: node.data.width,
       height: node.data.height,
+      // CRITICAL: Explicitly preserve position and parent-child properties
+      position: node.position,
+      positionAbsolute: node.positionAbsolute,
+      parentId: node.parentId,
+      extent: node.extent,
       style: {
         ...node.style,
         width: node.data.width,
@@ -59,6 +76,11 @@ export const syncNodeDimensions = (node) => {
       ...node,
       width: defaultWidth,
       height: defaultHeight,
+      // CRITICAL: Explicitly preserve position and parent-child properties
+      position: node.position,
+      positionAbsolute: node.positionAbsolute,
+      parentId: node.parentId,
+      extent: node.extent,
       style: {
         ...node.style,
         width: defaultWidth,
@@ -74,7 +96,14 @@ export const syncNodeDimensions = (node) => {
   
   // If no dimensions found anywhere, return node as-is
   // NodeResizer might not work, but at least we don't break the node
-  return node;
+  // CRITICAL: Still preserve position and parent-child properties
+  return {
+    ...node,
+    position: node.position,
+    positionAbsolute: node.positionAbsolute,
+    parentId: node.parentId,
+    extent: node.extent
+  };
 };
 
 //Applies resize changes to nodes

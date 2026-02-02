@@ -141,7 +141,16 @@ export const processSingleNode = ( // Processes a single node based on tableData
     delete restoredData.failureModeNames;
     delete restoredData.shouldBlink;
     delete restoredData.ttfDays;
-    return { ...node, data: restoredData };
+    // Preserve all node properties including position, parentId, extent, etc.
+    return { 
+      ...node, 
+      data: restoredData,
+      // Explicitly preserve position and parent-child properties
+      position: node.position,
+      positionAbsolute: node.positionAbsolute,
+      parentId: node.parentId,
+      extent: node.extent
+    };
   }
   // Find matching table data entries
   const matchingTableDataEntries = tableData.filter(item =>
@@ -162,7 +171,16 @@ export const processSingleNode = ( // Processes a single node based on tableData
     delete restoredData.ttfDays;
     Object.assign(nodeData, restoredData);
   }
-  return { ...node, data: nodeData };
+  // Preserve all node properties including position, parentId, extent, etc.
+  return { 
+    ...node, 
+    data: nodeData,
+    // Explicitly preserve position and parent-child properties
+    position: node.position,
+    positionAbsolute: node.positionAbsolute,
+    parentId: node.parentId,
+    extent: node.extent
+  };
 };
 
 export const processNodesWithTableData = ( // Processes nodes with tableData when not in developer mode
@@ -190,7 +208,16 @@ export const processNodesWithTableData = ( // Processes nodes with tableData whe
       delete restoredData.failureModeNames;
       delete restoredData.shouldBlink;
       delete restoredData.ttfDays;
-      return { ...node, data: restoredData };
+      // Preserve all node properties including position, parentId, extent, etc.
+      return { 
+        ...node, 
+        data: restoredData,
+        // Explicitly preserve position and parent-child properties
+        position: node.position,
+        positionAbsolute: node.positionAbsolute,
+        parentId: node.parentId,
+        extent: node.extent
+      };
     });
   }
   return nodesToProcess.map((node, index) =>
@@ -284,17 +311,25 @@ export const mergeProcessedNodesWithCurrent = ( // Merges processed nodes with c
     const updatedData = { ...currentNode.data };
     updateColorProperties(updatedData, processedNode.data);
     updateHighlightingProperties(updatedData, processedNode.data);
+    
     return {
       ...currentNode,
       // Preserve all current node properties including dimensions
       width: currentNode.width,
       height: currentNode.height,
       style: currentNode.style,
+      // CRITICAL: Always preserve position from current node to maintain correct positions
       position: currentNode.position,
       positionAbsolute: currentNode.positionAbsolute,
       measured: currentNode.measured,
-      parentId: currentNode.parentId, // Preserve parent-child relationships
-      data: updatedData,
+      // CRITICAL: Preserve parent-child relationships from current node
+      parentId: currentNode.parentId,
+      extent: currentNode.extent,
+      data: {
+        ...updatedData,
+        // Preserve isAttachedToGroup from current node
+        isAttachedToGroup: currentNode.data?.isAttachedToGroup
+      },
     };
   });
 };
