@@ -1,3 +1,5 @@
+import { sortNodesByParentChild } from '../parentChildUtils/ParentChildUtils';
+
 /**
  * Handles drag over event for templates
  * @param {Event} event - Drag event
@@ -24,6 +26,7 @@ export const handleDragOver = (event) => {
  * @param {Function} params.setTemplateDropCounts - Function to update template drop counts
  * @param {Function} params.setNodes - Function to update nodes
  * @param {Function} params.setEdges - Function to update edges
+ * @param {Function} params.takeSnapshot - Function to take snapshot for undo
  * @returns {boolean} Returns true if template was handled, false otherwise
  */
 export const handleTemplateDropHelper = ({
@@ -34,6 +37,7 @@ export const handleTemplateDropHelper = ({
   setTemplateDropCounts,
   setNodes,
   setEdges,
+  takeSnapshot,
 }) => {
   // Extract template data from drag event
   let templateData = event.dataTransfer.getData("application/template");
@@ -62,12 +66,41 @@ export const handleTemplateDropHelper = ({
     const { templateId } = JSON.parse(templateData);
     const currentDropCount = templateDropCounts[templateId] || 0;
     const newDropCount = currentDropCount + 1;
+    
+    // Update drop count
     setTemplateDropCounts((prev) => ({
       ...prev,
       [templateId]: newDropCount,
     }));
+
+    // Actually call handleTemplateDrop to add nodes and edges
+    if (handleTemplateDrop) {
+      // Take snapshot before adding template nodes for undo functionality
+      if (takeSnapshot) {
+        takeSnapshot();
+      }
+      
+      handleTemplateDrop(
+        templateId,
+        position,
+        (nodes) => {
+          // Add nodes to the flow
+          setNodes((prevNodes) => {
+            // Ensure parent-child ordering when adding template nodes
+            const updatedNodes = [...prevNodes, ...nodes];
+            return sortNodesByParentChild(updatedNodes);
+          });
+        },
+        (edges) => {
+          // Add edges to the flow
+          setEdges((prevEdges) => [...prevEdges, ...edges]);
+        },
+        currentDropCount
+      );
+    }
   } catch (error) {
     console.error("Error parsing template data:", error);
+    return false;
   }
 
   return true;

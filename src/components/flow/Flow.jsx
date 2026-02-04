@@ -133,12 +133,53 @@ function Flow(props) {
             // setupSvgViewBox is ONLY called here when dragging from node list
             // After creation, user can resize manually - parent-child relationships are preserved
             const createNodeWithDimensions = (dimensions) => {
+                // Helper function to apply dimensions consistently to root, style, and data
+                const applyDimensions = (node, width, height) => {
+                    node.width = width;
+                    node.height = height;
+                    node.style = {
+                        ...newNode.style,
+                        ...node.style,
+                        width,
+                        height,
+                    };
+                    node.data = {
+                        ...newNode.data,
+                        ...node.data,
+                        width,
+                        height,
+                    };
+                    return node;
+                };
+
+                // Determine dimensions based on priority:
+                // 1. Paste operation (newNode.id exists) - preserve original dimensions
+                // 2. SVG dimensions (from node list drag) - scale by 10
+                // 3. Default dimensions (250x250)
+                let finalWidth, finalHeight;
+                const DEFAULT_SIZE = 250;
+
+                if (newNode.id) {
+                    // Paste operation: preserve original dimensions from newNode
+                    const existingWidth = newNode.width || newNode.style?.width || newNode.data?.width;
+                    const existingHeight = newNode.height || newNode.style?.height || newNode.data?.height;
+                    finalWidth = existingWidth && existingHeight ? existingWidth : DEFAULT_SIZE;
+                    finalHeight = existingWidth && existingHeight ? existingHeight : DEFAULT_SIZE;
+                } else if (dimensions?.width && dimensions?.height) {
+                    // SVG dimensions from node list drag: scale by 10
+                    finalWidth = dimensions.width * 10;
+                    finalHeight = dimensions.height * 10;
+                } else {
+                    // Default dimensions
+                    finalWidth = DEFAULT_SIZE;
+                    finalHeight = DEFAULT_SIZE;
+                }
+
+                // Create node with base properties
                 const nodeToCreate = {
                     ...newNode,
                     id: newId,
-                    // If newNode has parentId (dropped into a group), preserve it and auto-lock
                     parentId: newNode.parentId,
-                    // Automatically lock if node has a parent
                     extent: newNode.parentId ? 'parent' : undefined,
                     data: {
                         ...newNode.data,
@@ -146,46 +187,8 @@ function Flow(props) {
                     }
                 };
 
-                // If we have SVG dimensions from bounding box measurement, use them (multiplied by 10)
-                // setupSvgViewBox was already called in extractDimensionsFromSvgByBBox
-                // This ONLY happens when dragging from node list
-                if (dimensions && dimensions.width && dimensions.height) {
-                    // Multiply dimensions by 10 as requested
-                    const scaledWidth = dimensions.width * 10;
-                    const scaledHeight = dimensions.height * 10;
-
-                    nodeToCreate.width = scaledWidth;
-                    nodeToCreate.height = scaledHeight;
-                    nodeToCreate.style = {
-                        ...newNode.style,
-                        width: scaledWidth,
-                        height: scaledHeight,
-                    };
-                    nodeToCreate.data = {
-                        ...newNode.data,
-                        width: scaledWidth,
-                        height: scaledHeight,
-                    };
-                } else {
-                    // No SVG dimensions available - use a consistent default size
-                    // This ensures all new nodes get the same default size if SVG dimensions aren't available
-                    // Using 250x250 as a reasonable default (same as syncNodeDimensions fallback)
-                    const defaultWidth = 250;
-                    const defaultHeight = 250;
-
-                    nodeToCreate.width = defaultWidth;
-                    nodeToCreate.height = defaultHeight;
-                    nodeToCreate.style = {
-                        ...newNode.style,
-                        width: defaultWidth,
-                        height: defaultHeight,
-                    };
-                    nodeToCreate.data = {
-                        ...newNode.data,
-                        width: defaultWidth,
-                        height: defaultHeight,
-                    };
-                }
+                // Apply dimensions to root, style, and data
+                applyDimensions(nodeToCreate, finalWidth, finalHeight);
 
                 const newNodeWithDimensions = syncNodeDimensions(nodeToCreate);
 
@@ -1292,6 +1295,7 @@ function Flow(props) {
                 setTemplateDropCounts,
                 setNodes,
                 setEdges,
+                takeSnapshot,
             });
             // If it wasn't a template drop, handle regular node drop
             if (!isTemplateDrop) {
@@ -1328,7 +1332,7 @@ function Flow(props) {
                 }
             }
         },
-        [screenToFlowPosition, type, handleTemplateDrop, templateDropCounts, setTemplateDropCounts, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig, setNewNode, setType, getNodes]
+        [screenToFlowPosition, type, handleTemplateDrop, templateDropCounts, setTemplateDropCounts, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig, setNewNode, setType, getNodes, takeSnapshot]
     );
 
     const handleSaveTemplate = useCallback(() => {
