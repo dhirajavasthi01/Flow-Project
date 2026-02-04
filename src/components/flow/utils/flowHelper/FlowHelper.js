@@ -194,6 +194,7 @@ export const handleFetchedNodesEdgesChange = ({
   return { shouldUpdate: true };
 };
 
+
 //Handles the effect when table data or developer mode changes
 export const handleTableDataChange = ({
   tableData,
@@ -202,33 +203,16 @@ export const handleTableDataChange = ({
   lastProcessedTableDataRef,
   processNodesWithTableDataRef,
   setNodes,
-}) => {
-  console.log('[handleTableDataChange] Called:', {
-    isDeveloperMode,
-    hasOriginalNodes: originalFetchedNodesRef.current.length > 0,
-    isResizing: isResizingRef?.current,
-    originalNodesCount: originalFetchedNodesRef.current.length
-  });
-  
+}) => {  
   // Skip if a node is currently being resized to prevent interference
   if (isResizingRef?.current) {
-    console.log('[handleTableDataChange] Skipping - node is resizing');
     return { shouldUpdate: false };
   }
   
   // Only process if we have original nodes
   if (originalFetchedNodesRef.current.length === 0) {
-    console.log('[handleTableDataChange] Skipping - no original nodes');
     return { shouldUpdate: false };
   }
-  
-  console.log('[handleTableDataChange] Original nodes positions:', originalFetchedNodesRef.current.map(n => ({
-    id: n.id,
-    parentId: n.parentId,
-    position: n.position,
-    positionAbsolute: n.positionAbsolute
-  })));
-
   // Handle non-developer mode: process nodes with table data
   if (!isDeveloperMode) {
     const tableDataKey = createTableDataKey(tableData);
@@ -275,25 +259,11 @@ export const handleTableDataChange = ({
   // IMPORTANT: Only reset when first entering developer mode, not on every node update
   // This prevents resize changes from being lost
   const wasInDeveloperMode =
-    lastProcessedTableDataRef.current === "DEVELOPER_MODE";
-  
-  console.log('[handleTableDataChange] Developer mode check:', {
-    wasInDeveloperMode,
-    lastProcessedTableDataRef: lastProcessedTableDataRef.current
-  });
-  
+    lastProcessedTableDataRef.current === "DEVELOPER_MODE"; 
   if (!wasInDeveloperMode) {
-    console.log('[handleTableDataChange] First time entering developer mode - resetting nodes');
     lastProcessedTableDataRef.current = "DEVELOPER_MODE";
     
-    setNodes((currentNodes) => {
-      console.log('[handleTableDataChange] Current nodes before reset:', currentNodes.map(n => ({
-        id: n.id,
-        parentId: n.parentId,
-        position: n.position,
-        positionAbsolute: n.positionAbsolute
-      })));
-      
+    setNodes((currentNodes) => {     
       if (currentNodes.length > 0) {
         const originalNodeMap = new Map(
           originalFetchedNodesRef.current.map((node) => [node.id, node])
@@ -301,13 +271,6 @@ export const handleTableDataChange = ({
         const result = currentNodes.map((currentNode) => {
           const originalNode = originalNodeMap.get(currentNode.id);
           if (originalNode) {
-            console.log('[handleTableDataChange] Processing node:', {
-              id: currentNode.id,
-              currentParentId: currentNode.parentId,
-              originalParentId: originalNode.parentId,
-              currentPosition: currentNode.position,
-              originalPosition: originalNode.position
-            });
             // Preserve current node's dimensions (width, height, style) when resetting data
             // This prevents resize changes from being lost when switching to developer mode
             // CRITICAL: Preserve manually resized dimensions - don't let syncNodeDimensions reset them
@@ -345,19 +308,7 @@ export const handleTableDataChange = ({
                 width: finalWidth,
                 height: finalHeight,
               },
-            };
-            
-            console.log('[handleTableDataChange] Updated node:', {
-              id: updatedNode.id,
-              parentId: updatedNode.parentId,
-              position: updatedNode.position,
-              positionAbsolute: updatedNode.positionAbsolute,
-              preservedFromCurrent: {
-                parentId: currentNode.parentId,
-                position: currentNode.position
-              }
-            });
-            
+            };         
             // Only sync if dimensions are missing - don't overwrite existing dimensions
             if (!updatedNode.style?.width || !updatedNode.style?.height) {
               return syncNodeDimensions(updatedNode);
@@ -366,13 +317,6 @@ export const handleTableDataChange = ({
           }
           return currentNode;
         });
-        
-        console.log('[handleTableDataChange] Result nodes after reset:', result.map(n => ({
-          id: n.id,
-          parentId: n.parentId,
-          position: n.position,
-          positionAbsolute: n.positionAbsolute
-        })));
         
         // Auto-lock nodes with parentId (ensure extent and isAttachedToGroup are set)
         const nodesWithLockState = result.map(node => {
@@ -412,12 +356,6 @@ export const handleTableDataChange = ({
         }
         return node;
       });
-      console.log('[handleTableDataChange] Synced nodes (no current nodes):', nodesWithLockState.map(n => ({
-        id: n.id,
-        parentId: n.parentId,
-        position: n.position,
-        positionAbsolute: n.positionAbsolute
-      })));
       // Ensure parent-child ordering
       return sortNodesByParentChild(nodesWithLockState);
     });
@@ -426,9 +364,8 @@ export const handleTableDataChange = ({
   } else {
     // Already in developer mode - don't reset nodes
     // This prevents resize changes from being lost
-    console.log('[handleTableDataChange] Already in developer mode - skipping reset');
   }
 
   return { shouldUpdate: false };
 };
- 
+

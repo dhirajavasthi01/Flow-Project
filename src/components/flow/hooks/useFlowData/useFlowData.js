@@ -4,44 +4,44 @@ import { getFlowDiagram, updateFlowDiagram, deleteFlowDiagram, addFlowDiagram } 
 const FLOW_DIAGRAM_QUERY_KEY = ['flow-diagram'];
 
 export function useFlowData(caseId = 1) {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
 
   // Transform API data to usable format
-  const transformData = (data) => {
-    if (!data) return null;
-    try {
-      return {
-        ...data,
+    const transformData = (data) => {
+        if (!data) return null;
+        try {
+            return {
+                ...data,
         nodes: JSON.parse(data.nodeJson || '[]').map(node => ({
-          ...node,
+                    ...node,
           // Ensure nodeType is in data for easy access in components
-          data: { 
-            ...node.data, 
-            nodeType: node.nodeType || node.data?.nodeType 
-          }
-        })),
+                    data: {
+                        ...node.data,
+                        nodeType: node.nodeType || node.data?.nodeType
+                    }
+                })),
         edges: JSON.parse(data.edgeJson || '[]')
-      };
-    } catch (error) {
-      console.error('Error parsing flow data:', error);
-      return null;
-    }
-  };
+            };
+        } catch (error) {
+            console.error('Error parsing flow data:', error);
+            return null;
+        }
+    };
 
-  // Optimized query with smart caching
+    // Optimized query with smart caching
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId],
+        queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId],
     queryFn: async () => {
-      try {
+            try {
         return await getFlowDiagram(caseId);
       } catch (err) {
         // If 404, return null (no diagram exists yet) instead of throwing
         if (err?.response?.status === 404) {
-          return null;
+                return null;
         }
         throw err;
-      }
-    },
+            }
+        },
     staleTime: 5 * 60 * 1000, // 5 min cache
     gcTime: 10 * 60 * 1000, // 10 min garbage collection
     retry: (count, error) => {
@@ -52,19 +52,19 @@ export function useFlowData(caseId = 1) {
       // Retry other errors up to 2 times
       return count < 2;
     },
-    select: transformData
-  });
+        select: transformData
+    });
 
   // Simple mutations
-  const addFlow = useMutation({
+    const addFlow = useMutation({
     mutationFn: (payload) => addFlowDiagram(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId] })
   });
 
   const updateFlow = useMutation({
     mutationFn: (payload) => updateFlowDiagram(caseId, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId] })
-  });
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId] })
+    });
 
   const deleteFlow = useMutation({
     mutationFn: (diagramId) => deleteFlowDiagram(diagramId),
@@ -73,24 +73,24 @@ export function useFlowData(caseId = 1) {
       queryClient.removeQueries({ queryKey: [...FLOW_DIAGRAM_QUERY_KEY, caseId] });
     }
   });
-
-  return {
+    
+    return {
     // Data
-    nodes: data?.nodes || [],
-    edges: data?.edges || [],
-    diagramId: data?.diagramId,
-    saved: data?.saved,
+        nodes: data?.nodes || [],
+        edges: data?.edges || [],
+        diagramId: data?.diagramId,
+        saved: data?.saved,
 
     // States
     isLoading,
-    error,
+        error,
 
     // Actions
-    refetch,
+        refetch,
     addFlow: (payload, options) => addFlow.mutate(payload, options),
     updateFlow: updateFlow.mutate,
     deleteFlow: deleteFlow.mutate,
     isUpdating: updateFlow.isPending,
     isDeleting: deleteFlow.isPending
-  };
+    };
 }

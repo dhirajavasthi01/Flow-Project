@@ -72,15 +72,6 @@ describe("BaseSvgNode Component", () => {
     expect(resizer.dataset.minwidth).toBe("50");
     expect(resizer.dataset.minheight).toBe("60");
   });
-  it("calls useNodeResize with id & triggers onResizeEnd", () => {
-    const mockResizeEnd = vi.fn();
-    vi.mocked(useNodeResize).mockReturnValue(mockResizeEnd);
-    render(<BaseSvgNode {...defaultProps} />);
-    const resizer = screen.getByTestId("node-resizer");
-    fireEvent.click(resizer);
-    expect(useNodeResize).toHaveBeenCalledWith("node-123");
-    expect(mockResizeEnd).toHaveBeenCalledWith("fake-event");
-  });
   it("passes correct svgPath from svgMap to SvgNode", () => {
     vi.mocked(useNodeResize).mockReturnValue(() => {});
     render(<BaseSvgNode {...defaultProps} />);

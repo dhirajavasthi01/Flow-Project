@@ -11,7 +11,7 @@
  * This is determined dynamically by analyzing the SVG file itself,
  * using logic similar to extractColorsFromSvg, rather than using a hardcoded list.
  */
-import { CompareValuesWithSymbol } from "../../../../utills/nodeNameUtils/nodeNameUtils";
+import { CompareValuesWithSymbol } from "../../../../utills";
 // Cache for SVG analysis results to avoid re-analyzing the same SVG multiple times
 const svgAnalysisCache = new Map();
 /** Analyzes SVG content (text) to determine if it should preserve its original colors.

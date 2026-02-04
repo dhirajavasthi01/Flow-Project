@@ -60,7 +60,7 @@ describe("useFlowData", () => {
       wrapper,
     });
 
-    await act(async () => { });
+    await act(async () => { /* no operation */ });
     const { nodes, edges, diagramId, saved } = result.current;
     expect(executePostApi).toHaveBeenCalled();
     expect(nodes).toHaveLength(0);
@@ -80,18 +80,18 @@ describe("useFlowData", () => {
     const { result } = renderHook(() => useFlowData(caseId, true), {
       wrapper,
     });
-    await act(async () => { });
+    await act(async () => { /* no operation */ });
 
   });
   it("handles fetch error in queryFn and returns null-like data", async () => {
     const error = new Error("Network error");
     executePostApi.mockRejectedValueOnce(error);
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { /* no operation */ });
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useFlowData(caseId, true), {
       wrapper,
     });
-    await act(async () => { });
+    await act(async () => { /* no operation */ });
 
     expect(result.current.nodes).toEqual([]);
     expect(result.current.edges).toEqual([]);
@@ -110,7 +110,7 @@ describe("useFlowData", () => {
     const { result } = renderHook(() => useFlowData(caseId, true), {
       wrapper,
     });
-    await act(async () => { });
+    await act(async () => { /* no operation */ });
     expect(typeof result.current.refetch).toBe("function");
     await act(async () => {
       await result.current.refetch();
@@ -123,7 +123,7 @@ describe("useFlowData", () => {
     const { result } = renderHook(() => useFlowData(caseId, true), {
       wrapper,
     });
-    await act(async () => { });
+    await act(async () => { /* no operation */ });
     const payload = { caseId, data: "test" };
     await act(async () => {
       result.current.addFlow(payload);

@@ -210,6 +210,7 @@ export function useHelperLines() {
 
       // Check alignment with all other nodes
       for (const [otherNodeId, node] of nodeLookup.entries()) {
+        // eslint-disable-next-line no-continue
         if (otherNodeId === nodeId) continue;
 
         const result = processNodeForSnapping({

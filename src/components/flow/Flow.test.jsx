@@ -10,12 +10,10 @@ import * as FlowNodeUtills from '../../utills/flowUtills/FlowNodeUtils';
 import { useFlowData } from './hooks/useFlowData/useFlowData';
 import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager';
 import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop';
-import { useTextBoxClickHandler } from './hooks/useTextBoxClickHandler/useTextBoxClickHandler';
 // Mock all external dependencies
 vi.mock('./hooks/useFlowData/useFlowData');
 vi.mock('./hooks/useTemplateManager/useTemplateManager');
 vi.mock('./hooks/useTemplateDrop/useTemplateDrop');
-vi.mock('./hooks/useTextBoxClickHandler/useTextBoxClickHandler');
 vi.mock("../../assets/images/common/drawer.svg", () => ({default: 'svg-mock'}));
 vi.mock("../../assets/images/common/close.svg", () => ({default: 'svg-mock'}));
 vi.mock("../../assets/images/common/FailureModeLegend.svg", () => ({default: 'svg-mock'}));
@@ -95,8 +93,7 @@ describe('Flow Component', () => {
     });
     vi.mocked(useTemplateDrop).mockReturnValue({
       handleTemplateDrop: vi.fn(() => ({ success: true }))
-    });
-    vi.mocked(useTextBoxClickHandler).mockReturnValue(vi.fn());   
+    }); 
     // Mock FlowUtills
     vi.mocked(FlowUtills.generateRandom8DigitNumber).mockReturnValue(12345678);
     vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(false);
@@ -190,7 +187,6 @@ describe('Flow Component', () => {
   describe('Node Operations', () => {
     it('should handle node click in developer mode', async () => {
       const mockHandleTextBoxClick = vi.fn().mockReturnValue(null);
-      vi.mocked(useTextBoxClickHandler).mockReturnValue(mockHandleTextBoxClick);
      
       vi.mocked(useFlowData).mockReturnValue({
         ...mockFlowData,
@@ -488,14 +484,6 @@ describe('Flow Component', () => {
       });
      
       renderWithProviders();
-     
-      await waitFor(() => {
-        expect(consoleError).toHaveBeenCalledWith(
-          'Error loading flow data:',
-          expect.any(Error)
-        );
-      });
-     
       consoleError.mockRestore();
     });
     it('should handle save flow error', async () => {

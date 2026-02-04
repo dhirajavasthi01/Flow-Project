@@ -1,6 +1,8 @@
-import { addEdge, applyEdgeChanges, applyNodeChanges, Background, Controls, getConnectedEdges, ReactFlow, useEdgesState, useNodesState, useReactFlow, useUpdateNodeInternals, useStore } from '@xyflow/react';
+import { addEdge, applyEdgeChanges, applyNodeChanges, Background, Controls, getConnectedEdges, ReactFlow, useEdgesState, useNodesState, useReactFlow, useStore, useUpdateNodeInternals } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
     deleteAtom,
     developerModeAtom,
@@ -19,26 +21,24 @@ import {
     updateConfigAtom,
     AppAtom
 } from '../../features/individualDetailWrapper/features/overview/store/OverviewStore';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { SelectionFlowRect } from './components/selectionFlowRect/SelectionFlowRect';
-import { processNodesWithTableData as processNodesWithTableDataUtil } from './Flow.functions';
 import { generateRandom8DigitNumber, hasSubComponentAssetIdMatch, extractDimensionsFromSvgByBBox, svgDimensionsCache } from '../../utills/flowUtills/FlowUtills';
-import { svgMap } from './components/svgMap/SvgMap';
-import { allNodes, edgeTypes, nodeTypes } from './utils/nodeEdgeType/NodeEdgeType';
-import { useFlowSelection } from './hooks/useFlowSelection/useFlowSelection';
-import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager'
-import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop';
-import { useFlowData } from './hooks/useFlowData/useFlowData';
-import { useOutletContext } from 'react-router-dom';
-import { useHelperLines } from './hooks/useHelperLines/useHelperLines';
-import { HelperLines } from './components/helperLines/HelperLines';
-import { handleFetchedNodesEdgesChange, handleTableDataChange } from './utils/flowHelper/FlowHelper';
 import FlowPanels from './components/flowPanels/FlowPanels';
-import { createEdge, updateEdgeWithConfig } from './utils/edgeHelper/EdgeHelper';
+import { HelperLines } from './components/helperLines/HelperLines';
+import { SelectionFlowRect } from './components/selectionFlowRect/SelectionFlowRect';
+import { svgMap } from './components/svgMap/SvgMap';
+import { processNodesWithTableData as processNodesWithTableDataUtil } from './Flow.functions';
+import { useFlowData } from './hooks/useFlowData/useFlowData';
+import { useFlowSelection } from './hooks/useFlowSelection/useFlowSelection';
 import { useFlowSnapshot } from './hooks/useFlowSnapshot/useFlowSnapshot';
+import { useHelperLines } from './hooks/useHelperLines/useHelperLines';
 import { applyResizeChanges, isResizingRef, persistResizeChangesRef, syncNodeDimensions } from './hooks/useNodeResize/useNodeResize';
-import { handleDragOver, handleTemplateDropHelper, handleSaveTemplate as handleSaveTemplateHelper } from './utils/templateHelper/TemplateHelper';
-import { absoluteToRelative, canBeParent, getDescendantIds, isPointInNode, relativeToAbsolute, wouldCreateCircularDependency, findGroupNodeAtPoint, sortNodesByParentChild } from './utils/parentChildUtils/ParentChildUtils';
+import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop';
+import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager';
+import { createEdge, updateEdgeWithConfig } from './utils/edgeHelper/EdgeHelper';
+import { handleFetchedNodesEdgesChange, handleTableDataChange } from './utils/flowHelper/FlowHelper';
+import { allNodes, edgeTypes, nodeTypes } from './utils/nodeEdgeType/NodeEdgeType';
+import { absoluteToRelative, findGroupNodeAtPoint, getDescendantIds, sortNodesByParentChild, wouldCreateCircularDependency } from './utils/parentChildUtils/ParentChildUtils';
+import { handleDragOver, handleSaveTemplate as handleSaveTemplateHelper, handleTemplateDropHelper } from './utils/templateHelper/TemplateHelper';
 import Marker from './marker';
 function Flow(props) {
     const { tableData = [], isLoading: isLoadingFailerMode = false } = props;
@@ -128,7 +128,7 @@ function Flow(props) {
             takeSnapshot();
             const newId = `${newNode.nodeType}-${generateRandom8DigitNumber()}`;
             const svgPath = newNode.svgPath || (newNode.nodeType ? svgMap[newNode.nodeType] : null);
-            
+
             // Function to create node with dimensions
             // setupSvgViewBox is ONLY called here when dragging from node list
             // After creation, user can resize manually - parent-child relationships are preserved
@@ -145,7 +145,7 @@ function Flow(props) {
                         isAttachedToGroup: !!newNode.parentId
                     }
                 };
-                
+
                 // If we have SVG dimensions from bounding box measurement, use them (multiplied by 10)
                 // setupSvgViewBox was already called in extractDimensionsFromSvgByBBox
                 // This ONLY happens when dragging from node list
@@ -153,7 +153,7 @@ function Flow(props) {
                     // Multiply dimensions by 10 as requested
                     const scaledWidth = dimensions.width * 10;
                     const scaledHeight = dimensions.height * 10;
-                    
+
                     nodeToCreate.width = scaledWidth;
                     nodeToCreate.height = scaledHeight;
                     nodeToCreate.style = {
@@ -172,7 +172,7 @@ function Flow(props) {
                     // Using 250x250 as a reasonable default (same as syncNodeDimensions fallback)
                     const defaultWidth = 250;
                     const defaultHeight = 250;
-                    
+
                     nodeToCreate.width = defaultWidth;
                     nodeToCreate.height = defaultHeight;
                     nodeToCreate.style = {
@@ -186,18 +186,18 @@ function Flow(props) {
                         height: defaultHeight,
                     };
                 }
-                
+
                 const newNodeWithDimensions = syncNodeDimensions(nodeToCreate);
-                
+
                 // Mark as synced to prevent re-syncing in the other useEffect
                 syncedNodeIdsRef.current.add(newId);
-                
+
                 // CRITICAL: Add new node to originalFetchedNodesRef immediately so dimensions can be persisted
                 // This ensures the node exists in originalFetchedNodesRef when it's resized or deselected
                 if (!originalFetchedNodesRef.current.find(n => n.id === newId)) {
                     originalFetchedNodesRef.current.push(newNodeWithDimensions);
                 }
-                
+
                 // Ensure parent-child ordering when adding new node
                 const updatedNodes = [...nodes, newNodeWithDimensions];
                 const sortedNodes = sortNodesByParentChild(updatedNodes);
@@ -206,7 +206,7 @@ function Flow(props) {
                 setConfig({ ...newNode, id: newId });
                 setNewNode(null);
             };
-            
+
             // Try to get SVG dimensions by measuring bounding box (from cache or load them)
             // setupSvgViewBox is called inside extractDimensionsFromSvgByBBox
             // This ONLY happens when dragging from node list
@@ -365,7 +365,7 @@ function Flow(props) {
                 const originalHeight = Number(originalNode.height || originalNode.style?.height || originalNode.data?.height);
                 const newWidth = Number(node.width || node.style?.width || node.data?.width);
                 const newHeight = Number(node.height || node.style?.height || node.data?.height);
-                
+
                 // Only consider it a resize if dimensions actually changed (not just type conversion)
                 if (!isNaN(originalWidth) && !isNaN(originalHeight) && !isNaN(newWidth) && !isNaN(newHeight)) {
                     if (originalWidth !== newWidth || originalHeight !== newHeight) {
@@ -381,7 +381,7 @@ function Flow(props) {
                 }
             }
         });
-        
+
         // CRITICAL: If originalFetchedNodesRef is empty, add all nodes to it
         // This handles the case where nodes are created but originalFetchedNodesRef wasn't populated
         if (originalFetchedNodesRef.current.length === 0) {
@@ -407,7 +407,7 @@ function Flow(props) {
             });
             return;
         }
-        
+
         if (resizedNodeIds.size === 0) {
             // Even if no nodes were resized, check if any new nodes need to be added
             // OR if any nodes have parentId/position changes (re-parenting scenario)
@@ -415,13 +415,13 @@ function Flow(props) {
                 const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
                 if (originalNode) {
                     const parentIdChanged = node.parentId !== originalNode.parentId;
-                    const positionChanged = node.position && originalNode.position && 
+                    const positionChanged = node.position && originalNode.position &&
                         (node.position.x !== originalNode.position.x || node.position.y !== originalNode.position.y);
                     return parentIdChanged || positionChanged;
                 }
                 return false;
             });
-            
+
             // If there are parentId/position changes, we need to update originalFetchedNodesRef
             // Otherwise, just add new nodes and return
             if (!hasParentOrPositionChanges) {
@@ -450,7 +450,7 @@ function Flow(props) {
             }
             // If there are parentId/position changes, continue to the update logic below
         }
-        
+
         // Only update the resized nodes, preserve all others exactly as they were
         originalFetchedNodesRef.current = originalFetchedNodesRef.current.map(originalNode => {
             const updatedNode = finalNodes.find(n => n.id === originalNode.id);
@@ -461,14 +461,14 @@ function Flow(props) {
                 // This ensures we use the actual resized dimensions, not stale data dimensions
                 const updatedWidth = updatedNode.width || updatedNode.style?.width || updatedNode.data?.width;
                 const updatedHeight = updatedNode.height || updatedNode.style?.height || updatedNode.data?.height;
-                
+
                 // CRITICAL: Check if parentId or position changed (re-parenting scenario)
                 // If parentId changed, we need to update it to preserve the new parent-child relationship
                 // If position changed (and parentId is the same or both changed), update position
                 const parentIdChanged = updatedNode.parentId !== originalNode.parentId;
-                const positionChanged = updatedNode.position && originalNode.position && 
+                const positionChanged = updatedNode.position && originalNode.position &&
                     (updatedNode.position.x !== originalNode.position.x || updatedNode.position.y !== originalNode.position.y);
-                
+
                 const updated = {
                     ...originalNode,
                     // Update root level dimensions
@@ -498,25 +498,14 @@ function Flow(props) {
                         height: updatedHeight,
                     },
                 };
-                
+
                 return updated;
             }
             // For non-resized nodes, check if parentId or position changed (re-parenting without resize)
             if (updatedNode) {
                 const parentIdChanged = updatedNode.parentId !== originalNode.parentId;
-                const positionChanged = updatedNode.position && originalNode.position && 
+                const positionChanged = updatedNode.position && originalNode.position &&
                     (updatedNode.position.x !== originalNode.position.x || updatedNode.position.y !== originalNode.position.y);
-                
-                console.log('[updateOriginalFetchedNodesRef] Checking non-resized node for parent/position changes:', {
-                    nodeId: updatedNode.id,
-                    parentIdChanged,
-                    positionChanged,
-                    originalParentId: originalNode.parentId,
-                    updatedParentId: updatedNode.parentId,
-                    originalPosition: originalNode.position,
-                    updatedPosition: updatedNode.position
-                });
-                
                 // If parentId or position changed, update them to preserve re-parenting
                 if (parentIdChanged || positionChanged) {
                     const updated = {
@@ -525,20 +514,13 @@ function Flow(props) {
                         position: (parentIdChanged || positionChanged) ? updatedNode.position : originalNode.position,
                         positionAbsolute: parentIdChanged ? updatedNode.positionAbsolute : originalNode.positionAbsolute,
                     };
-                    console.log('[updateOriginalFetchedNodesRef] Updating non-resized node with new parent/position:', {
-                        nodeId: updated.id,
-                        oldParentId: originalNode.parentId,
-                        newParentId: updated.parentId,
-                        oldPosition: originalNode.position,
-                        newPosition: updated.position
-                    });
                     return updated;
                 }
             }
             // For non-resized nodes with no parent/position changes, return the original unchanged
             return originalNode;
         });
-        
+
         // Add any new nodes that weren't in the original
         // CRITICAL: This ensures new nodes (dragged from node list) are added to originalFetchedNodesRef
         // so their dimensions can be persisted
@@ -562,21 +544,9 @@ function Flow(props) {
                         height: nodeHeight,
                     },
                 };
-                console.log('[updateOriginalFetchedNodesRef] Adding new node:', {
-                    id: nodeToAdd.id,
-                    parentId: nodeToAdd.parentId,
-                    position: nodeToAdd.position
-                });
                 originalFetchedNodesRef.current.push(nodeToAdd);
             }
         });
-        
-        console.log('[updateOriginalFetchedNodesRef] Final originalFetchedNodesRef state:', originalFetchedNodesRef.current.map(n => ({
-            id: n.id,
-            parentId: n.parentId,
-            position: n.position,
-            positionAbsolute: n.positionAbsolute
-        })));
     }, []);
 
     // Set up the global callback for persisting resize changes
@@ -591,12 +561,11 @@ function Flow(props) {
     const handleNodesChange = useCallback(
         (changes) => {
             if (!isDeveloperMode) return;
-            
+
             // Log all changes to debug resize issues
-            const hasResizeChanges = changes.some(change => change.type === 'resize');
             const hasResizeStart = changes.some(change => change.type === 'resize' && change.resizing === true);
             const hasResizeEnd = changes.some(change => change.type === 'resize' && change.resizing === false);
-            
+
             // Track resize state to prevent handleTableDataChange from interfering
             if (hasResizeStart) {
                 isResizingRef.current = true;
@@ -607,18 +576,18 @@ function Flow(props) {
                     isResizingRef.current = false;
                 }, 200);
             }
-            
+
             const dragEndNodeId = detectDragEndNodeId(changes);
             const changesWithSnapping = applySnappingToChanges(changes, dragEndNodeId);
-            
+
             // First apply React Flow's changes (position, selection, etc.)
             let updatedNodes = applyNodeChanges(changesWithSnapping, nodes);
-            
+
             // Then apply resize changes to ensure dimensions are in all locations
             // This must happen AFTER applyNodeChanges to preserve our dimension updates
             // and ensure dimensions are synced to root, style, and data
             updatedNodes = applyResizeChanges(updatedNodes, changesWithSnapping);
-            
+
             // CRITICAL: Ensure all nodes have dimensions in style for NodeResizer to work
             // NodeResizer REQUIRES style.width and style.height to function
             // BUT: Only sync if dimensions are missing, don't overwrite existing dimensions
@@ -631,9 +600,9 @@ function Flow(props) {
                 }
                 return node;
             });
-            
+
             setNodes(updatedNodes);
-            
+
             // Persist resize changes when resize ends
             // This works for both new and existing nodes since React Flow handles resize through handleNodesChange
             // CRITICAL: Persist immediately when resize ends to prevent dimension loss when clicking outside
@@ -643,7 +612,7 @@ function Flow(props) {
                     const resizeChange = changesWithSnapping.find(c => c.type === 'resize' && c.id === node.id);
                     return !!resizeChange;
                 });
-                
+
                 if (resizedNodes.length > 0) {
                     // CRITICAL: Sync dimensions to all locations before persisting
                     const nodesToPersist = resizedNodes.map(node => {
@@ -673,13 +642,13 @@ function Flow(props) {
         },
         [nodes, setNodes, isDeveloperMode, detectDragEndNodeId, applySnappingToChanges, applyResizeChanges, updateOriginalFetchedNodesRef]
     );
-    
+
     // Track previous node dimensions to detect resize changes
     // This prevents the useEffect from running on every node change (like position updates during drag)
     const prevNodeDimensionsRef = useRef(new Map());
     // Track the last known resize state to detect when resize ends
     const lastResizingStateRef = useRef(false);
-    
+
     // Update originalFetchedNodesRef when node dimensions change (but only if not resizing)
     // This ensures resize changes are persisted even if handleNodesChange isn't called with resize changes
     // IMPORTANT: This only updates dimensions, preserving all other properties including parentId
@@ -688,33 +657,33 @@ function Flow(props) {
         if (!isDeveloperMode) {
             return;
         }
-        
+
         // CRITICAL: Skip if originalFetchedNodesRef is empty
         if (originalFetchedNodesRef.current.length === 0) {
             return;
         }
-        
+
         const wasResizing = lastResizingStateRef.current;
         const isResizing = isResizingRef.current;
         lastResizingStateRef.current = isResizing;
-        
+
         // If resizing, don't update tracking - wait for resize to end
         // This ensures we can detect dimension changes when resize ends
         if (isResizing) {
             return;
         }
-        
+
         // If resize just ended (was true, now false), we need to check for dimension changes
         // even if nodes haven't changed in this render cycle
         const resizeJustEnded = wasResizing && !isResizing;
-        
+
         // Check if any node dimensions have actually changed (not just position or parentId changes)
         let hasDimensionChanges = false;
         const dimensionChanges = new Map();
-        
+
         nodes.forEach(node => {
             let prevDims = prevNodeDimensionsRef.current.get(node.id);
-            
+
             // If we don't have previous dimensions, try to get them from originalFetchedNodesRef
             // This ensures we compare against the original stored dimensions, not the current dimensions
             if (!prevDims) {
@@ -728,27 +697,27 @@ function Flow(props) {
                     }
                 }
             }
-            
+
             // Convert to numbers for accurate comparison (handles string vs number mismatches)
             const currentWidth = Number(node.width || node.data?.width || node.style?.width);
             const currentHeight = Number(node.height || node.data?.height || node.style?.height);
-            
+
             // Skip if dimensions are invalid
             if (isNaN(currentWidth) || isNaN(currentHeight)) {
                 return;
             }
-            
+
             if (!prevDims) {
                 // First time seeing this node and no original found, store current dimensions
                 prevNodeDimensionsRef.current.set(node.id, { width: currentWidth, height: currentHeight });
                 return; // Don't trigger update on first render
             }
-            
+
             // Check if dimensions changed (ignore position, parentId, or other property changes)
             // Compare as numbers to handle type mismatches
             const prevWidth = Number(prevDims.width);
             const prevHeight = Number(prevDims.height);
-            
+
             if (!isNaN(prevWidth) && !isNaN(prevHeight)) {
                 if (prevWidth !== currentWidth || prevHeight !== currentHeight) {
                     hasDimensionChanges = true;
@@ -759,7 +728,7 @@ function Flow(props) {
                 }
             }
         });
-        
+
         // Only update if dimensions actually changed (not just position or parent-child relationship changes)
         if (!hasDimensionChanges) {
             // Update tracking even if no changes detected, to keep baseline current
@@ -776,7 +745,7 @@ function Flow(props) {
             });
             return;
         }
-        
+
         // Small delay to ensure resize flag is cleared and state has settled
         // This prevents interference with parent-child drag operations
         const timeoutId = setTimeout(() => {
@@ -798,7 +767,7 @@ function Flow(props) {
         }, 300);
         return () => clearTimeout(timeoutId);
     }, [nodes, isDeveloperMode, updateOriginalFetchedNodesRef]);
-    
+
     // Handle drag start - immediately set dragging node ID for helper lines
     const onNodeDragStart = useCallback((event, node) => {
         if (!isDeveloperMode) return;
@@ -820,10 +789,10 @@ function Flow(props) {
         // If node has a parent, it's locked by default - but we still allow drag to detect new parent or detach
         // Find potential group/parent node - any node can be a parent
         const potentialParent = findGroupNodeAtPoint(currentNodes, dragPoint, node.id);
-        
+
         if (potentialParent) {
             // Check if this is a valid attachment
-            if (potentialParent.id !== node.id && 
+            if (potentialParent.id !== node.id &&
                 potentialParent.id !== node.parentId &&
                 !wouldCreateCircularDependency(currentNodes, node.id, potentialParent.id)) {
                 setPotentialParentId(potentialParent.id);
@@ -852,15 +821,16 @@ function Flow(props) {
         // ATTACH: Node is dropped over a group/parent node
         if (potentialParentId && potentialParentId !== oldParentId) {
             const newParent = currentNodes.find(n => n.id === potentialParentId);
-            
-            // Any node without a parent can be a group node
-            if (newParent && !newParent.parentId) {
+
+            const isParentDot = checkIsDotNode(newParent);
+            const isParentTextBox = newParent?.type === "textBoxNode" || newParent?.nodeType === "text-box-node" || newParent?.type?.includes("textBox");
+            if (newParent && !newParent.parentId && !isParentDot && !isParentTextBox) {
                 const draggedAbsolutePos = draggedNode.positionAbsolute || draggedNode.position;
                 const parentAbsolutePos = newParent.positionAbsolute || newParent.position;
 
                 if (draggedAbsolutePos && parentAbsolutePos) {
                     let relativePos;
-                    
+
                     // MOVE BETWEEN GROUPS: Convert from old parent's relative to new parent's relative
                     if (oldParentId) {
                         const oldParent = currentNodes.find(n => n.id === oldParentId);
@@ -894,10 +864,10 @@ function Flow(props) {
                             }
                             return n;
                         });
-                        
+
                         // Ensure parent-child ordering
                         const sortedNodes = sortNodesByParentChild(updatedNodes);
-                        
+
                         // Update originalFetchedNodesRef
                         const reParentedNode = sortedNodes.find(n => n.id === node.id);
                         if (reParentedNode) {
@@ -909,7 +879,7 @@ function Flow(props) {
                                 }
                             }, 100);
                         }
-                        
+
                         return sortedNodes;
                     });
 
@@ -924,7 +894,7 @@ function Flow(props) {
         // Note: Nodes with parents are always locked, but we allow detach by dragging outside
         if (hasParent && !potentialParentId) {
             const oldParent = currentNodes.find(n => n.id === oldParentId);
-            
+
             if (oldParent) {
                 const oldParentAbsolutePos = oldParent.positionAbsolute || oldParent.position;
                 // Convert relative to absolute
@@ -947,10 +917,10 @@ function Flow(props) {
                         }
                         return n;
                     });
-                    
+
                     // Ensure parent-child ordering
                     const sortedNodes = sortNodesByParentChild(updatedNodes);
-                    
+
                     // Update originalFetchedNodesRef
                     const detachedNode = sortedNodes.find(n => n.id === node.id);
                     if (detachedNode) {
@@ -962,7 +932,7 @@ function Flow(props) {
                             }
                         }, 100);
                     }
-                    
+
                     return sortedNodes;
                 });
 
@@ -972,7 +942,6 @@ function Flow(props) {
             }
         }
 
-        // Apply final snap position when drag stops (only if not attaching/detaching)
         const isDotNode = node.type?.includes('dotNode') || node.nodeType?.includes('dot-node');
         if (!isDotNode && node.position) {
             // Use absolute position for snapping if available
@@ -1047,13 +1016,14 @@ function Flow(props) {
             setSelectedNodeId(node.id);
             setSelectedEdgeId(null);
             setConfig(node);
-            
+
             // Force React Flow to measure the node when selected
             // This ensures NodeResizer works for stored nodes that haven't been dragged yet
             // updateNodeInternals triggers React Flow to measure the node's dimensions
             updateNodeInternals(node.id);
         }
     };
+
 
     const onEdgeClick = (event, edge) => {
         if (!isDeveloperMode) return;
@@ -1072,6 +1042,13 @@ function Flow(props) {
             setNodeToUpdate(null);
         }
     }, [nodeToUpdate]);
+    useEffect(() => {
+        if (nodeToUpdate) {
+            updateNodeInternals(nodeToUpdate);
+            setNodeToUpdate(null);
+        }
+    }, [nodeToUpdate]);
+
 
     // Ensure selected nodes are measured for NodeResizer to work
     // This fixes the issue where stored nodes can't be resized until they're dragged
@@ -1092,9 +1069,9 @@ function Flow(props) {
                         // Don't overwrite existing dimensions - this prevents resetting manually resized nodes
                         if (!selectedNode.style?.width || !selectedNode.style?.height) {
                             // Check if node has dimensions elsewhere before syncing
-                            const hasDimensions = selectedNode.width || selectedNode.height || 
-                                                  selectedNode.data?.width || selectedNode.data?.height;
-                            
+                            const hasDimensions = selectedNode.width || selectedNode.height ||
+                                selectedNode.data?.width || selectedNode.data?.height;
+
                             // CRITICAL: Don't use measured dimensions if node has dimensions in root or data
                             // This prevents resetting manually resized dimensions
                             if (hasDimensions) {
@@ -1111,17 +1088,17 @@ function Flow(props) {
                     }
                     return currentNodes;
                 });
-                
+
                 // Small delay to ensure node is fully rendered before measuring
                 setTimeout(() => {
                     updateNodeInternals(selectedNodeId);
                 }, 50);
             }, 100);
-            
+
             return () => clearTimeout(timeoutId);
         }
     }, [selectedNodeId, isDeveloperMode, updateNodeInternals, setNodes]);
-    
+
     // CRITICAL: When a node is deselected (selectedNodeId becomes null), ensure its dimensions are preserved
     // This prevents dimension loss when clicking outside or on another node
     const prevSelectedNodeIdRef = useRef(selectedNodeId);
@@ -1136,7 +1113,7 @@ function Flow(props) {
                     // This ensures we use the actual resized dimensions, not stale style dimensions
                     const nodeWidth = deselectedNode.width || deselectedNode.data?.width || deselectedNode.style?.width;
                     const nodeHeight = deselectedNode.height || deselectedNode.data?.height || deselectedNode.style?.height;
-                    
+
                     // CRITICAL: Create a node with dimensions synced to all locations before persisting
                     // This ensures style dimensions match root dimensions
                     const nodeToPersist = {
@@ -1154,12 +1131,12 @@ function Flow(props) {
                             height: nodeHeight,
                         },
                     };
-                    
+
                     // CRITICAL: Persist dimensions IMMEDIATELY before updating state
                     // This ensures dimensions are saved before handleTableDataChange can reset them
                     // CRITICAL: Pass nodeToPersist directly - it already has dimensions synced to all locations
                     updateOriginalFetchedNodesRef([nodeToPersist]);
-                    
+
                     // CRITICAL: Update the node in state AFTER persisting to prevent handleTableDataChange from resetting it
                     const updatedNodes = currentNodes.map(node => {
                         if (node.id === deselectedNodeId) {
@@ -1167,7 +1144,7 @@ function Flow(props) {
                         }
                         return node;
                     });
-                    
+
                     return updatedNodes;
                 }
                 return currentNodes;
@@ -1175,7 +1152,7 @@ function Flow(props) {
         }
         prevSelectedNodeIdRef.current = selectedNodeId;
     }, [selectedNodeId, isDeveloperMode, setNodes, updateOriginalFetchedNodesRef]);
-    
+
     // CRITICAL: Ensure all nodes have dimensions in style when loaded or when developer mode is enabled
     // NodeResizer REQUIRES style.width and style.height to function
     // This ensures existing stored nodes can be resized immediately
@@ -1185,20 +1162,20 @@ function Flow(props) {
         if (!isDeveloperMode || nodes.length === 0 || isResizingRef.current) {
             return;
         }
-        
+
         // Check if any nodes are missing style dimensions AND haven't been synced yet
         const nodesNeedingSync = nodes.filter(node => {
             // Skip if already synced
             if (syncedNodeIdsRef.current.has(node.id)) {
                 return false;
             }
-            
+
             // CRITICAL: Only sync if style dimensions are completely missing
             // If node has dimensions in root level or data, preserve them - don't use measured
             const hasStyleDimensions = node.style?.width && node.style?.height;
             const hasRootDimensions = node.width && node.height;
             const hasDataDimensions = node.data?.width && node.data?.height;
-            
+
             // If node has dimensions anywhere (root, data, or style), don't sync
             // This preserves manually resized dimensions
             if (hasStyleDimensions || hasRootDimensions || hasDataDimensions) {
@@ -1206,11 +1183,11 @@ function Flow(props) {
                 syncedNodeIdsRef.current.add(node.id);
                 return false;
             }
-            
+
             // Only sync if dimensions are completely missing
             return true;
         });
-        
+
         if (nodesNeedingSync.length > 0) {
             setNodes(currentNodes => {
                 return currentNodes.map(node => {
@@ -1290,18 +1267,6 @@ function Flow(props) {
     };
 
     const onPaneClick = () => {
-        console.log('[onPaneClick] Canvas clicked - current nodes state:', nodes.map(n => ({
-            id: n.id,
-            parentId: n.parentId,
-            position: n.position,
-            positionAbsolute: n.positionAbsolute
-        })));
-        console.log('[onPaneClick] originalFetchedNodesRef state:', originalFetchedNodesRef.current.map(n => ({
-            id: n.id,
-            parentId: n.parentId,
-            position: n.position,
-            positionAbsolute: n.positionAbsolute
-        })));
         setConfig(null);
         setSelectedEdgeId(null);
         setSelectedNodeId(null);
@@ -1338,10 +1303,10 @@ function Flow(props) {
                     // Check if dropped position is inside a group/parent node
                     const currentNodes = getNodes();
                     const parentAtDrop = findGroupNodeAtPoint(currentNodes, position);
-                    
+
                     let finalPosition = position;
                     let parentId = undefined;
-                    
+
                     if (parentAtDrop && !parentAtDrop.parentId) {
                         // Convert absolute position to relative to parent
                         const parentAbsolutePos = parentAtDrop.positionAbsolute || parentAtDrop.position;
@@ -1350,12 +1315,12 @@ function Flow(props) {
                             parentId = parentAtDrop.id;
                         }
                     }
-                    
+
                     setSelectedNodeId(null);
                     setSelectedEdgeId(null);
                     setConfig(null);
-                    setNewNode({ 
-                        ...newNodeData, 
+                    setNewNode({
+                        ...newNodeData,
                         position: finalPosition,
                         parentId: parentId
                     });
@@ -1384,96 +1349,96 @@ function Flow(props) {
             className='h-full w-full relative'
         >
 
-            <>
-                <ReactFlow
-                    nodes={nodes.map(node => {
-                        // CRITICAL: Ensure all nodes have dimensions in style for NodeResizer to work
-                        // NodeResizer REQUIRES style.width and style.height
-                        const syncedNode = syncNodeDimensions(node);
-                        
-                        // Add visual highlight to potential parent during drag
-                        if (potentialParentId === syncedNode.id && draggingNodeId) {
-                            return {
-                                ...syncedNode,
-                                style: {
-                                    ...syncedNode.style,
-                                    border: '3px dashed #009FDF',
-                                    borderRadius: '4px',
-                                    boxShadow: '0 0 10px rgba(0, 159, 223, 0.5)'
+                    <>
+                        <ReactFlow
+                            nodes={nodes.map(node => {
+                                // CRITICAL: Ensure all nodes have dimensions in style for NodeResizer to work
+                                // NodeResizer REQUIRES style.width and style.height
+                                const syncedNode = syncNodeDimensions(node);
+
+                                // Add visual highlight to potential parent during drag
+                                if (potentialParentId === syncedNode.id && draggingNodeId) {
+                                    return {
+                                        ...syncedNode,
+                                        style: {
+                                            ...syncedNode.style,
+                                            border: '1px dashed #009FDF',
+                                            borderRadius: '4px',
+                                            boxShadow: '0 0 10px rgba(0, 159, 223, 0.5)'
+                                        }
+                                    };
                                 }
-                            };
-                        }
-                        return syncedNode;
-                    })}
-                    edges={edges}
-                    onNodesChange={handleNodesChange}
-                    onEdgesChange={handleEdgesChange}
-                    onNodeDragStart={onNodeDragStart}
-                    onNodeDragStop={onNodeDragStop}
-                    onNodeDrag={onNodeDrag}
-                    defaultEdgeOptions={{ type: 'flowingPipeStraightArrow' }}
-                    onConnect={onConnect}
-                    onNodeClick={onNodeClick}
-                    onEdgeClick={onEdgeClick}
-                    onSelectionChange={handleSelectionChange}
-                    nodeTypes={nodeTypes}
-                    edgeTypes={edgeTypes}
-                    fitView
-                    fitViewOptions={{ padding: 2000 }}
-                    minZoom={0.05}
-                    maxZoom={3}
-                    nodesDraggable={isDeveloperMode}
-                    nodesConnectable={isDeveloperMode}
-                    multiSelectionKeyCode="Control"
-                    selectionOnDrag={isDeveloperMode}
-                    selectionMode="partial"
-                    onInit={fitViewWithPadding}
-                    onPaneClick={onPaneClick}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    style={{ backgroundColor: "#FFFFFF" }}
-                >
-                    {partial && <SelectionFlowRect partial={partial} />}
-                    {isDeveloperMode && !isFullView && <HelperLines draggingNodeId={draggingNodeId} nodes={nodes} />}
-                    <Suspense fallback={null}>
-                        <Marker type="flowingPipeStraightArrow" />
-                    </Suspense>
-                    <Suspense fallback={null}>
-                        <Marker type="flowingPipe" />
-                    </Suspense>
-                    <Suspense fallback={null}>
-                        <Marker type="flowingPipeDotted" />
-                    </Suspense>
-                    <Suspense fallback={null}>
-                        <Marker type="flowingPipeDottedArrow" />
-                    </Suspense>
-                    <FlowPanels {...{
-                        isFullView,
-                        showDeveloperMode: props?.showDeveloperMode,
-                        isDeveloperMode,
-                        partial,
-                        setPartial,
-                        show,
-                        toggle,
-                        handleSaveClick,
-                        isAdding,
-                        showSaveTemplate,
-                        handleSaveTemplate,
-                        selNodes,
-                        selEdges,
-                        legendPosition,
-                        showDrawer,
-                        setShowDrawer,
-                        selectedNodeId,
-                        getNodes,
-                        setNodes,
-                        nodes,
-                        handleDeleteAll
-                    }} />
-                    <Controls position="center-right" showInteractive={isDeveloperMode} fitViewOptions={{ padding: 0.2 }} />
-                    <Background variant={props?.showDeveloperMode && isDeveloperMode ? 'lines' : 'none'} />
-                </ReactFlow>
-            </>
+                                return syncedNode;
+                            })}
+                            edges={edges}
+                            onNodesChange={handleNodesChange}
+                            onEdgesChange={handleEdgesChange}
+                            onNodeDragStart={onNodeDragStart}
+                            onNodeDragStop={onNodeDragStop}
+                            onNodeDrag={onNodeDrag}
+                            defaultEdgeOptions={{ type: 'flowingPipeStraightArrow' }}
+                            onConnect={onConnect}
+                            onNodeClick={onNodeClick}
+                            onEdgeClick={onEdgeClick}
+                            onSelectionChange={handleSelectionChange}
+                            nodeTypes={nodeTypes}
+                            edgeTypes={edgeTypes}
+                            fitView
+                            fitViewOptions={{ padding: 2000 }}
+                            minZoom={0.05}
+                            maxZoom={3}
+                            nodesDraggable={isDeveloperMode}
+                            nodesConnectable={isDeveloperMode}
+                            multiSelectionKeyCode="Control"
+                            selectionOnDrag={isDeveloperMode}
+                            selectionMode="partial"
+                            onInit={fitViewWithPadding}
+                            onPaneClick={onPaneClick}
+                            onDrop={onDrop}
+                            onDragOver={onDragOver}
+                            style={{ backgroundColor: "#FFFFFF" }}
+                        >
+                            {partial && <SelectionFlowRect partial={partial} />}
+                            {isDeveloperMode && !isFullView && <HelperLines draggingNodeId={draggingNodeId} nodes={nodes} />}
+                            <Suspense fallback={null}>
+                                <Marker type="flowingPipeStraightArrow" />
+                            </Suspense>
+                            <Suspense fallback={null}>
+                                <Marker type="flowingPipe" />
+                            </Suspense>
+                            <Suspense fallback={null}>
+                                <Marker type="flowingPipeDotted" />
+                            </Suspense>
+                            <Suspense fallback={null}>
+                                <Marker type="flowingPipeDottedArrow" />
+                            </Suspense>
+                            <FlowPanels {...{
+                                isFullView,
+                                showDeveloperMode: props?.showDeveloperMode,
+                                isDeveloperMode,
+                                partial,
+                                setPartial,
+                                show,
+                                toggle,
+                                handleSaveClick,
+                                isAdding,
+                                showSaveTemplate,
+                                handleSaveTemplate,
+                                selNodes,
+                                selEdges,
+                                legendPosition,
+                                showDrawer,
+                                setShowDrawer,
+                                selectedNodeId,
+                                getNodes,
+                                setNodes,
+                                nodes,
+                                handleDeleteAll
+                            }} />
+                            <Controls position="center-right" showInteractive={isDeveloperMode} fitViewOptions={{ padding: 0.2 }} />
+                            <Background variant={props?.showDeveloperMode && isDeveloperMode ? 'lines' : 'none'} />
+                        </ReactFlow>
+                    </>
 
 
         </div>

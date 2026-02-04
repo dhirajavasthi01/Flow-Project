@@ -62,10 +62,8 @@ const NodeConfiguration = ({
                              Apply
                          </button>
                          <button
-                             className={`
-                                 bg-primary_blue hover:bg-primary_blue_hover
-                                  text-14 rounded-[0.3vmin] text-white p-[0.9vmin_2vmin] uppercase
-                                  `}
+                             className={` bg-primary_black hover:bg-primary_gray
+                                  text-14 rounded-[0.3vmin] text-white p-[0.9vmin_2vmin] uppercase`}
                              onClick={() => {
                                  setSelectedNodeId(null)
                              }}
@@ -73,10 +71,8 @@ const NodeConfiguration = ({
                              Close
                          </button>
                          <button
-                             className={`
-                                 bg-primary_blue hover:bg-primary_blue_hover
-                                  text-14 rounded-[0.3vmin] text-white p-[0.9vmin_2vmin] uppercase
-                                  `}
+                             className={` bg-primary_orange hover:bg-primary_red_60
+                                  text-14 rounded-[0.3vmin] text-white p-[0.9vmin_2vmin] uppercase`}
                              onClick={() => {
                                  setDelete(true)
                              }}

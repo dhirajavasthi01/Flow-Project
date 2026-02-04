@@ -69,6 +69,7 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     if (gradients.length === 0) { // Case 1: No gradients - Check for 2+ distinct fill colors
       const allFillColors = new Set();
       for (const el of allElements) {
+        // eslint-disable-next-line no-continue
         if (shouldIgnoreElement(el)) continue;
         const color = getValidFillColor(el);
         if (color) allFillColors.add(color);
@@ -77,6 +78,7 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     }
     // Case 2: Gradients exist - Check for additional non-gradient colors
     for (const el of allElements) {
+      // eslint-disable-next-line no-continue
       if (shouldIgnoreElement(el)) continue;
       const color = getValidFillColor(el);
       if (CompareValuesWithSymbol('&&', color, !gradientColors.has(color))) return true;
@@ -176,4 +178,3 @@ export function isSpecialNodeSync(nodeType, svgPath = null) {
 export function clearSvgAnalysisCache() {
   svgAnalysisCache.clear();
 }
- 
