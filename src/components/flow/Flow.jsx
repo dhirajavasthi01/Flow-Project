@@ -1380,7 +1380,7 @@ function Flow(props) {
                             onNodeDragStart={onNodeDragStart}
                             onNodeDragStop={onNodeDragStop}
                             onNodeDrag={onNodeDrag}
-                            defaultEdgeOptions={{ type: 'flowingPipeStraightArrow' }}
+                            defaultEdgeOptions={{ style: { strokeWidth: 5, stroke: '#000' }, type: 'flowingPipeStraightArrow' }}
                             onConnect={onConnect}
                             onNodeClick={onNodeClick}
                             onEdgeClick={onEdgeClick}
