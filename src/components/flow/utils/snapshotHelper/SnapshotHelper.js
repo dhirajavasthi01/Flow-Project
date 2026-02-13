@@ -41,7 +41,7 @@ export const undo = (
 };
 
 //Handles keyboard shortcuts for undo, copy, paste, and delete operations
-export const handleKeyPress = (
+export const handleKeyPress = ({
   e,
   undo,
   takeSnapshot,
@@ -50,8 +50,8 @@ export const handleKeyPress = (
   setNodeToCopy,
   config,
   selectedNodeId,
-  setShouldDelete
-) => {
+  setShouldDelete,
+}) => {
   if (e.ctrlKey && e.key.toLowerCase() === "z") {
     e.preventDefault();
     e.stopPropagation();

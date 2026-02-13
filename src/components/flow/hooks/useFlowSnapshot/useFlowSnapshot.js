@@ -61,7 +61,7 @@ export const useFlowSnapshot = ({
   // Keyboard handler effect
   useEffect(() => {
     const handleKeyPressWrapper = (e) => {
-      handleKeyPressHelper(
+      handleKeyPressHelper({
         e,
         undo,
         takeSnapshot,
@@ -70,8 +70,8 @@ export const useFlowSnapshot = ({
         setNodeToCopy,
         config,
         selectedNodeId,
-        setShouldDelete
-      );
+        setShouldDelete,
+      });
     };
     window.addEventListener("keydown", handleKeyPressWrapper);
     return () => {

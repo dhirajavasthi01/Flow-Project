@@ -93,7 +93,7 @@ describe("History & Undo Utilities", () => {
       stopPropagation: vi.fn(),
     };
 
-    handleKeyPress(event, undoFn);
+    handleKeyPress({ e: event, undo: undoFn });
 
     expect(undoFn).toHaveBeenCalled();
     expect(event.preventDefault).toHaveBeenCalled();
@@ -102,16 +102,17 @@ describe("History & Undo Utilities", () => {
   it("should copy config on Ctrl+C", () => {
     const setNodeToCopy = vi.fn();
 
-    handleKeyPress(
-      { ctrlKey: true, key: "c" },
-      vi.fn(),
-      vi.fn(),
-      null,
-      vi.fn(),
+    handleKeyPress({
+      e: { ctrlKey: true, key: "c" },
+      undo: vi.fn(),
+      takeSnapshot: vi.fn(),
+      nodeToCopy: null,
+      setNewNode: vi.fn(),
       setNodeToCopy,
-      { id: "node1" },
-      "node1"
-    );
+      config: { id: "node1" },
+      selectedNodeId: "node1",
+      setShouldDelete: vi.fn(),
+    });
 
     expect(setNodeToCopy).toHaveBeenCalledWith({ id: "node1" });
   });
@@ -120,14 +121,17 @@ describe("History & Undo Utilities", () => {
     const setNewNode = vi.fn();
     const setNodeToCopy = vi.fn();
 
-    handleKeyPress(
-      { ctrlKey: true, key: "v" },
-      vi.fn(),
-      vi.fn(),
-      { id: "copied" },
+    handleKeyPress({
+      e: { ctrlKey: true, key: "v" },
+      undo: vi.fn(),
+      takeSnapshot: vi.fn(),
+      nodeToCopy: { id: "copied" },
       setNewNode,
-      setNodeToCopy
-    );
+      setNodeToCopy,
+      config: null,
+      selectedNodeId: null,
+      setShouldDelete: vi.fn(),
+    });
 
     expect(setNewNode).toHaveBeenCalledWith({ id: "copied" });
     expect(setNodeToCopy).toHaveBeenCalledWith(null);
@@ -137,17 +141,17 @@ describe("History & Undo Utilities", () => {
     const takeSnapshotFn = vi.fn();
     const setShouldDelete = vi.fn();
 
-    handleKeyPress(
-      { key: "Delete" },
-      vi.fn(),
-      takeSnapshotFn,
-      null,
-      vi.fn(),
-      vi.fn(),
-      { id: "config" },
-      "1",
-      setShouldDelete
-    );
+    handleKeyPress({
+      e: { key: "Delete" },
+      undo: vi.fn(),
+      takeSnapshot: takeSnapshotFn,
+      nodeToCopy: null,
+      setNewNode: vi.fn(),
+      setNodeToCopy: vi.fn(),
+      config: { id: "config" },
+      selectedNodeId: "1",
+      setShouldDelete,
+    });
 
     expect(takeSnapshotFn).toHaveBeenCalled();
     expect(setShouldDelete).toHaveBeenCalledWith(true);
