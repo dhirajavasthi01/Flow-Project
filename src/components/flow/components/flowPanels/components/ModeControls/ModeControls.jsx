@@ -1,5 +1,5 @@
 import { Panel } from "@xyflow/react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { relativeToAbsolute, sortNodesByParentChild } from "../../../../utils/parentChildUtils/ParentChildUtils";
 
 /**
@@ -25,10 +25,6 @@ const ModeControls = ({
   nodes,
   handleDeleteAll
 }) => {
-  if (!showDeveloperMode || !isDeveloperMode) {
-    return null;
-  }
-
   // Get the currently selected node to check if it has a parent
   const selectedNode = useMemo(() => {
     if (!selectedNodeId || !getNodes) return null;
@@ -36,7 +32,43 @@ const ModeControls = ({
     return currentNodes.find(n => n.id === selectedNodeId);
   }, [selectedNodeId, getNodes]);
 
-  const canDetach = selectedNode && selectedNode.parentId;
+  const canDetach = Boolean(selectedNode?.parentId);
+
+  const handleDetach = useCallback(() => {
+    if (!selectedNodeId || !selectedNode?.parentId) return;
+
+    const currentNodes = getNodes?.() ?? [];
+    const nodeToDetach = currentNodes.find((n) => n.id === selectedNodeId);
+    if (!nodeToDetach?.parentId) return;
+
+    const parentNode = currentNodes.find((n) => n.id === nodeToDetach.parentId);
+    if (!parentNode) return;
+
+    const parentAbsolutePos = parentNode.positionAbsolute ?? parentNode.position;
+    const relativePos = nodeToDetach.position;
+    if (!parentAbsolutePos || !relativePos) return;
+
+    const absolutePos = relativeToAbsolute(relativePos, parentAbsolutePos);
+
+    setNodes((nds) => {
+      const updated = nds.map((n) =>
+        n.id === selectedNodeId
+          ? {
+              ...n,
+              parentId: undefined,
+              position: absolutePos,
+              extent: undefined,
+              data: { ...n.data, isAttachedToGroup: false }
+            }
+          : n
+      );
+      return sortNodesByParentChild(updated);
+    });
+  }, [selectedNodeId, selectedNode, getNodes, setNodes]);
+
+  if (!showDeveloperMode || !isDeveloperMode) {
+    return null;
+  }
 
   return (
     <>
@@ -80,44 +112,7 @@ const ModeControls = ({
           <button
             id="detach-button"
             data-testid="detach-button"
-            onClick={() => {
-              if (selectedNodeId) {
-                const currentNodes = getNodes();
-                const selectedNode = currentNodes.find(n => n.id === selectedNodeId);
-                if (selectedNode && selectedNode.parentId) {
-                  // Convert relative position back to absolute
-                  const parentNode = currentNodes.find(n => n.id === selectedNode.parentId);
-                  if (parentNode) {
-                    // Get absolute positions (React Flow provides positionAbsolute)
-                    const parentAbsolutePos = parentNode.positionAbsolute || parentNode.position;
-                    const relativePos = selectedNode.position;
-
-                    if (parentAbsolutePos && relativePos) {
-                      const absolutePos = relativeToAbsolute(relativePos, parentAbsolutePos);
-
-                      setNodes((nds) => {
-                        const updated = nds.map((n) =>
-                          n.id === selectedNodeId
-                            ? {
-                              ...n,
-                              parentId: undefined,
-                              position: absolutePos,
-                              extent: undefined,
-                              data: {
-                                ...n.data,
-                                isAttachedToGroup: false
-                              }
-                            }
-                            : n
-                        );
-                        // Ensure parent-child ordering
-                        return sortNodesByParentChild(updated);
-                      });
-                    }
-                  }
-                }
-              }
-            }}
+            onClick={handleDetach}
             disabled={!canDetach}
             className="w-fit flex justify-center items-center cursor-pointer uppercase text-14 font-medium bg-orange-600 text-white rounded-[0.3vmin] h-full px-[1.5vmin] py-[1vmin] hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             title={canDetach ? "Remove child from parent group" : "Select a child node to detach"}
