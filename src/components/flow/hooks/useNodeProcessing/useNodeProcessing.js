@@ -5,6 +5,88 @@ import {
   createTableDataKey
 } from '../../Flow.functions';
 
+// --- Pure helpers (reduce complexity, no hook deps) ---
+
+function cloneNodeForOriginal(node) {
+  return {
+    ...node,
+    data: { ...node.data },
+    style: node.style ? { ...node.style } : undefined
+  };
+}
+
+function syncOriginalFetchedNodesRef(originalRef, fetchedNodes) {
+  const currentOriginalIds = originalRef.current.map(n => n.id).sort().join(',');
+  const fetchedIds = fetchedNodes.map(n => n.id).sort().join(',');
+  const shouldUpdate =
+    originalRef.current.length === 0 || currentOriginalIds !== fetchedIds;
+  if (shouldUpdate) {
+    originalRef.current = fetchedNodes.map(cloneNodeForOriginal);
+  }
+}
+
+function getProcessedNodes(processRef, sourceNodes) {
+  const process = processRef.current;
+  return process ? process(sourceNodes, sourceNodes) : sourceNodes;
+}
+
+function applyInitialLoadNormal({
+  processRef,
+  fetchedNodes,
+  fetchedEdges,
+  processEdges,
+  setNodes,
+  setEdges,
+  zoomTo,
+  fitView
+}) {
+  const processedNodes = getProcessedNodes(processRef, fetchedNodes);
+  const processedEdges = processEdges(fetchedEdges);
+  setNodes(processedNodes);
+  setEdges(processedEdges);
+  setTimeout(() => {
+    zoomTo(0.5);
+    fitView({ duration: 800 });
+  }, 100);
+}
+
+function applyInitialLoadDeveloper(fetchedNodes, fetchedEdges, processEdges, setNodes, setEdges) {
+  setNodes(fetchedNodes);
+  setEdges(processEdges(fetchedEdges));
+}
+
+function restoreCurrentNodesWithOriginalData(currentNodes, originalNodes) {
+  if (currentNodes.length === 0) return originalNodes;
+  const originalNodeMap = new Map(originalNodes.map(node => [node.id, node]));
+  return currentNodes.map(currentNode => {
+    const originalNode = originalNodeMap.get(currentNode.id);
+    if (originalNode) {
+      return { ...currentNode, data: originalNode.data };
+    }
+    return currentNode;
+  });
+}
+
+function applyTableDataReprocess(originalRef, processRef, lastProcessedRef, tableData, setNodes) {
+  const tableDataKey = createTableDataKey(tableData);
+  if (lastProcessedRef.current === tableDataKey) return;
+  lastProcessedRef.current = tableDataKey;
+
+  setNodes((currentNodes) => {
+    const processedNodes = getProcessedNodes(processRef, originalRef.current);
+    return mergeProcessedNodesWithCurrent(processedNodes, currentNodes);
+  });
+}
+
+function applyDeveloperModeRestore(originalRef, lastProcessedRef, setNodes) {
+  const wasInDeveloperMode = lastProcessedRef.current === 'DEVELOPER_MODE';
+  if (wasInDeveloperMode) return;
+  lastProcessedRef.current = 'DEVELOPER_MODE';
+  setNodes((currentNodes) =>
+    restoreCurrentNodesWithOriginalData(currentNodes, originalRef.current)
+  );
+}
+
 /**
  * Custom hook for managing node processing and data synchronization
  */
@@ -43,7 +125,6 @@ export function useNodeProcessing({
     processNodesWithTableDataRef.current = processNodesWithTableData;
   }, [processNodesWithTableData]);
 
-  // Process edges with default styles
   const processEdges = useCallback((edgesToProcess) => {
     return edgesToProcess.map(edge => ({
       ...edge,
@@ -57,36 +138,32 @@ export function useNodeProcessing({
 
   // Initial load effect
   useEffect(() => {
-    if (fetchedNodes.length > 0 && !loadingFlow) {
-      const currentOriginalIds = originalFetchedNodesRef.current.map(n => n.id).sort().join(',');
-      const fetchedIds = fetchedNodes.map(n => n.id).sort().join(',');
-      
-      if (originalFetchedNodesRef.current.length === 0 || currentOriginalIds !== fetchedIds) {
-        originalFetchedNodesRef.current = fetchedNodes.map(node => ({
-          ...node,
-          data: { ...node.data },
-          style: node.style ? { ...node.style } : undefined
-        }));
-      }
-
+    const hasData = fetchedNodes.length > 0 && !loadingFlow;
+    if (hasData) {
+      syncOriginalFetchedNodesRef(originalFetchedNodesRef, fetchedNodes);
       if (!isDeveloperMode) {
-        const processedNodes = processNodesWithTableDataRef.current
-          ? processNodesWithTableDataRef.current(fetchedNodes, fetchedNodes)
-          : fetchedNodes;
-        const processedEdges = processEdges(fetchedEdges);
-        setNodes(processedNodes);
-        setEdges(processedEdges);
-
-        setTimeout(() => {
-          zoomTo(0.5);
-          fitView({ duration: 800 });
-        }, 100);
+        applyInitialLoadNormal({
+          processRef: processNodesWithTableDataRef,
+          fetchedNodes,
+          fetchedEdges,
+          processEdges,
+          setNodes,
+          setEdges,
+          zoomTo,
+          fitView
+        });
       } else {
-        setNodes(fetchedNodes);
-        const processedEdges = processEdges(fetchedEdges);
-        setEdges(processedEdges);
+        applyInitialLoadDeveloper(
+          fetchedNodes,
+          fetchedEdges,
+          processEdges,
+          setNodes,
+          setEdges
+        );
       }
-    } else if (error) {
+      return;
+    }
+    if (error) {
       console.error('Error loading flow data:', error);
       setNodes([]);
       setEdges([]);
@@ -95,42 +172,23 @@ export function useNodeProcessing({
 
   // Reprocess nodes when tableData changes or developer mode is toggled
   useEffect(() => {
-    if (originalFetchedNodesRef.current.length > 0 && !isDeveloperMode) {
-      const tableDataKey = createTableDataKey(tableData);
-      
-      if (lastProcessedTableDataRef.current === tableDataKey) {
-        return;
-      }
-      lastProcessedTableDataRef.current = tableDataKey;
+    const hasOriginals = originalFetchedNodesRef.current.length > 0;
+    if (!hasOriginals) return;
 
-      setNodes((currentNodes) => {
-        const processedNodes = processNodesWithTableDataRef.current
-          ? processNodesWithTableDataRef.current(originalFetchedNodesRef.current, originalFetchedNodesRef.current)
-          : originalFetchedNodesRef.current;
-
-        return mergeProcessedNodesWithCurrent(processedNodes, currentNodes);
-      });
-    } else if (originalFetchedNodesRef.current.length > 0 && isDeveloperMode) {
-      const wasInDeveloperMode = lastProcessedTableDataRef.current === 'DEVELOPER_MODE';
-      if (!wasInDeveloperMode) {
-        lastProcessedTableDataRef.current = 'DEVELOPER_MODE';
-        setNodes((currentNodes) => {
-          if (currentNodes.length > 0) {
-            const originalNodeMap = new Map(originalFetchedNodesRef.current.map(node => [node.id, node]));
-            return currentNodes.map(currentNode => {
-              const originalNode = originalNodeMap.get(currentNode.id);
-              if (originalNode) {
-                return {
-                  ...currentNode,
-                  data: originalNode.data
-                };
-              }
-              return currentNode;
-            });
-          }
-          return originalFetchedNodesRef.current;
-        });
-      }
+    if (!isDeveloperMode) {
+      applyTableDataReprocess(
+        originalFetchedNodesRef,
+        processNodesWithTableDataRef,
+        lastProcessedTableDataRef,
+        tableData,
+        setNodes
+      );
+    } else {
+      applyDeveloperModeRestore(
+        originalFetchedNodesRef,
+        lastProcessedTableDataRef,
+        setNodes
+      );
     }
   }, [tableData, isDeveloperMode, setNodes]);
 
@@ -139,4 +197,3 @@ export function useNodeProcessing({
     processNodesWithTableDataRef
   };
 }
- 
