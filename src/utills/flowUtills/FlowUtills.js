@@ -154,85 +154,78 @@ export const extractDimensionsFromSvgByBBox = async (svgPath) => {
   }
 };
 
+const getStopColorFromElement = (stop) => {
+  const color = stop.getAttribute('stop-color');
+  if (color) return color.trim();
+  const style = stop.getAttribute('style');
+  const match = style?.match(/stop-color:\s*([^;]+)/i);
+  return match ? match[1].trim() : null;
+};
+
+const extractGradientColorsFromStops = (stopColors) => {
+  const firstColor = stopColors[0];
+  const lastColor = stopColors[stopColors.length - 1];
+  const normalizedFirst = firstColor?.trim().toUpperCase();
+  const normalizedLast = lastColor?.trim().toUpperCase();
+
+  const hasSameEndpoints = normalizedFirst && normalizedLast && normalizedFirst === normalizedLast;
+  if (hasSameEndpoints && stopColors.length >= 3) {
+    const distinctMiddle = stopColors.slice(1, -1).find((c) => {
+      const n = c?.trim().toUpperCase();
+      return n && n !== normalizedFirst;
+    });
+    if (distinctMiddle) return { gradientStart: firstColor, gradientEnd: distinctMiddle, isDistinct: true };
+  }
+
+  if (normalizedFirst && normalizedLast && normalizedFirst !== normalizedLast) {
+    return { gradientStart: firstColor, gradientEnd: lastColor, isDistinct: true };
+  }
+
+  return { gradientStart: firstColor, gradientEnd: lastColor, isDistinct: false };
+};
+
+const findGradientColors = (gradients) => {
+  let fallback = null;
+  for (let i = 0; i < gradients.length; i++) {
+    const stops = Array.from(gradients[i].querySelectorAll('stop'));
+    const stopColors = stops.map((s) => getStopColorFromElement(s)).filter(Boolean);
+
+    if (stops.length >= 2 && stopColors.length >= 2) {
+      const result = extractGradientColorsFromStops(stopColors);
+      if (result.isDistinct) return { gradientStart: result.gradientStart, gradientEnd: result.gradientEnd };
+      if (!fallback) fallback = result;
+    }
+  }
+  return fallback;
+};
+
+const findFillColor = (svgElement) => {
+  const filled = svgElement.querySelectorAll('[fill]:not([fill="none"]):not([fill^="url"])');
+  for (let i = 0; i < filled.length; i++) {
+    const color = filled[i].getAttribute('fill');
+    if (color && color !== 'none' && !color.startsWith('url')) return color;
+  }
+  return null;
+};
+
 export const extractColorsFromSvg = async (svgPath) => {
   try {
     const response = await fetch(svgPath);
     const svgText = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
     const svgElement = doc.documentElement;
-    let gradientStart = null;
-    let gradientEnd = null;
-    let fillColor = null;
-    const gradients = svgElement.querySelectorAll('linearGradient, radialGradient');
-    if (gradients.length > 0) {
-      const getStopColor = (stop) => {
-        let color = stop.getAttribute('stop-color');
-        if (color) return color.trim();
-        const style = stop.getAttribute('style');
-        if (style) {
-          const match = style.match(/stop-color:\s*([^;]+)/i);
-          if (match) return match[1].trim();
-        }
-        return null;
-      };
-      let foundDistinctColors = false;
-      for (let gradIdx = 0; gradIdx < gradients.length && !foundDistinctColors; gradIdx++) {
-        const gradient = gradients[gradIdx];
-        const stops = Array.from(gradient.querySelectorAll('stop'));
 
-        if (stops.length >= 2) {
-          const stopColors = stops.map(stop => getStopColor(stop)).filter(Boolean);
-          if (stopColors.length >= 2) {
-            const firstColor = stopColors[0];
-            const lastColor = stopColors[stopColors.length - 1];
-            const normalizedFirst = firstColor?.trim().toUpperCase();
-            const normalizedLast = lastColor?.trim().toUpperCase();
-            if (normalizedFirst && normalizedLast && normalizedFirst === normalizedLast && stopColors.length >= 3) {
-              for (let i = 1; i < stopColors.length - 1; i++) {
-                const middleColor = stopColors[i];
-                const normalizedMiddle = middleColor?.trim().toUpperCase();
-                if (middleColor && normalizedMiddle && normalizedMiddle !== normalizedFirst) {
-                  gradientStart = firstColor;
-                  gradientEnd = middleColor;
-                  foundDistinctColors = true;
-                  break;
-                }
-              }
-            } else if (normalizedFirst && normalizedLast && normalizedFirst !== normalizedLast) {
-              gradientStart = firstColor;
-              gradientEnd = lastColor;
-              foundDistinctColors = true;
-            } else if (!gradientStart && !gradientEnd) {
-              gradientStart = firstColor;
-              gradientEnd = lastColor;
-            }
-          }
-        }
-      }
-    }
-    if (!gradientStart && !gradientEnd) {
-      const filledElements = svgElement.querySelectorAll('[fill]:not([fill="none"]):not([fill^="url"])');
-      if (filledElements.length > 0) {
-        for (let el of filledElements) {
-          const color = el.getAttribute('fill');
-          if (color && color !== 'none' && !color.startsWith('url')) {
-            fillColor = color;
-            break;
-          }
-        }
-      }
-    }
-    return {
-      gradientStart: gradientStart || fillColor,
-      gradientEnd: gradientEnd || fillColor
-    };
+    const gradients = svgElement.querySelectorAll('linearGradient, radialGradient');
+    const gradientColors = gradients.length > 0 ? findGradientColors(gradients) : null;
+    const fillColor = !gradientColors ? findFillColor(svgElement) : null;
+
+    const baseColor = gradientColors?.gradientStart ?? fillColor;
+    const endColor = gradientColors?.gradientEnd ?? fillColor;
+
+    return { gradientStart: baseColor, gradientEnd: endColor };
   } catch (error) {
     console.error('Error extracting SVG colors:', error);
-    return {
-      gradientStart: null,
-      gradientEnd: null
-    };
+    return { gradientStart: null, gradientEnd: null };
   }
 };
 export const EXTRA_NODE_COLORS = {

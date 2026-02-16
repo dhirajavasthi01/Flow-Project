@@ -90,7 +90,7 @@ export const wouldCreateCircularDependency = (nodes, childId, parentId) => {
     }
 
     const parentNode = nodes.find(n => n.id === currentParentId);
-    if (!parentNode || !parentNode.parentId) break;
+    if (!parentNode?.parentId) break;
 
     currentParentId = parentNode.parentId;
   }
