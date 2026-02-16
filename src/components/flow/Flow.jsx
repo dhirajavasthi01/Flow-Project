@@ -37,7 +37,7 @@ import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManage
 import { createEdge, updateEdgeWithConfig } from './utils/edgeHelper/EdgeHelper';
 import { handleFetchedNodesEdgesChange, handleTableDataChange } from './utils/flowHelper/FlowHelper';
 import { allNodes, edgeTypes, nodeTypes } from './utils/nodeEdgeType/NodeEdgeType';
-import { absoluteToRelative, findGroupNodeAtPoint, getDescendantIds, sortNodesByParentChild, wouldCreateCircularDependency } from './utils/parentChildUtils/ParentChildUtils';
+import { absoluteToRelative, findGroupNodeAtPoint, getDescendantIds, relativeToAbsolute, sortNodesByParentChild, wouldCreateCircularDependency } from './utils/parentChildUtils/ParentChildUtils';
 import { handleDragOver, handleSaveTemplate as handleSaveTemplateHelper, handleTemplateDropHelper } from './utils/templateHelper/TemplateHelper';
 import Marker from './marker';
 function Flow(props) {
@@ -1059,48 +1059,66 @@ function Flow(props) {
     // NOTE: Removed 'nodes' from dependencies to prevent infinite loops when nodes update during resize
     // CRITICAL: Only sync dimensions if they're missing, don't overwrite existing dimensions
     // This prevents resetting dimensions when clicking on a manually resized node
-    useEffect(() => {
-        if (selectedNodeId && isDeveloperMode && !isResizingRef.current) {
-            // Use a ref to get the current node without adding nodes to dependencies
-            // This prevents infinite loops when nodes update
-            const timeoutId = setTimeout(() => {
-                // Get the current node from the nodes state using a function
-                setNodes(currentNodes => {
-                    const selectedNode = currentNodes.find(n => n.id === selectedNodeId);
-                    if (selectedNode) {
-                        // CRITICAL: Only sync if dimensions are completely missing
-                        // Don't overwrite existing dimensions - this prevents resetting manually resized nodes
-                        if (!selectedNode.style?.width || !selectedNode.style?.height) {
-                            // Check if node has dimensions elsewhere before syncing
-                            const hasDimensions = selectedNode.width || selectedNode.height ||
-                                selectedNode.data?.width || selectedNode.data?.height;
-
-                            // CRITICAL: Don't use measured dimensions if node has dimensions in root or data
-                            // This prevents resetting manually resized dimensions
-                            if (hasDimensions) {
-                                const synced = syncNodeDimensions(selectedNode);
-                                syncedNodeIdsRef.current.add(selectedNodeId);
-                                return currentNodes.map(node => {
-                                    if (node.id === selectedNodeId) {
-                                        return synced;
-                                    }
-                                    return node;
-                                });
-                            }
-                        }
-                    }
-                    return currentNodes;
-                });
-
-                // Small delay to ensure node is fully rendered before measuring
-                setTimeout(() => {
-                    updateNodeInternals(selectedNodeId);
-                }, 50);
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
+    
+    // Helper function to check if a node needs dimension syncing
+    const shouldSyncNodeDimensions = useCallback((node) => {
+        // CRITICAL: Only sync if dimensions are completely missing
+        // Don't overwrite existing dimensions - this prevents resetting manually resized nodes
+        if (node.style?.width && node.style?.height) {
+            return false;
         }
-    }, [selectedNodeId, isDeveloperMode, updateNodeInternals, setNodes]);
+
+        // Check if node has dimensions elsewhere before syncing
+        const hasDimensions = node.width || node.height ||
+            node.data?.width || node.data?.height;
+
+        // CRITICAL: Don't use measured dimensions if node has dimensions in root or data
+        // This prevents resetting manually resized dimensions
+        return !!hasDimensions;
+    }, []);
+
+    // Helper function to update nodes with synced dimensions
+    const updateNodeWithSyncedDimensions = useCallback((currentNodes, nodeId) => {
+        const selectedNode = currentNodes.find(n => n.id === nodeId);
+        if (!selectedNode) {
+            return currentNodes;
+        }
+
+        if (!shouldSyncNodeDimensions(selectedNode)) {
+            return currentNodes;
+        }
+
+        const synced = syncNodeDimensions(selectedNode);
+        syncedNodeIdsRef.current.add(nodeId);
+        return currentNodes.map(node => 
+            node.id === nodeId ? synced : node
+        );
+    }, [shouldSyncNodeDimensions]);
+
+    // Helper function to handle node measurement after sync
+    const scheduleNodeMeasurement = useCallback((nodeId) => {
+        // Small delay to ensure node is fully rendered before measuring
+        setTimeout(() => {
+            updateNodeInternals(nodeId);
+        }, 50);
+    }, [updateNodeInternals]);
+
+    useEffect(() => {
+        if (!selectedNodeId || !isDeveloperMode || isResizingRef.current) {
+            return;
+        }
+
+        // Use a ref to get the current node without adding nodes to dependencies
+        // This prevents infinite loops when nodes update
+        const timeoutId = setTimeout(() => {
+            setNodes(currentNodes => 
+                updateNodeWithSyncedDimensions(currentNodes, selectedNodeId)
+            );
+            scheduleNodeMeasurement(selectedNodeId);
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [selectedNodeId, isDeveloperMode, setNodes, updateNodeWithSyncedDimensions, scheduleNodeMeasurement]);
 
     // CRITICAL: When a node is deselected (selectedNodeId becomes null), ensure its dimensions are preserved
     // This prevents dimension loss when clicking outside or on another node
@@ -1161,41 +1179,53 @@ function Flow(props) {
     // This ensures existing stored nodes can be resized immediately
     // NOTE: Only sync nodes that haven't been synced yet to prevent infinite loops
     // CRITICAL: Don't reset dimensions for nodes that already have them (manually resized nodes)
+    
+    // Helper function to check if a node needs dimension syncing
+    const nodeNeedsSync = useCallback((node) => {
+        // Skip if already synced
+        if (syncedNodeIdsRef.current.has(node.id)) {
+            return false;
+        }
+
+        // CRITICAL: Only sync if style dimensions are completely missing
+        // If node has dimensions in root level or data, preserve them - don't use measured
+        const hasStyleDimensions = node.style?.width && node.style?.height;
+        const hasRootDimensions = node.width && node.height;
+        const hasDataDimensions = node.data?.width && node.data?.height;
+
+        // If node has dimensions anywhere (root, data, or style), don't sync
+        // This preserves manually resized dimensions
+        if (hasStyleDimensions || hasRootDimensions || hasDataDimensions) {
+            // Mark as synced even if it already has dimensions (to avoid re-checking)
+            syncedNodeIdsRef.current.add(node.id);
+            return false;
+        }
+
+        // Only sync if dimensions are completely missing
+        return true;
+    }, []);
+
+    // Helper function to mark all nodes as synced
+    const markAllNodesAsSynced = useCallback((nodeList) => {
+        nodeList.forEach(node => {
+            syncedNodeIdsRef.current.add(node.id);
+        });
+    }, []);
+
     useEffect(() => {
         if (!isDeveloperMode || nodes.length === 0 || isResizingRef.current) {
             return;
         }
 
         // Check if any nodes are missing style dimensions AND haven't been synced yet
-        const nodesNeedingSync = nodes.filter(node => {
-            // Skip if already synced
-            if (syncedNodeIdsRef.current.has(node.id)) {
-                return false;
-            }
-
-            // CRITICAL: Only sync if style dimensions are completely missing
-            // If node has dimensions in root level or data, preserve them - don't use measured
-            const hasStyleDimensions = node.style?.width && node.style?.height;
-            const hasRootDimensions = node.width && node.height;
-            const hasDataDimensions = node.data?.width && node.data?.height;
-
-            // If node has dimensions anywhere (root, data, or style), don't sync
-            // This preserves manually resized dimensions
-            if (hasStyleDimensions || hasRootDimensions || hasDataDimensions) {
-                // Mark as synced even if it already has dimensions (to avoid re-checking)
-                syncedNodeIdsRef.current.add(node.id);
-                return false;
-            }
-
-            // Only sync if dimensions are completely missing
-            return true;
-        });
+        const nodesNeedingSync = nodes.filter(nodeNeedsSync);
 
         if (nodesNeedingSync.length > 0) {
+            const nodeIdsToSync = new Set(nodesNeedingSync.map(n => n.id));
             setNodes(currentNodes => {
                 return currentNodes.map(node => {
                     // Only sync nodes that need it to avoid unnecessary updates
-                    if (nodesNeedingSync.some(n => n.id === node.id)) {
+                    if (nodeIdsToSync.has(node.id)) {
                         syncedNodeIdsRef.current.add(node.id);
                         return syncNodeDimensions(node);
                     }
@@ -1204,11 +1234,9 @@ function Flow(props) {
             });
         } else {
             // Mark all nodes as synced if none need syncing
-            nodes.forEach(node => {
-                syncedNodeIdsRef.current.add(node.id);
-            });
+            markAllNodesAsSynced(nodes);
         }
-    }, [nodes.length, isDeveloperMode, setNodes]);
+    }, [nodes.length, isDeveloperMode, setNodes, nodeNeedsSync, markAllNodesAsSynced]);
 
     useEffect(() => {
         if (shouldUpdateConfig && selectedNodeId) {
