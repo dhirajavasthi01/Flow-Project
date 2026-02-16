@@ -1,6 +1,80 @@
 import { useEffect, useRef } from 'react';
 import { isResizingRef } from '../useNodeResize/useNodeResize';
 
+// --- Pure helper functions (reduce complexity) ---
+
+// Extracts dimension value from node (checks root, data, then style)
+function getNodeDimension(node, dimension) {
+    return node[dimension] || node.data?.[dimension] || node.style?.[dimension];
+}
+
+// Extracts width and height from a node as numbers, returns null if invalid
+function extractNodeDimensions(node) {
+    const width = Number(getNodeDimension(node, 'width'));
+    const height = Number(getNodeDimension(node, 'height'));
+    
+    if (isNaN(width) || isNaN(height)) {
+        return null;
+    }
+    
+    return { width, height };
+}
+
+// Gets previous dimensions from tracking ref or original nodes
+function getPreviousDimensions(nodeId, prevNodeDimensionsRef, originalFetchedNodesRef) {
+    const prevDims = prevNodeDimensionsRef.current.get(nodeId);
+    if (prevDims) {
+        return prevDims;
+    }
+    
+    const originalNode = originalFetchedNodesRef.current.find(n => n.id === nodeId);
+    if (!originalNode) {
+        return null;
+    }
+    
+    const dims = extractNodeDimensions(originalNode);
+    if (dims) {
+        prevNodeDimensionsRef.current.set(nodeId, dims);
+        return dims;
+    }
+    
+    return null;
+}
+
+// Checks if dimensions have changed between previous and current
+function haveDimensionsChanged(prevDims, currentDims) {
+    if (!prevDims || !currentDims) {
+        return false;
+    }
+    
+    const prevWidth = Number(prevDims.width);
+    const prevHeight = Number(prevDims.height);
+    
+    if (isNaN(prevWidth) || isNaN(prevHeight)) {
+        return false;
+    }
+    
+    return prevWidth !== currentDims.width || prevHeight !== currentDims.height;
+}
+
+// Processes a single node to check for dimension changes
+function processNodeForDimensionChanges(node, prevNodeDimensionsRef, originalFetchedNodesRef) {
+    const prevDims = getPreviousDimensions(node.id, prevNodeDimensionsRef, originalFetchedNodesRef);
+    const currentDims = extractNodeDimensions(node);
+    
+    if (!currentDims) {
+        return false; // Invalid dimensions, skip
+    }
+    
+    if (!prevDims) {
+        // First time seeing this node, store current dimensions
+        prevNodeDimensionsRef.current.set(node.id, currentDims);
+        return false; // Don't trigger update on first render
+    }
+    
+    return haveDimensionsChanged(prevDims, currentDims);
+}
+
 /**
  * Custom hook to track and persist node dimension changes
  * This ensures resize changes are persisted even if handleNodesChange isn't called with resize changes
@@ -40,51 +114,9 @@ export const useDimensionPersistence = ({
         }
         
         // Check if any node dimensions have actually changed (not just position or parentId changes)
-        let hasDimensionChanges = false;
-        
-        nodes.forEach(node => {
-            let prevDims = prevNodeDimensionsRef.current.get(node.id);
-            
-            // If we don't have previous dimensions, try to get them from originalFetchedNodesRef
-            // This ensures we compare against the original stored dimensions, not the current dimensions
-            if (!prevDims) {
-                const originalNode = originalFetchedNodesRef.current.find(n => n.id === node.id);
-                if (originalNode) {
-                    const origWidth = Number(originalNode.width || originalNode.data?.width || originalNode.style?.width);
-                    const origHeight = Number(originalNode.height || originalNode.data?.height || originalNode.style?.height);
-                    if (!isNaN(origWidth) && !isNaN(origHeight)) {
-                        prevDims = { width: origWidth, height: origHeight };
-                        prevNodeDimensionsRef.current.set(node.id, prevDims);
-                    }
-                }
-            }
-            
-            // Convert to numbers for accurate comparison (handles string vs number mismatches)
-            const currentWidth = Number(node.width || node.data?.width || node.style?.width);
-            const currentHeight = Number(node.height || node.data?.height || node.style?.height);
-            
-            // Skip if dimensions are invalid
-            if (isNaN(currentWidth) || isNaN(currentHeight)) {
-                return;
-            }
-            
-            if (!prevDims) {
-                // First time seeing this node and no original found, store current dimensions
-                prevNodeDimensionsRef.current.set(node.id, { width: currentWidth, height: currentHeight });
-                return; // Don't trigger update on first render
-            }
-            
-            // Check if dimensions changed (ignore position, parentId, or other property changes)
-            // Compare as numbers to handle type mismatches
-            const prevWidth = Number(prevDims.width);
-            const prevHeight = Number(prevDims.height);
-            
-            if (!isNaN(prevWidth) && !isNaN(prevHeight)) {
-                if (prevWidth !== currentWidth || prevHeight !== currentHeight) {
-                    hasDimensionChanges = true;
-                }
-            }
-        });
+        const hasDimensionChanges = nodes.some(node => 
+            processNodeForDimensionChanges(node, prevNodeDimensionsRef, originalFetchedNodesRef)
+        );
         
         // Only update if dimensions actually changed (not just position or parent-child relationship changes)
         if (!hasDimensionChanges) {
@@ -94,10 +126,9 @@ export const useDimensionPersistence = ({
             // CRITICAL: Always update tracking to preserve manually resized dimensions
             // This ensures dimensions are preserved when clicking outside or on another node
             nodes.forEach(node => {
-                const currentWidth = Number(node.width || node.data?.width || node.style?.width);
-                const currentHeight = Number(node.height || node.data?.height || node.style?.height);
-                if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
-                    prevNodeDimensionsRef.current.set(node.id, { width: currentWidth, height: currentHeight });
+                const dims = extractNodeDimensions(node);
+                if (dims) {
+                    prevNodeDimensionsRef.current.set(node.id, dims);
                 }
             });
             return;
@@ -114,10 +145,9 @@ export const useDimensionPersistence = ({
                 persistFunction(nodes, originalFetchedNodesRef);
                 // Update tracking after persisting changes
                 nodes.forEach(node => {
-                    const currentWidth = Number(node.width || node.data?.width || node.style?.width);
-                    const currentHeight = Number(node.height || node.data?.height || node.style?.height);
-                    if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
-                        prevNodeDimensionsRef.current.set(node.id, { width: currentWidth, height: currentHeight });
+                    const dims = extractNodeDimensions(node);
+                    if (dims) {
+                        prevNodeDimensionsRef.current.set(node.id, dims);
                     }
                 });
             }
