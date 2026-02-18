@@ -186,8 +186,8 @@ const extractGradientColorsFromStops = (stopColors) => {
 
 const findGradientColors = (gradients) => {
   let fallback = null;
-  for (let i = 0; i < gradients.length; i++) {
-    const stops = Array.from(gradients[i].querySelectorAll('stop'));
+  for (const gradient of gradients) {
+    const stops = Array.from(gradient.querySelectorAll('stop'));
     const stopColors = stops.map((s) => getStopColorFromElement(s)).filter(Boolean);
 
     if (stops.length >= 2 && stopColors.length >= 2) {
@@ -201,8 +201,8 @@ const findGradientColors = (gradients) => {
 
 const findFillColor = (svgElement) => {
   const filled = svgElement.querySelectorAll('[fill]:not([fill="none"]):not([fill^="url"])');
-  for (let i = 0; i < filled.length; i++) {
-    const color = filled[i].getAttribute('fill');
+  for (const element of filled) {
+    const color = element.getAttribute('fill');
     if (color && color !== 'none' && !color.startsWith('url')) return color;
   }
   return null;

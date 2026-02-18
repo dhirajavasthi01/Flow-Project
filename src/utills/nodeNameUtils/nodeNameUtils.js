@@ -77,16 +77,41 @@ export function getDisplayName(filename) {
   return `${pascal} Node`;
 }
 
+
+export function getValsBaseOnCondition(condition, ifTrue, elseWise) {
+  const result = typeof condition === 'function' ? condition() : condition
+  return result ? ifTrue : elseWise
+}
+
+export const getSafe = (fn, fallback) => {
+  try {
+    const value = fn()
+    return value ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function ifElse(condition, ifFn, elseFn) {
+  if (condition) {
+    return ifFn()
+  } else {
+    return elseFn()
+  }
+}
+
+export function getNestedValue(obj, keyPath) {
+  return keyPath.split('.').reduce((acc, key) => acc?.[key], obj)
+}
+
+
 export const CompareValuesWithSymbol = (symbol, ...values) => {
-    if(symbol === '&&') {
-        return values.every((v) => Boolean(v));
-    } else if(symbol === '||') {
-        return values.some(v => Boolean(v));
-    }
-}
+  if (symbol === '&&') {
+    return values.every((val) => Boolean(val))
+  }
 
-
-export const getValsBaseOnCondition = (condition, ifTrue, elseWise) => {
-    const result = typeof condition === 'function' ? condition() : condition;
-    return result ? ifTrue : elseWise;
+  if (symbol === '||') {
+    return values.some((val) => Boolean(val))
+  }
 }
+ 
