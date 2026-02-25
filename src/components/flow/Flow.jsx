@@ -77,6 +77,12 @@ import {
   wouldCreateCircularDependency,
 } from './utils/parentChildUtils/ParentChildUtils'
 import {
+  getDragStopAction,
+  mapNodesWithAttach,
+  mapNodesWithDetach,
+  mapNodesWithSnap,
+} from './utils/nodeDragStopUtils/nodeDragStopUtils'
+import {
   handleDragOver,
   handleSaveTemplate as handleSaveTemplateHelper,
   handleTemplateDropHelper,
@@ -1125,12 +1131,24 @@ function Flow(props) {
   )
 
   // Handle drag stop - implement attach/detach logic for group nodes (any node can be a parent)
+  const scheduleRefUpdateForNode = useCallback(
+    (nodeId) => {
+      setTimeout(() => {
+        const finalNodes = getNodes()
+        const finalNode = finalNodes.find((n) => n.id === nodeId)
+        if (finalNode) {
+          updateOriginalFetchedNodesRef([finalNode])
+        }
+      }, 100)
+    },
+    [getNodes, updateOriginalFetchedNodesRef],
+  )
+
   const onNodeDragStop = useCallback(
     (event, node) => {
       if (!isDeveloperMode) return
       takeSnapshot()
       const currentNodes = getNodes()
-
       const draggedNode = currentNodes.find((n) => n.id === node.id)
       if (!draggedNode) return
 
@@ -1140,91 +1158,25 @@ function Flow(props) {
       // ATTACH: Node is dropped over a group/parent node
       if (potentialParentId && potentialParentId !== oldParentId) {
         const newParent = currentNodes.find((n) => n.id === potentialParentId)
-
-        const isParentDot = checkIsDotNode(newParent)
-        const isParentTextBox =
-          newParent?.type === 'textBoxNode' ||
-          newParent?.nodeType === 'text-box-node' ||
-          newParent?.type?.includes('textBox')
-        if (
-          newParent &&
-          !newParent.parentId &&
-          !isParentDot &&
-          !isParentTextBox
-        ) {
-          const draggedAbsolutePos =
-            draggedNode.positionAbsolute || draggedNode.position
-          const parentAbsolutePos =
-            newParent.positionAbsolute || newParent.position
-
-          if (draggedAbsolutePos && parentAbsolutePos) {
-            let relativePos
-
-            // MOVE BETWEEN GROUPS: Convert from old parent's relative to new parent's relative
-            if (oldParentId) {
-              const oldParent = currentNodes.find((n) => n.id === oldParentId)
-              if (oldParent) {
-                const oldParentAbsolutePos =
-                  oldParent.positionAbsolute || oldParent.position
-                // Convert: oldRelative -> absolute -> newRelative
-                const absoluteFromOld = relativeToAbsolute(
-                  draggedNode.position,
-                  oldParentAbsolutePos,
-                )
-                relativePos = absoluteToRelative(
-                  absoluteFromOld,
-                  parentAbsolutePos,
-                )
-              } else {
-                relativePos = absoluteToRelative(
-                  draggedAbsolutePos,
-                  parentAbsolutePos,
-                )
-              }
-            } else {
-              // ATTACH: Convert absolute to relative
-              relativePos = absoluteToRelative(
-                draggedAbsolutePos,
-                parentAbsolutePos,
-              )
-            }
-
+        if (isValidNewParent(newParent)) {
+          const relativePos = computeRelativePosForAttach(
+            draggedNode,
+            newParent,
+            oldParentId,
+            currentNodes,
+          )
+          if (relativePos) {
             setNodes((nds) => {
-              const updatedNodes = nds.map((n) => {
-                if (n.id === node.id) {
-                  return {
-                    ...n,
-                    parentId: potentialParentId,
-                    position: relativePos,
-                    // Automatically lock when node has a parent
-                    extent: 'parent',
-                    data: {
-                      ...n.data,
-                      isAttachedToGroup: true,
-                    },
-                  }
-                }
-                return n
-              })
-
-              // Ensure parent-child ordering
-              const sortedNodes = sortNodesByParentChild(updatedNodes)
-
-              // Update originalFetchedNodesRef
+              const sortedNodes = mapNodesWithAttach(
+                nds,
+                node.id,
+                potentialParentId,
+                relativePos,
+              )
               const reParentedNode = sortedNodes.find((n) => n.id === node.id)
-              if (reParentedNode) {
-                setTimeout(() => {
-                  const finalNodes = getNodes()
-                  const finalNode = finalNodes.find((n) => n.id === node.id)
-                  if (finalNode) {
-                    updateOriginalFetchedNodesRef([finalNode])
-                  }
-                }, 100)
-              }
-
+              if (reParentedNode) scheduleRefUpdateForNode(node.id)
               return sortedNodes
             })
-
             setPotentialParentId(null)
             setDraggingNodeId(null)
             return
@@ -1233,114 +1185,35 @@ function Flow(props) {
       }
 
       // DETACH: Node with parentId is dropped outside any group
-      // Note: Nodes with parents are always locked, but we allow detach by dragging outside
       if (hasParent && !potentialParentId) {
         const oldParent = currentNodes.find((n) => n.id === oldParentId)
-
         if (oldParent) {
-          const oldParentAbsolutePos =
-            oldParent.positionAbsolute || oldParent.position
-          // Convert relative to absolute
-          const absolutePos = relativeToAbsolute(
-            draggedNode.position,
-            oldParentAbsolutePos,
-          )
-
-          setNodes((nds) => {
-            const updatedNodes = nds.map((n) => {
-              if (n.id === node.id) {
-                const updated = {
-                  ...n,
-                  parentId: undefined,
-                  position: absolutePos,
-                  extent: undefined,
-                  data: {
-                    ...n.data,
-                    isAttachedToGroup: false,
-                  },
-                }
-                return updated
-              }
-              return n
+          const absolutePos = computeDetachAbsolutePos(draggedNode, oldParent)
+          if (absolutePos) {
+            setNodes((nds) => {
+              const sortedNodes = mapNodesWithDetach(nds, node.id, absolutePos)
+              const detachedNode = sortedNodes.find((n) => n.id === node.id)
+              if (detachedNode) scheduleRefUpdateForNode(node.id)
+              return sortedNodes
             })
-
-            // Ensure parent-child ordering
-            const sortedNodes = sortNodesByParentChild(updatedNodes)
-
-            // Update originalFetchedNodesRef
-            const detachedNode = sortedNodes.find((n) => n.id === node.id)
-            if (detachedNode) {
-              setTimeout(() => {
-                const finalNodes = getNodes()
-                const finalNode = finalNodes.find((n) => n.id === node.id)
-                if (finalNode) {
-                  updateOriginalFetchedNodesRef([finalNode])
-                }
-              }, 100)
-            }
-
-            return sortedNodes
-          })
-
-          setPotentialParentId(null)
-          setDraggingNodeId(null)
-          return
+            setPotentialParentId(null)
+            setDraggingNodeId(null)
+            return
+          }
         }
       }
 
-      const isDotNode =
-        node.type?.includes('dotNode') || node.nodeType?.includes('dot-node')
-      if (!isDotNode && node.position) {
-        // Snapping must use absolute coords; for child nodes position is relative — convert first.
-        let positionForSnapping = draggedNode.positionAbsolute || draggedNode.position
-        if (draggedNode.parentId && !draggedNode.positionAbsolute) {
-          const parentNode = currentNodes.find(
-            (n) => n.id === draggedNode.parentId,
-          )
-          const parentAbs =
-            parentNode?.positionAbsolute ?? parentNode?.position
-          if (parentAbs) {
-            positionForSnapping = relativeToAbsolute(
-              draggedNode.position,
-              parentAbs,
-            )
-          }
-          // Child without valid absolute position: skip snapping to avoid overwriting with wrong coords
-          if (positionForSnapping === draggedNode.position) {
-            positionForSnapping = null
-          }
-        }
+      // Snapping (non-dot nodes only)
+      if (!isDotNodeType(node) && node.position) {
+        const positionForSnapping = getPositionForSnapping(
+          draggedNode,
+          currentNodes,
+        )
         if (positionForSnapping) {
-          const snappedPosition = snapNodePosition(
-            node.id,
-            positionForSnapping,
-          )
-          const xDiff = Math.abs(snappedPosition.x - positionForSnapping.x)
-          const yDiff = Math.abs(snappedPosition.y - positionForSnapping.y)
-
-          // If there's a snap, update the node position
-          if ((xDiff > 0.1 || yDiff > 0.1) && xDiff <= 5 && yDiff <= 5) {
+          const snappedPosition = snapNodePosition(node.id, positionForSnapping)
+          if (shouldApplySnap(positionForSnapping, snappedPosition)) {
             setNodes((nds) =>
-              nds.map((n) => {
-                if (n.id === node.id) {
-                  if (n.parentId) {
-                    const parentNode = nds.find((p) => p.id === n.parentId)
-                    const parentAbsolutePos =
-                      parentNode?.positionAbsolute ?? parentNode?.position
-                    if (parentAbsolutePos) {
-                      return {
-                        ...n,
-                        position: absoluteToRelative(
-                          snappedPosition,
-                          parentAbsolutePos,
-                        ),
-                      }
-                    }
-                  }
-                  return { ...n, position: snappedPosition }
-                }
-                return n
-              }),
+              mapNodesWithSnap(nds, node.id, snappedPosition),
             )
           }
         }
@@ -1355,8 +1228,8 @@ function Flow(props) {
       setNodes,
       takeSnapshot,
       getNodes,
-      updateOriginalFetchedNodesRef,
       potentialParentId,
+      scheduleRefUpdateForNode,
     ],
   )
 
