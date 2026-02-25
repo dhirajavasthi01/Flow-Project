@@ -1,23 +1,23 @@
-import { useEffect, useRef } from "react";
-import { isResizingRef } from "../useNodeResize/useNodeResize";
+import { useEffect, useRef } from 'react'
+import { isResizingRef } from '../useNodeResize/useNodeResize'
 
 // --- Pure helper functions (reduce complexity) ---
 
 // Extracts dimension value from node (checks root, data, then style)
 function getNodeDimension(node, dimension) {
-  return node[dimension] || node.data?.[dimension] || node.style?.[dimension];
+  return node[dimension] || node.data?.[dimension] || node.style?.[dimension]
 }
 
 // Extracts width and height from a node as numbers, returns null if invalid
 function extractNodeDimensions(node) {
-  const width = Number(getNodeDimension(node, "width"));
-  const height = Number(getNodeDimension(node, "height"));
+  const width = Number(getNodeDimension(node, 'width'))
+  const height = Number(getNodeDimension(node, 'height'))
 
   if (isNaN(width) || isNaN(height)) {
-    return null;
+    return null
   }
 
-  return { width, height };
+  return { width, height }
 }
 
 // Gets previous dimensions from tracking ref or original nodes
@@ -26,41 +26,41 @@ function getPreviousDimensions(
   prevNodeDimensionsRef,
   originalFetchedNodesRef,
 ) {
-  const prevDims = prevNodeDimensionsRef.current.get(nodeId);
+  const prevDims = prevNodeDimensionsRef.current.get(nodeId)
   if (prevDims) {
-    return prevDims;
+    return prevDims
   }
 
   const originalNode = originalFetchedNodesRef.current.find(
     (n) => n.id === nodeId,
-  );
+  )
   if (!originalNode) {
-    return null;
+    return null
   }
 
-  const dims = extractNodeDimensions(originalNode);
+  const dims = extractNodeDimensions(originalNode)
   if (dims) {
-    prevNodeDimensionsRef.current.set(nodeId, dims);
-    return dims;
+    prevNodeDimensionsRef.current.set(nodeId, dims)
+    return dims
   }
 
-  return null;
+  return null
 }
 
 // Checks if dimensions have changed between previous and current
 function haveDimensionsChanged(prevDims, currentDims) {
   if (!prevDims || !currentDims) {
-    return false;
+    return false
   }
 
-  const prevWidth = Number(prevDims.width);
-  const prevHeight = Number(prevDims.height);
+  const prevWidth = Number(prevDims.width)
+  const prevHeight = Number(prevDims.height)
 
   if (isNaN(prevWidth) || isNaN(prevHeight)) {
-    return false;
+    return false
   }
 
-  return prevWidth !== currentDims.width || prevHeight !== currentDims.height;
+  return prevWidth !== currentDims.width || prevHeight !== currentDims.height
 }
 
 // Processes a single node to check for dimension changes
@@ -73,20 +73,20 @@ function processNodeForDimensionChanges(
     node.id,
     prevNodeDimensionsRef,
     originalFetchedNodesRef,
-  );
-  const currentDims = extractNodeDimensions(node);
+  )
+  const currentDims = extractNodeDimensions(node)
 
   if (!currentDims) {
-    return false; // Invalid dimensions, skip
+    return false // Invalid dimensions, skip
   }
 
   if (!prevDims) {
     // First time seeing this node, store current dimensions
-    prevNodeDimensionsRef.current.set(node.id, currentDims);
-    return false; // Don't trigger update on first render
+    prevNodeDimensionsRef.current.set(node.id, currentDims)
+    return false // Don't trigger update on first render
   }
 
-  return haveDimensionsChanged(prevDims, currentDims);
+  return haveDimensionsChanged(prevDims, currentDims)
 }
 
 /**
@@ -103,28 +103,28 @@ export const useDimensionPersistence = ({
 }) => {
   // Track previous node dimensions to detect resize changes
   // This prevents the useEffect from running on every node change (like position updates during drag)
-  const prevNodeDimensionsRef = useRef(new Map());
+  const prevNodeDimensionsRef = useRef(new Map())
   // Track the last known resize state to detect when resize ends
-  const lastResizingStateRef = useRef(false);
+  const lastResizingStateRef = useRef(false)
 
   useEffect(() => {
     if (!isDeveloperMode) {
-      return;
+      return
     }
 
     // CRITICAL: Skip if originalFetchedNodesRef is empty
     if (originalFetchedNodesRef.current.length === 0) {
-      return;
+      return
     }
 
-    const wasResizing = lastResizingStateRef.current;
-    const isResizing = isResizingRef.current;
-    lastResizingStateRef.current = isResizing;
+    const wasResizing = lastResizingStateRef.current
+    const isResizing = isResizingRef.current
+    lastResizingStateRef.current = isResizing
 
     // If resizing, don't update tracking - wait for resize to end
     // This ensures we can detect dimension changes when resize ends
     if (isResizing) {
-      return;
+      return
     }
 
     // Check if any node dimensions have actually changed (not just position or parentId changes)
@@ -134,7 +134,7 @@ export const useDimensionPersistence = ({
         prevNodeDimensionsRef,
         originalFetchedNodesRef,
       ),
-    );
+    )
 
     // Only update if dimensions actually changed (not just position or parent-child relationship changes)
     if (!hasDimensionChanges) {
@@ -144,12 +144,12 @@ export const useDimensionPersistence = ({
       // CRITICAL: Always update tracking to preserve manually resized dimensions
       // This ensures dimensions are preserved when clicking outside or on another node
       nodes.forEach((node) => {
-        const dims = extractNodeDimensions(node);
+        const dims = extractNodeDimensions(node)
         if (dims) {
-          prevNodeDimensionsRef.current.set(node.id, dims);
+          prevNodeDimensionsRef.current.set(node.id, dims)
         }
-      });
-      return;
+      })
+      return
     }
 
     // Small delay to ensure resize flag is cleared and state has settled
@@ -160,16 +160,16 @@ export const useDimensionPersistence = ({
         // Update original fetched nodes with current node dimensions
         // persistResizedNodeDimensions only updates dimensions and preserves all other properties
         // including parentId, position, and all data properties
-        persistFunction(nodes, originalFetchedNodesRef);
+        persistFunction(nodes, originalFetchedNodesRef)
         // Update tracking after persisting changes
         nodes.forEach((node) => {
-          const dims = extractNodeDimensions(node);
+          const dims = extractNodeDimensions(node)
           if (dims) {
-            prevNodeDimensionsRef.current.set(node.id, dims);
+            prevNodeDimensionsRef.current.set(node.id, dims)
           }
-        });
+        })
       }
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [nodes, isDeveloperMode, originalFetchedNodesRef, persistFunction]);
-};
+    }, 300)
+    return () => clearTimeout(timeoutId)
+  }, [nodes, isDeveloperMode, originalFetchedNodesRef, persistFunction])
+}

@@ -1,29 +1,29 @@
-import { memo } from "react";
-import { useReactFlow } from "@xyflow/react";
-import { useNodeCommon } from "../../hooks/useNodeCommon/useNodeCommon";
+import { memo } from 'react'
+import { useReactFlow } from '@xyflow/react'
+import { useNodeCommon } from '../../hooks/useNodeCommon/useNodeCommon'
 import {
   toPascalCase,
   toKebabCase,
   toCamelCase,
   getDisplayName,
-} from "../../../../utills/nodeNameUtils/nodeNameUtils";
-import BaseSvgNode from "../baseSvgNode/BaseSvgNode";
-import { svgMap } from "../svgMap/SvgMap";
+} from '../../../../utills/nodeNameUtils/nodeNameUtils'
+import BaseSvgNode from '../baseSvgNode/BaseSvgNode'
+import { svgMap } from '../svgMap/SvgMap'
 
 export function generateNodeFieldConfig() {
   return {
     fields: [
-      { label: "Node Color", name: "nodeColor", type: "gradientColor" },
-      { label: "Stroke Color", name: "strokeColor", type: "color" },
-      { label: "Tooltip Content", name: "tooltipContent", type: "text" },
+      { label: 'Node Color', name: 'nodeColor', type: 'gradientColor' },
+      { label: 'Stroke Color', name: 'strokeColor', type: 'color' },
+      { label: 'Tooltip Content', name: 'tooltipContent', type: 'text' },
     ],
-  };
+  }
 }
 
 export function generateNodeConfig(filename) {
-  const kebabName = toKebabCase(filename);
-  const camelName = toCamelCase(filename);
-  const displayName = getDisplayName(filename);
+  const kebabName = toKebabCase(filename)
+  const camelName = toCamelCase(filename)
+  const displayName = getDisplayName(filename)
   return {
     name: displayName,
     nodeType: kebabName,
@@ -35,19 +35,19 @@ export function generateNodeConfig(filename) {
       strokeColor: undefined,
       nodeType: kebabName,
     },
-  };
+  }
 }
 
 export function generateNodeComponent(filename) {
-  const kebabName = toKebabCase(filename);
+  const kebabName = toKebabCase(filename)
 
   const NodeComponent = ({ data, id, selected, type }) => {
-    const { getNode } = useReactFlow();
-    const node = getNode(id);
-    const nodeType = node?.nodeType || data?.nodeType || kebabName;
-    const nodeCommon = useNodeCommon(id, data);
-    const svgPathValue = svgMap[nodeType];
-    const svgPath = typeof svgPathValue === "string" ? svgPathValue : null;
+    const { getNode } = useReactFlow()
+    const node = getNode(id)
+    const nodeType = node?.nodeType || data?.nodeType || kebabName
+    const nodeCommon = useNodeCommon(id, data)
+    const svgPathValue = svgMap[nodeType]
+    const svgPath = typeof svgPathValue === 'string' ? svgPathValue : null
     return (
       <BaseSvgNode
         id={id}
@@ -66,30 +66,30 @@ export function generateNodeComponent(filename) {
           defaultHeight: data.height,
         }}
       />
-    );
-  };
+    )
+  }
 
-  return memo(NodeComponent);
+  return memo(NodeComponent)
 }
 
 export function generateNodeExports(filename) {
   try {
-    const pascalName = toPascalCase(filename);
+    const pascalName = toPascalCase(filename)
 
-    const fieldConfig = generateNodeFieldConfig();
-    const nodeConfig = generateNodeConfig(filename);
-    const nodeComponent = generateNodeComponent(filename);
+    const fieldConfig = generateNodeFieldConfig()
+    const nodeConfig = generateNodeConfig(filename)
+    const nodeComponent = generateNodeComponent(filename)
     if (!fieldConfig || !nodeConfig || !nodeComponent) {
-      return null;
+      return null
     }
 
     return {
       [`${pascalName}NodeFieldConfig`]: fieldConfig,
       [`${pascalName}NodeConfig`]: nodeConfig,
       [`${pascalName}Node`]: nodeComponent,
-    };
+    }
   } catch (error) {
-    console.log(error);
-    return null;
+    console.log(error)
+    return null
   }
 }

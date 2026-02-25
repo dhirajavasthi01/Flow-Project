@@ -2,33 +2,33 @@ import {
   useReactTable,
   flexRender,
   getCoreRowModel,
-} from "@tanstack/react-table";
+} from '@tanstack/react-table'
 import {
   computeRowSpanForColumn,
   getColumns,
-} from "./FailureModeTable.function";
+} from './FailureModeTable.function'
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
-import { useAtomValue } from "jotai";
-import { failureNodeClickedAtom } from "../../../../store/OverviewStore";
-import { hasSubComponentAssetIdMatch } from "../../../../../../utills/flowUtills/FlowUtills";
+import React, { useMemo, useState, useEffect, useRef } from 'react'
+import { useAtomValue } from 'jotai'
+import { failureNodeClickedAtom } from '../../../../store/OverviewStore'
+import { hasSubComponentAssetIdMatch } from '../../../../../../utills/flowUtills/FlowUtills'
 
 const FailureModeTable = ({ data }) => {
-  const failureNodeClicked = useAtomValue(failureNodeClickedAtom);
+  const failureNodeClicked = useAtomValue(failureNodeClickedAtom)
 
-  const [subSystemModalOpen, setSubSystemModalOpen] = useState(false);
-  const [isAnomalyIndexModal, setIsAnomalyIndexModal] = useState(false);
+  const [subSystemModalOpen, setSubSystemModalOpen] = useState(false)
+  const [isAnomalyIndexModal, setIsAnomalyIndexModal] = useState(false)
   const [isTimeEstimationTrendModal, setIsTimeEstimationTrendModal] =
-    useState(false);
-  const [isParameterTrendModal, setIsParameterTrendModal] = useState(false);
+    useState(false)
+  const [isParameterTrendModal, setIsParameterTrendModal] = useState(false)
 
-  const tableContainerRef = useRef(null);
-  const highlightedRowRef = useRef(null);
+  const tableContainerRef = useRef(null)
+  const highlightedRowRef = useRef(null)
 
-  const onSubSystemModalClick = () => setSubSystemModalOpen(true);
-  const onAnomalyIndexModalClick = () => setIsAnomalyIndexModal(true);
-  const onTimeEstimationModalClick = () => setIsTimeEstimationTrendModal(true);
-  const onParameterTrendModalClick = () => setIsParameterTrendModal(true);
+  const onSubSystemModalClick = () => setSubSystemModalOpen(true)
+  const onAnomalyIndexModalClick = () => setIsAnomalyIndexModal(true)
+  const onTimeEstimationModalClick = () => setIsTimeEstimationTrendModal(true)
+  const onParameterTrendModalClick = () => setIsParameterTrendModal(true)
 
   const table = useReactTable({
     columns: getColumns(
@@ -39,9 +39,9 @@ const FailureModeTable = ({ data }) => {
     ),
     data,
     getCoreRowModel: getCoreRowModel(),
-  });
+  })
 
-  const baseRows = table.getRowModel().rows;
+  const baseRows = table.getRowModel().rows
 
   const renderGroupedCell = (
     cell,
@@ -50,103 +50,103 @@ const FailureModeTable = ({ data }) => {
     extraClass,
     isHighlighted,
   ) => {
-    const info = spanMap.get(cell.row.id);
-    if (!info?.isFirst) return null;
+    const info = spanMap.get(cell.row.id)
+    if (!info?.isFirst) return null
 
     return (
       <td
         key={cell.id}
         rowSpan={info.rowSpan}
-        className={`text-12 h-[5vmin] p-[1vmin] text-center uppercase ${extraClass ?? ""} ${
-          meta?.cellClass ?? ""
+        className={`text-12 h-[5vmin] p-[1vmin] text-center uppercase ${extraClass ?? ''} ${
+          meta?.cellClass ?? ''
         }`}
       >
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
       </td>
-    );
-  };
+    )
+  }
 
   const renderDefaultCell = (cell, meta, isHighlighted) => (
     <td
       key={cell.id}
       className={`font-sabic_text_regular text-12 h-[5vmin] p-[1.5vmin] text-left uppercase ${
-        isHighlighted ? "bg-red-200" : ""
-      } ${meta?.cellClass ?? ""}`}
+        isHighlighted ? 'bg-red-200' : ''
+      } ${meta?.cellClass ?? ''}`}
     >
       {flexRender(cell.column.columnDef.cell, cell.getContext())}
     </td>
-  );
+  )
 
   const renderCell = (cell, maps, isHighlighted) => {
-    const meta = cell.column.columnDef.meta;
-    const colId = cell.column.id;
+    const meta = cell.column.columnDef.meta
+    const colId = cell.column.id
 
-    if (colId === "subSystem" || colId === "anomalyIndex") {
+    if (colId === 'subSystem' || colId === 'anomalyIndex') {
       return renderGroupedCell(
         cell,
         maps.rowSpanSubsystem,
         meta,
         null,
         isHighlighted,
-      );
+      )
     }
 
-    return renderDefaultCell(cell, meta, isHighlighted);
-  };
+    return renderDefaultCell(cell, meta, isHighlighted)
+  }
 
   const { visibleRows, rowSpanSubsystem } = useMemo(() => {
-    const groupMap = {};
+    const groupMap = {}
 
     for (const r of baseRows) {
-      const key = r.getValue("subSystem");
-      if (!groupMap[key]) groupMap[key] = [];
-      groupMap[key].push(r);
+      const key = r.getValue('subSystem')
+      if (!groupMap[key]) groupMap[key] = []
+      groupMap[key].push(r)
     }
 
-    const visible = Object.values(groupMap).flat();
-    const subsystemSpan = computeRowSpanForColumn(visible, "subSystem");
+    const visible = Object.values(groupMap).flat()
+    const subsystemSpan = computeRowSpanForColumn(visible, 'subSystem')
 
     return {
       visibleRows: visible,
       rowSpanSubsystem: subsystemSpan,
-    };
-  }, [baseRows]);
+    }
+  }, [baseRows])
 
   useEffect(() => {
     if (highlightedRowRef.current && failureNodeClicked) {
       setTimeout(() => {
         highlightedRowRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-          inline: "nearest",
-        });
-      }, 100);
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest',
+        })
+      }, 100)
     }
-  }, [failureNodeClicked, visibleRows]);
+  }, [failureNodeClicked, visibleRows])
 
   return (
     <div
       ref={tableContainerRef}
-      className="max-w-full h-full overflow-x-auto overflow-y-auto grow"
+      className='max-w-full h-full overflow-x-auto overflow-y-auto grow'
     >
-      <table className="table-fixed shadow-[0px_0px_3px_0px_#00000029] w-full">
-        <thead className="bg-primary_blue_bg sticky top-0 uppercase">
+      <table className='table-fixed shadow-[0px_0px_3px_0px_#00000029] w-full'>
+        <thead className='bg-primary_blue_bg sticky top-0 uppercase'>
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="sticky top-0 z-30">
+            <tr key={hg.id} className='sticky top-0 z-30'>
               {hg.headers.map((header) => {
-                const meta = header.column.columnDef.meta;
+                const meta = header.column.columnDef.meta
 
                 return (
                   <th
                     key={header.id}
                     className={`font-sabic_text_regular text-14 relative py-[1.5vmin] px-[2vmin] text-center 
                       after:absolute after:top-[20%] after:right-0 after:bottom-[20%] after:w-[0.1vmin] ${
-                        meta?.headerClass ?? ""
+                        meta?.headerClass ?? ''
                       }`}
                     style={{
-                      whiteSpace: "normal",
-                      wordBreak: "break-word",
-                      overflowWrap: "break-word",
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
                     }}
                   >
                     {flexRender(
@@ -154,7 +154,7 @@ const FailureModeTable = ({ data }) => {
                       header.getContext(),
                     )}
                   </th>
-                );
+                )
               })}
             </tr>
           ))}
@@ -163,17 +163,17 @@ const FailureModeTable = ({ data }) => {
         <tbody>
           {visibleRows.length ? (
             visibleRows.map((row) => {
-              const rowEntityId = row.original?.subComponentAssetId;
-              const hasFailureMode = row.original?.hasFailureMode !== false; // Default to true if not set
+              const rowEntityId = row.original?.subComponentAssetId
+              const hasFailureMode = row.original?.hasFailureMode !== false // Default to true if not set
 
               // Use many-to-many matching for highlighting (supports comma-separated IDs)
               const isHighlighted =
                 failureNodeClicked &&
                 rowEntityId !== undefined &&
-                hasSubComponentAssetIdMatch(failureNodeClicked, rowEntityId);
+                hasSubComponentAssetIdMatch(failureNodeClicked, rowEntityId)
 
               // Disable row if no failureMode
-              const isDisabled = !hasFailureMode;
+              const isDisabled = !hasFailureMode
 
               return (
                 <tr
@@ -181,10 +181,10 @@ const FailureModeTable = ({ data }) => {
                   ref={isHighlighted ? highlightedRowRef : null}
                   className={`text-12 border-primary_gray_4 py-1 border-b ${
                     isDisabled
-                      ? "bg-gray-100 opacity-50 cursor-not-allowed"
-                      : "bg-primary_white"
+                      ? 'bg-gray-100 opacity-50 cursor-not-allowed'
+                      : 'bg-primary_white'
                   }`}
-                  style={isDisabled ? { pointerEvents: "none" } : {}}
+                  style={isDisabled ? { pointerEvents: 'none' } : {}}
                 >
                   {row
                     .getVisibleCells()
@@ -192,13 +192,13 @@ const FailureModeTable = ({ data }) => {
                       renderCell(cell, { rowSpanSubsystem }, isHighlighted),
                     )}
                 </tr>
-              );
+              )
             })
           ) : (
             <tr>
               <td
                 colSpan={table.getAllLeafColumns().length}
-                className="p-4 text-center"
+                className='p-4 text-center'
               >
                 No Data
               </td>
@@ -207,7 +207,7 @@ const FailureModeTable = ({ data }) => {
         </tbody>
       </table>
     </div>
-  );
-};
+  )
+}
 
-export default FailureModeTable;
+export default FailureModeTable

@@ -1,8 +1,8 @@
-import { memo } from "react";
-import { NodeResizer } from "@xyflow/react";
-import { useNodeResize } from "../../hooks/useNodeResize/useNodeResize";
-import Handles from "../../handles/Handles";
-import SvgNode from "uivisual/SvgNode";
+import { memo } from 'react'
+import { NodeResizer } from '@xyflow/react'
+import { useNodeResize } from '../../hooks/useNodeResize/useNodeResize'
+import Handles from '../../handles/Handles'
+import SvgNode from 'uivisual/SvgNode'
 
 const BaseSvgNode = ({
   id,
@@ -23,9 +23,9 @@ const BaseSvgNode = ({
   // We'll track resize state separately and persist in handleNodesChange
   const {
     defaultNodeColor,
-    defaultStrokeColor = "#000000",
+    defaultStrokeColor = '#000000',
     ...restSvgNodeProps
-  } = svgNodeProps;
+  } = svgNodeProps
 
   return (
     <>
@@ -51,7 +51,7 @@ const BaseSvgNode = ({
         {...restSvgNodeProps}
       />
     </>
-  );
-};
+  )
+}
 
-export default memo(BaseSvgNode);
+export default memo(BaseSvgNode)

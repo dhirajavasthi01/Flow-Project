@@ -1,4 +1,4 @@
-import AxiosInstance from "./AxiosInstance";
+import AxiosInstance from './AxiosInstance'
 
 export const HttpClient = {
   get: (url, config) => AxiosInstance.get(url, config).then((res) => res.data),
@@ -8,4 +8,4 @@ export const HttpClient = {
     AxiosInstance.put(url, data, config).then((res) => res.data),
   delete: (url, config) =>
     AxiosInstance.delete(url, config).then((res) => res.data),
-};
+}

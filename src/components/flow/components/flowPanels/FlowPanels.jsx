@@ -1,5 +1,5 @@
-import LegendPanel from "./components/legendPanel/LegendPanel";
-import ModeControls from "./components/ModeControls/ModeControls";
+import LegendPanel from './components/legendPanel/LegendPanel'
+import ModeControls from './components/ModeControls/ModeControls'
 
 // Renders all the panels for the Flow component including developer mode controls and legend
 const FlowPanels = (props = {}) => {
@@ -18,7 +18,7 @@ const FlowPanels = (props = {}) => {
     handleSaveTemplate,
     selNodes = [],
     selEdges = [],
-    legendPosition = "bottom-right",
+    legendPosition = 'bottom-right',
     showDrawer = false,
     setShowDrawer,
     selectedNodeId,
@@ -26,7 +26,7 @@ const FlowPanels = (props = {}) => {
     setNodes,
     nodes,
     handleDeleteAll,
-  } = props || {};
+  } = props || {}
 
   return (
     <>
@@ -57,7 +57,7 @@ const FlowPanels = (props = {}) => {
         setShowDrawer={setShowDrawer}
       />
     </>
-  );
-};
+  )
+}
 
-export default FlowPanels;
+export default FlowPanels

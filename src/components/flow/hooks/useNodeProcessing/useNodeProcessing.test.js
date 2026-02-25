@@ -1,38 +1,38 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useNodeProcessing } from "./useNodeProcessing";
+import { renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useNodeProcessing } from './useNodeProcessing'
 
 /* -------------------- MOCK FLOW FUNCTIONS -------------------- */
 
-vi.mock("../../Flow.functions", () => ({
+vi.mock('../../Flow.functions', () => ({
   processNodesWithTableData: vi.fn((nodes) =>
     nodes.map((n) => ({ ...n, processed: true })),
   ),
   mergeProcessedNodesWithCurrent: vi.fn((processed, current) => processed),
   createTableDataKey: vi.fn((data) => JSON.stringify(data)),
-}));
+}))
 
 import {
   createTableDataKey,
   processNodesWithTableData,
-} from "../../Flow.functions";
+} from '../../Flow.functions'
 
 /* -------------------- TEST DATA -------------------- */
 
 const nodes = [
-  { id: "1", data: { value: 10 }, style: { color: "red" } },
-  { id: "2", data: { value: 20 } },
-];
+  { id: '1', data: { value: 10 }, style: { color: 'red' } },
+  { id: '2', data: { value: 20 } },
+]
 
-const edges = [{ id: "e1", style: { strokeWidth: 2 } }, { id: "e2" }];
+const edges = [{ id: 'e1', style: { strokeWidth: 2 } }, { id: 'e2' }]
 
 /* -------------------- HELPERS -------------------- */
 
 const setup = (overrides = {}) => {
-  const setNodes = vi.fn();
-  const setEdges = vi.fn();
-  const fitView = vi.fn();
-  const zoomTo = vi.fn();
+  const setNodes = vi.fn()
+  const setEdges = vi.fn()
+  const fitView = vi.fn()
+  const zoomTo = vi.fn()
 
   const props = {
     fetchedNodes: nodes,
@@ -48,47 +48,47 @@ const setup = (overrides = {}) => {
     fitView,
     zoomTo,
     ...overrides,
-  };
+  }
 
-  const hook = renderHook(() => useNodeProcessing(props));
+  const hook = renderHook(() => useNodeProcessing(props))
 
-  return { ...hook, setNodes, setEdges, fitView, zoomTo };
-};
+  return { ...hook, setNodes, setEdges, fitView, zoomTo }
+}
 
 /* -------------------- TESTS -------------------- */
 
-describe("useNodeProcessing", () => {
+describe('useNodeProcessing', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
 
-  it("stores original fetched nodes on initial load", () => {
-    const { result } = setup();
+  it('stores original fetched nodes on initial load', () => {
+    const { result } = setup()
 
-    expect(result.current.originalFetchedNodesRef.current.length).toBe(2);
+    expect(result.current.originalFetchedNodesRef.current.length).toBe(2)
     expect(result.current.originalFetchedNodesRef.current[0].data).not.toBe(
       nodes[0].data,
-    );
-  });
+    )
+  })
 
-  it("skips node processing in developer mode", () => {
-    const { setNodes } = setup({ isDeveloperMode: true });
+  it('skips node processing in developer mode', () => {
+    const { setNodes } = setup({ isDeveloperMode: true })
 
-    expect(processNodesWithTableData).not.toHaveBeenCalled();
-    expect(setNodes).toHaveBeenCalledWith(nodes);
-  });
+    expect(processNodesWithTableData).not.toHaveBeenCalled()
+    expect(setNodes).toHaveBeenCalledWith(nodes)
+  })
 
-  it("handles error state by clearing nodes and edges", () => {
-    const setNodes = vi.fn();
-    const setEdges = vi.fn();
+  it('handles error state by clearing nodes and edges', () => {
+    const setNodes = vi.fn()
+    const setEdges = vi.fn()
 
     renderHook(() =>
       useNodeProcessing({
         fetchedNodes: [],
         fetchedEdges: [],
         loadingFlow: false,
-        error: new Error("fail"),
+        error: new Error('fail'),
         saved: false,
         isDeveloperMode: false,
         tableData: [],
@@ -98,14 +98,14 @@ describe("useNodeProcessing", () => {
         fitView: vi.fn(),
         zoomTo: vi.fn(),
       }),
-    );
+    )
 
-    expect(setNodes).toHaveBeenCalledWith([]);
-    expect(setEdges).toHaveBeenCalledWith([]);
-  });
+    expect(setNodes).toHaveBeenCalledWith([])
+    expect(setEdges).toHaveBeenCalledWith([])
+  })
 
-  it("reprocesses nodes when tableData changes", () => {
-    const { rerender, setNodes } = setup();
+  it('reprocesses nodes when tableData changes', () => {
+    const { rerender, setNodes } = setup()
 
     rerender(() =>
       useNodeProcessing({
@@ -122,13 +122,13 @@ describe("useNodeProcessing", () => {
         fitView: vi.fn(),
         zoomTo: vi.fn(),
       }),
-    );
+    )
 
-    expect(createTableDataKey).toHaveBeenCalled();
-  });
+    expect(createTableDataKey).toHaveBeenCalled()
+  })
 
-  it("does not reprocess if tableData key is unchanged", () => {
-    const { rerender } = setup();
+  it('does not reprocess if tableData key is unchanged', () => {
+    const { rerender } = setup()
 
     rerender(() =>
       useNodeProcessing({
@@ -145,13 +145,13 @@ describe("useNodeProcessing", () => {
         fitView: vi.fn(),
         zoomTo: vi.fn(),
       }),
-    );
-  });
+    )
+  })
 
-  it("restores original node data when switching to developer mode", () => {
-    const setNodes = vi.fn();
+  it('restores original node data when switching to developer mode', () => {
+    const setNodes = vi.fn()
 
-    const { rerender } = setup({ setNodes });
+    const { rerender } = setup({ setNodes })
 
     rerender(() =>
       useNodeProcessing({
@@ -168,15 +168,15 @@ describe("useNodeProcessing", () => {
         fitView: vi.fn(),
         zoomTo: vi.fn(),
       }),
-    );
+    )
 
-    expect(setNodes).toHaveBeenCalled();
-  });
+    expect(setNodes).toHaveBeenCalled()
+  })
 
-  it("exposes refs correctly", () => {
-    const { result } = setup();
+  it('exposes refs correctly', () => {
+    const { result } = setup()
 
-    expect(result.current.originalFetchedNodesRef).toBeDefined();
-    expect(result.current.processNodesWithTableDataRef).toBeDefined();
-  });
-});
+    expect(result.current.originalFetchedNodesRef).toBeDefined()
+    expect(result.current.processNodesWithTableDataRef).toBeDefined()
+  })
+})

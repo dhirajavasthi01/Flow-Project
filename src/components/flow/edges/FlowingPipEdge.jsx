@@ -1,4 +1,4 @@
-import { getSmoothStepPath } from "@xyflow/react";
+import { getSmoothStepPath } from '@xyflow/react'
 
 const FlowingPipeEdge = ({
   id,
@@ -19,32 +19,32 @@ const FlowingPipeEdge = ({
     targetY,
     sourcePosition,
     targetPosition,
-  });
+  })
 
   const getCssNameByType = () => {
     if (type) {
-      return `edgeStoke-${type}`;
+      return `edgeStoke-${type}`
     }
-    return "";
-  };
+    return ''
+  }
 
   // Apply strokeDasharray for dotted edges
   const getEdgeStyle = () => {
-    const baseStyle = { ...style };
+    const baseStyle = { ...style }
 
     // If type is dotted or dottedArrow, add strokeDasharray
-    if (type === "dotted" || type === "dottedArrow") {
-      baseStyle.strokeDasharray = style.strokeDasharray || "5,5";
+    if (type === 'dotted' || type === 'dottedArrow') {
+      baseStyle.strokeDasharray = style.strokeDasharray || '5,5'
     } else {
       // Remove strokeDasharray for non-dotted edges
-      const { strokeDasharray, ...rest } = baseStyle;
-      return rest;
+      const { strokeDasharray, ...rest } = baseStyle
+      return rest
     }
 
-    return baseStyle;
-  };
+    return baseStyle
+  }
 
-  const edgeStyle = getEdgeStyle();
+  const edgeStyle = getEdgeStyle()
 
   return (
     <>
@@ -63,7 +63,7 @@ const FlowingPipeEdge = ({
         markerEnd={markerEnd}
       />
     </>
-  );
-};
+  )
+}
 
-export default FlowingPipeEdge;
+export default FlowingPipeEdge

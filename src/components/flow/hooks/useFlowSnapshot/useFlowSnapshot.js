@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from 'react'
 import {
   takeSnapshot as takeSnapshotHelper,
   undo as undoHelper,
   handleKeyPress as handleKeyPressHelper,
   applySnappingToChanges as applySnappingToChangesHelper,
-} from "../../utils/snapshotHelper/SnapshotHelper";
+} from '../../utils/snapshotHelper/SnapshotHelper'
 
 //Custom hook for managing flow snapshots, undo/redo, keyboard shortcuts, and snapping
 export const useFlowSnapshot = ({
@@ -24,13 +24,13 @@ export const useFlowSnapshot = ({
   setNodeToCopy,
   setShouldDelete,
 }) => {
-  const historyRef = useRef([]);
-  const isUndoingRef = useRef(false);
+  const historyRef = useRef([])
+  const isUndoingRef = useRef(false)
 
   // Take snapshot function
   const takeSnapshot = useCallback(() => {
-    takeSnapshotHelper(nodes, edges, historyRef, isUndoingRef);
-  }, [nodes, edges]);
+    takeSnapshotHelper(nodes, edges, historyRef, isUndoingRef)
+  }, [nodes, edges])
 
   // Undo function
   const undo = useCallback(() => {
@@ -42,8 +42,8 @@ export const useFlowSnapshot = ({
       setSelectedNodeId,
       setSelectedEdgeId,
       setConfig,
-    );
-  }, [setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig]);
+    )
+  }, [setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig])
 
   // Apply snapping to changes function
   const applySnappingToChanges = useCallback(
@@ -53,10 +53,10 @@ export const useFlowSnapshot = ({
         dragEndNodeId,
         checkIsDotNode,
         snapNodePosition,
-      );
+      )
     },
     [checkIsDotNode, snapNodePosition],
-  );
+  )
 
   // Keyboard handler effect
   useEffect(() => {
@@ -71,12 +71,12 @@ export const useFlowSnapshot = ({
         config,
         selectedNodeId,
         setShouldDelete,
-      });
-    };
-    window.addEventListener("keydown", handleKeyPressWrapper);
+      })
+    }
+    window.addEventListener('keydown', handleKeyPressWrapper)
     return () => {
-      window.removeEventListener("keydown", handleKeyPressWrapper);
-    };
+      window.removeEventListener('keydown', handleKeyPressWrapper)
+    }
   }, [
     config,
     nodeToCopy,
@@ -86,11 +86,11 @@ export const useFlowSnapshot = ({
     setNewNode,
     setNodeToCopy,
     setShouldDelete,
-  ]);
+  ])
 
   return {
     takeSnapshot,
     undo,
     applySnappingToChanges,
-  };
-};
+  }
+}

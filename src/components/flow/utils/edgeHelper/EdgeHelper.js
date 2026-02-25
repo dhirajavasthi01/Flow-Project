@@ -6,37 +6,37 @@
  */
 export const createEdge = (params, selectedEdgeType) => {
   const defaultMarkerEnd = {
-    type: "arrowclosed",
+    type: 'arrowclosed',
     width: 10,
     height: 10,
-    color: "#000",
-  };
+    color: '#000',
+  }
 
   switch (selectedEdgeType) {
-    case "straight":
+    case 'straight':
       return {
         ...params,
-        type: "flowingPipe",
-      };
-    case "dotted":
+        type: 'flowingPipe',
+      }
+    case 'dotted':
       return {
         ...params,
-        type: "flowingPipeDotted",
-      };
-    case "dottedArrow":
+        type: 'flowingPipeDotted',
+      }
+    case 'dottedArrow':
       return {
         ...params,
-        type: "flowingPipeDottedArrow",
+        type: 'flowingPipeDottedArrow',
         markerEnd: defaultMarkerEnd,
-      };
+      }
     default:
       return {
         ...params,
-        type: "flowingPipeStraightArrow",
+        type: 'flowingPipeStraightArrow',
         markerEnd: defaultMarkerEnd,
-      };
+      }
   }
-};
+}
 
 /**
  * Updates an edge with new configuration
@@ -47,36 +47,36 @@ export const createEdge = (params, selectedEdgeType) => {
  */
 export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
   if (!selectedEdgeId || !config) {
-    return edges;
+    return edges
   }
 
   return edges.map((edge) => {
     if (edge.id === selectedEdgeId) {
       const isDotted =
-        config.type === "flowingPipeDotted" ||
-        config.type === "flowingPipeDottedArrow";
+        config.type === 'flowingPipeDotted' ||
+        config.type === 'flowingPipeDottedArrow'
 
       const updatedEdge = {
         ...edge,
         type: config.type,
         markerEnd: config.markerEnd,
         style: config.style || edge.style,
-      };
+      }
 
       // Handle dotted edge styles
       if (isDotted) {
         updatedEdge.style = {
           ...updatedEdge.style,
-          strokeDasharray: updatedEdge?.style?.strokeDasharray || "5,5",
-        };
+          strokeDasharray: updatedEdge?.style?.strokeDasharray || '5,5',
+        }
       } else {
         // Remove strokeDasharray for non-dotted edges
-        updatedEdge.style = updatedEdge.style || {};
-        delete updatedEdge.style.strokeDasharray;
+        updatedEdge.style = updatedEdge.style || {}
+        delete updatedEdge.style.strokeDasharray
       }
 
-      return updatedEdge;
+      return updatedEdge
     }
-    return edge;
-  });
-};
+    return edge
+  })
+}

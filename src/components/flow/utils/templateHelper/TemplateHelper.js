@@ -1,20 +1,20 @@
-import { sortNodesByParentChild } from "../parentChildUtils/ParentChildUtils";
+import { sortNodesByParentChild } from '../parentChildUtils/ParentChildUtils'
 
 /**
  * Handles drag over event for templates
  * @param {Event} event - Drag event
  */
 export const handleDragOver = (event) => {
-  event.preventDefault();
+  event.preventDefault()
   const hasTemplateType = Array.from(event.dataTransfer?.types || []).includes(
-    "application/template",
-  );
+    'application/template',
+  )
   const plain =
-    event.dataTransfer?.getData && event.dataTransfer.getData("text/plain");
-  const isTemplateFallback = plain?.startsWith("TEMPLATE:");
+    event.dataTransfer?.getData && event.dataTransfer.getData('text/plain')
+  const isTemplateFallback = plain?.startsWith('TEMPLATE:')
   event.dataTransfer.dropEffect =
-    hasTemplateType || isTemplateFallback ? "copy" : "move";
-};
+    hasTemplateType || isTemplateFallback ? 'copy' : 'move'
+}
 
 /**
  * Handles template drop event
@@ -40,44 +40,44 @@ export const handleTemplateDropHelper = ({
   takeSnapshot,
 }) => {
   // Extract template data from drag event
-  let templateData = event.dataTransfer.getData("application/template");
+  let templateData = event.dataTransfer.getData('application/template')
   if (!templateData) {
-    const fallback = event.dataTransfer.getData("text/plain");
-    if (fallback?.startsWith("TEMPLATE:")) {
+    const fallback = event.dataTransfer.getData('text/plain')
+    if (fallback?.startsWith('TEMPLATE:')) {
       templateData = JSON.stringify({
-        templateId: fallback.replace("TEMPLATE:", ""),
-      });
+        templateId: fallback.replace('TEMPLATE:', ''),
+      })
     }
   }
 
   // If no template data, return false to indicate it wasn't a template drop
   if (!templateData) {
-    return false;
+    return false
   }
 
   // Handle template drop
-  event.preventDefault();
+  event.preventDefault()
   const position = screenToFlowPosition({
     x: event.clientX,
     y: event.clientY,
-  });
+  })
 
   try {
-    const { templateId } = JSON.parse(templateData);
-    const currentDropCount = templateDropCounts[templateId] || 0;
-    const newDropCount = currentDropCount + 1;
+    const { templateId } = JSON.parse(templateData)
+    const currentDropCount = templateDropCounts[templateId] || 0
+    const newDropCount = currentDropCount + 1
 
     // Update drop count
     setTemplateDropCounts((prev) => ({
       ...prev,
       [templateId]: newDropCount,
-    }));
+    }))
 
     // Actually call handleTemplateDrop to add nodes and edges
     if (handleTemplateDrop) {
       // Take snapshot before adding template nodes for undo functionality
       if (takeSnapshot) {
-        takeSnapshot();
+        takeSnapshot()
       }
 
       handleTemplateDrop(
@@ -87,24 +87,24 @@ export const handleTemplateDropHelper = ({
           // Add nodes to the flow
           setNodes((prevNodes) => {
             // Ensure parent-child ordering when adding template nodes
-            const updatedNodes = [...prevNodes, ...nodes];
-            return sortNodesByParentChild(updatedNodes);
-          });
+            const updatedNodes = [...prevNodes, ...nodes]
+            return sortNodesByParentChild(updatedNodes)
+          })
         },
         (edges) => {
           // Add edges to the flow
-          setEdges((prevEdges) => [...prevEdges, ...edges]);
+          setEdges((prevEdges) => [...prevEdges, ...edges])
         },
         currentDropCount,
-      );
+      )
     }
   } catch (error) {
-    console.error("Error parsing template data:", error);
-    return false;
+    console.error('Error parsing template data:', error)
+    return false
   }
 
-  return true;
-};
+  return true
+}
 
 /**
  * Handles saving selected nodes and edges as a template
@@ -121,22 +121,22 @@ export const handleSaveTemplate = ({
   setShowSaveTemplate,
 }) => {
   if (selNodes.length === 0) {
-    alert("Please select at least one node to save as template");
-    return;
+    alert('Please select at least one node to save as template')
+    return
   }
 
-  const name = prompt("Enter template name:", `Template ${Date.now()}`);
+  const name = prompt('Enter template name:', `Template ${Date.now()}`)
   if (!name?.trim()) {
-    return;
+    return
   }
 
   try {
-    saveTemplate(name.trim(), selNodes, selEdges);
-    setShowSaveTemplate(false);
+    saveTemplate(name.trim(), selNodes, selEdges)
+    setShowSaveTemplate(false)
     alert(
-      `Template "${name}" saved successfully with ${selNodes.length} node${selNodes.length !== 1 ? "s" : ""} and ${selEdges.length} edge${selEdges.length !== 1 ? "s" : ""}!`,
-    );
+      `Template "${name}" saved successfully with ${selNodes.length} node${selNodes.length !== 1 ? 's' : ''} and ${selEdges.length} edge${selEdges.length !== 1 ? 's' : ''}!`,
+    )
   } catch (error) {
-    alert(`Error saving template: ${error.message}`);
+    alert(`Error saving template: ${error.message}`)
   }
-};
+}

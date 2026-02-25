@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { useCallback } from 'react'
+import { useReactFlow } from '@xyflow/react'
 
 // Syncs dimensions from various sources to style for backward compatibility with existing stored nodes
 // Handles dimensions stored in: root level (width/height), style, data, or measured
@@ -7,12 +7,12 @@ import { useReactFlow } from "@xyflow/react";
 export const syncNodeDimensions = (node) => {
   // Priority 1: If node already has style dimensions, use them
   if (node.style?.width && node.style?.height) {
-    return node;
+    return node
   }
 
   // Priority 2: Check root level width/height (React Flow format)
-  const rootWidth = node.width;
-  const rootHeight = node.height;
+  const rootWidth = node.width
+  const rootHeight = node.height
   if (rootWidth && rootHeight) {
     return {
       ...node,
@@ -28,7 +28,7 @@ export const syncNodeDimensions = (node) => {
         width: rootWidth,
         height: rootHeight,
       },
-    };
+    }
   }
 
   // Priority 3: Check data dimensions
@@ -42,19 +42,19 @@ export const syncNodeDimensions = (node) => {
         width: node.data.width,
         height: node.data.height,
       },
-    };
+    }
   }
 
   // Priority 4: Use consistent default dimensions (250x250) for nodes without any dimensions
   // CRITICAL: Don't use measured dimensions as they can vary (45x45, etc.)
   // Use a consistent default size so all nodes without dimensions get the same size
   const hasAnyDimensions =
-    node.width || node.height || node.data?.width || node.data?.height;
+    node.width || node.height || node.data?.width || node.data?.height
   if (!hasAnyDimensions) {
     // Use consistent default dimensions instead of measured dimensions
     // This ensures all nodes without dimensions get the same size (250x250)
-    const defaultWidth = 250;
-    const defaultHeight = 250;
+    const defaultWidth = 250
+    const defaultHeight = 250
 
     return {
       ...node,
@@ -70,13 +70,13 @@ export const syncNodeDimensions = (node) => {
         width: defaultWidth,
         height: defaultHeight,
       },
-    };
+    }
   }
 
   // If no dimensions found anywhere, return node as-is
   // NodeResizer might not work, but at least we don't break the node
-  return node;
-};
+  return node
+}
 
 //Applies resize changes to nodes
 // Works for both: nodes with children (parents) and nodes without children (regular nodes)
@@ -84,23 +84,23 @@ export const syncNodeDimensions = (node) => {
 export const applyResizeChanges = (nodes, changesWithSnapping) => {
   return nodes.map((node) => {
     const resizeChange = changesWithSnapping.find(
-      (change) => change.type === "resize" && change.id === node.id,
-    );
-    if (!resizeChange) return node;
+      (change) => change.type === 'resize' && change.id === node.id,
+    )
+    if (!resizeChange) return node
 
     // Extract dimensions from resize change
     // React Flow provides dimensions in resizeChange.dimensions
-    const newWidth = resizeChange.dimensions?.width;
-    const newHeight = resizeChange.dimensions?.height;
+    const newWidth = resizeChange.dimensions?.width
+    const newHeight = resizeChange.dimensions?.height
 
     // If dimensions are not in the change, check if they're already in the node (from applyNodeChanges)
     // This handles cases where applyNodeChanges already updated the node
-    const finalWidth = newWidth ?? node.width ?? node.style?.width;
-    const finalHeight = newHeight ?? node.height ?? node.style?.height;
+    const finalWidth = newWidth ?? node.width ?? node.style?.width
+    const finalHeight = newHeight ?? node.height ?? node.style?.height
 
     // Only update if we have valid dimensions
     if (!finalWidth || !finalHeight) {
-      return node;
+      return node
     }
 
     // For all nodes (with or without children, with or without parent):
@@ -126,23 +126,23 @@ export const applyResizeChanges = (nodes, changesWithSnapping) => {
         width: finalWidth,
         height: finalHeight,
       },
-    };
+    }
 
-    return updatedNode;
-  });
-};
+    return updatedNode
+  })
+}
 
 // Global ref to track if any node is being resized
 // This prevents handleTableDataChange from interfering during resize
-export const isResizingRef = { current: false };
+export const isResizingRef = { current: false }
 
 // Global callback to persist resize changes to originalFetchedNodesRef
 // Set by Flow.jsx to persist dimension changes after resize ends
-export const persistResizeChangesRef = { current: null };
+export const persistResizeChangesRef = { current: null }
 
 // Custom hook that provides resize handler for nodes
 export const useNodeResize = (id) => {
-  const { setNodes, getNodes } = useReactFlow();
+  const { setNodes, getNodes } = useReactFlow()
 
   // Handle resize during dragging (real-time updates)
   // React Flow's NodeResizer doesn't automatically update state when onResize is provided
@@ -150,7 +150,7 @@ export const useNodeResize = (id) => {
   const onResize = useCallback(
     (_, params) => {
       // Set resize flag to prevent handleTableDataChange from interfering
-      isResizingRef.current = true;
+      isResizingRef.current = true
 
       // Update node dimensions in real-time
       // React Flow's NodeResizer provides params but doesn't update state automatically
@@ -173,14 +173,14 @@ export const useNodeResize = (id) => {
                 width: params.width,
                 height: params.height,
               },
-            };
+            }
           }
-          return node;
-        });
-      });
+          return node
+        })
+      })
     },
     [id, setNodes],
-  );
+  )
 
   // Handle resize end (final update)
   // React Flow's NodeResizer doesn't automatically update state when onResizeEnd is provided
@@ -207,33 +207,33 @@ export const useNodeResize = (id) => {
                 width: params.width,
                 height: params.height,
               },
-            };
+            }
           }
-          return node;
-        });
+          return node
+        })
 
         // Persist changes after state update
         // Use the updated node from the state update, not getNodes() which might be stale
         setTimeout(() => {
           if (persistResizeChangesRef.current) {
-            const resizedNode = updatedNodes.find((n) => n.id === id);
+            const resizedNode = updatedNodes.find((n) => n.id === id)
             if (resizedNode) {
               // Only pass the resized node wrapped in an array
-              persistResizeChangesRef.current([resizedNode]);
+              persistResizeChangesRef.current([resizedNode])
             }
           }
-        }, 100); // Small delay to ensure state update is applied
+        }, 100) // Small delay to ensure state update is applied
 
-        return updatedNodes;
-      });
+        return updatedNodes
+      })
 
       // Clear resize flag after a delay to allow state updates to complete
       setTimeout(() => {
-        isResizingRef.current = false;
-      }, 200);
+        isResizingRef.current = false
+      }, 200)
     },
     [id, setNodes],
-  );
+  )
 
-  return { onResize, onResizeEnd };
-};
+  return { onResize, onResizeEnd }
+}
