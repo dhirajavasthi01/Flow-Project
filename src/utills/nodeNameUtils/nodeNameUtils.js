@@ -91,6 +91,12 @@ export const getSafe = (fn, fallback) => {
   }
 }
 
+export function callBackIfConditionIsTrue(isTrue, callBack) {
+  if (isTrue) {
+    callBack()
+  }
+}
+
 export function ifElse(condition, ifFn, elseFn) {
   if (condition) {
     return ifFn()

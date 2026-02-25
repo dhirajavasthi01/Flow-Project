@@ -11,11 +11,10 @@ function calculateTemplateCenter(parentNodes) {
   }
 
   const positions = parentNodes.map((n) => n.position || { x: 0, y: 0 })
-  const minX = Math.min(...positions.map((p) => p.x))
-  const maxX = Math.max(...positions.map((p) => p.x))
-  const minY = Math.min(...positions.map((p) => p.y))
-  const maxY = Math.max(...positions.map((p) => p.y))
-
+  const minX = positions.length > 0 ? Math.min(...positions.map((p) => p.x)) : 0
+  const maxX = positions.length > 0 ? Math.max(...positions.map((p) => p.x)) : 0
+  const minY = positions.length > 0 ? Math.min(...positions.map((p) => p.y)) : 0
+  const maxY = positions.length > 0 ? Math.max(...positions.map((p) => p.y)) : 0
   return {
     x: (minX + maxX) / 2,
     y: (minY + maxY) / 2,

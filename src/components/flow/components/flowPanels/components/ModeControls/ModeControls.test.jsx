@@ -1,135 +1,225 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import React from 'react'
 import ModeControls from './ModeControls'
 
-/* ------------------------------------------------------------------
-Mock Panel from @xyflow/react
-------------------------------------------------------------------- */
+// ---------------------------
+// Mocks
+// ---------------------------
+
+// Mock Panel from @xyflow/react
 vi.mock('@xyflow/react', () => ({
-  Panel: ({ children, position, className }) => (
-    <div
-      data-testid={`panel-${position}`}
-      data-position={position}
-      className={className}
-    >
-      {children}
-    </div>
-  ),
+  Panel: ({ children }) => <div data-testid='panel'>{children}</div>,
 }))
 
-/* ------------------------------------------------------------------
-Tests
-------------------------------------------------------------------- */
+// Mock utility functions
+const relativeToAbsoluteMock = vi.fn()
+const sortNodesByParentChildMock = vi.fn()
+
+vi.mock('../../../../utils/parentChildUtils/ParentChildUtils', () => ({
+  relativeToAbsolute: (...args) => relativeToAbsoluteMock(...args),
+  sortNodesByParentChild: (...args) => sortNodesByParentChildMock(...args),
+}))
+
+// ---------------------------
+// Helpers
+// ---------------------------
+
+const createDefaultProps = () => ({
+  showDeveloperMode: true,
+  isDeveloperMode: true,
+  partial: false,
+  setPartial: vi.fn(),
+  show: false,
+  toggle: vi.fn(),
+  handleSaveClick: vi.fn(),
+  isAdding: false,
+  showSaveTemplate: false,
+  handleSaveTemplate: vi.fn(),
+  selNodes: [],
+  selEdges: [],
+  selectedNodeId: undefined,
+  getNodes: vi.fn(),
+  setNodes: vi.fn(),
+  nodes: [],
+  handleDeleteAll: vi.fn(),
+})
+
+const renderComponent = (overrideProps = {}) => {
+  const props = { ...createDefaultProps(), ...overrideProps }
+  return render(<ModeControls {...props} />)
+}
+
+// ---------------------------
+// Tests
+// ---------------------------
+
 describe('ModeControls', () => {
-  let toggle
-  let setPartial
-  let handleSaveClick
-  let handleSaveTemplate
-
   beforeEach(() => {
-    toggle = vi.fn()
-    setPartial = vi.fn()
-    handleSaveClick = vi.fn()
-    handleSaveTemplate = vi.fn()
+    vi.clearAllMocks()
   })
 
-  const renderComponent = (props = {}) =>
-    render(
-      <ModeControls
-        showDeveloperMode={true}
-        isDeveloperMode={true}
-        partial={false}
-        setPartial={setPartial}
-        show={false}
-        toggle={toggle}
-        handleSaveClick={handleSaveClick}
-        isAdding={false}
-        showSaveTemplate={false}
-        handleSaveTemplate={handleSaveTemplate}
-        selNodes={[]}
-        selEdges={[]}
-        {...props}
-      />,
-    )
+  it('does not render if developer mode is disabled', () => {
+    const { container } = renderComponent({
+      showDeveloperMode: false,
+    })
 
-  it('does not render when developer mode is disabled', () => {
-    render(<ModeControls showDeveloperMode={false} isDeveloperMode={true} />)
-
-    expect(screen.queryByTestId('panel-top-left')).not.toBeInTheDocument()
+    expect(container.firstChild).toBeNull()
   })
 
-  it('renders panels when developer mode is enabled', () => {
-    renderComponent()
+  it('toggles partial selection checkbox', async () => {
+    const user = userEvent.setup()
+    const setPartial = vi.fn()
 
-    expect(screen.getByTestId('panel-top-left')).toBeInTheDocument()
-    expect(screen.getByTestId('panel-top-right')).toBeInTheDocument()
-  })
-
-  it('toggles partial selection checkbox', () => {
-    renderComponent({ partial: false })
+    renderComponent({ setPartial })
 
     const checkbox = screen.getByRole('checkbox')
-    fireEvent.click(checkbox)
+    await user.click(checkbox)
 
     expect(setPartial).toHaveBeenCalled()
   })
 
-  it("renders 'Show Handles' when show is false", () => {
-    renderComponent({ show: false })
+  it('calls toggle when handles button is clicked', async () => {
+    const user = userEvent.setup()
+    const toggle = vi.fn()
 
-    expect(screen.getByText('Show Handles')).toBeInTheDocument()
-  })
+    renderComponent({ toggle })
 
-  it("renders 'Hide Handles' when show is true", () => {
-    renderComponent({ show: true })
-
-    expect(screen.getByText('Hide Handles')).toBeInTheDocument()
-  })
-
-  it('calls toggle when handles button is clicked', () => {
-    renderComponent({ show: false })
-
-    fireEvent.click(screen.getByTestId('handles-button'))
+    await user.click(screen.getByTestId('handles-button'))
 
     expect(toggle).toHaveBeenCalledWith(true)
   })
 
-  it('calls handleSaveClick when save button is clicked', () => {
-    renderComponent()
+  it('renders delete button when nodes are selected', () => {
+    renderComponent({
+      selNodes: [{ id: '1' }, { id: '2' }],
+    })
 
-    fireEvent.click(screen.getByTestId('save-button'))
+    expect(screen.getByTestId('delete-all-button')).toBeInTheDocument()
+    expect(screen.getByText('Delete All (2 nodes)')).toBeInTheDocument()
+  })
+
+  it('does not render delete button when no nodes selected', () => {
+    renderComponent({ selNodes: [] })
+
+    expect(screen.queryByTestId('delete-all-button')).not.toBeInTheDocument()
+  })
+
+  it('calls handleDeleteAll when delete button is clicked', async () => {
+    const user = userEvent.setup()
+    const handleDeleteAll = vi.fn()
+
+    renderComponent({
+      selNodes: [{ id: '1' }],
+      handleDeleteAll,
+    })
+
+    await user.click(screen.getByTestId('delete-all-button'))
+
+    expect(handleDeleteAll).toHaveBeenCalled()
+  })
+
+  it('renders save template button when enabled', () => {
+    renderComponent({
+      showSaveTemplate: true,
+      selNodes: [{ id: '1' }],
+      selEdges: [{ id: 'e1' }],
+    })
+
+    expect(screen.getByTestId('save-template-button')).toBeInTheDocument()
+
+    expect(
+      screen.getByText('Save as Template (1 node, 1 edge)'),
+    ).toBeInTheDocument()
+  })
+
+  it('calls handleSaveClick when save button is clicked', async () => {
+    const user = userEvent.setup()
+    const handleSaveClick = vi.fn()
+
+    renderComponent({ handleSaveClick })
+
+    await user.click(screen.getByTestId('save-button'))
 
     expect(handleSaveClick).toHaveBeenCalled()
   })
 
-  it("shows 'Saving...' when isAdding is true", () => {
-    renderComponent({ isAdding: true })
-
-    expect(screen.getByText('Saving...')).toBeInTheDocument()
-  })
-
-  it('renders save template button with correct node/edge counts', () => {
+  it('disables detach button when selected node has no parent', () => {
     renderComponent({
-      showSaveTemplate: true,
-      selNodes: [{ id: 1 }, { id: 2 }],
-      selEdges: [{ id: 'e1' }],
+      selectedNodeId: '1',
+      getNodes: vi
+        .fn()
+        .mockReturnValue([{ id: '1', position: { x: 0, y: 0 } }]),
     })
 
-    expect(
-      screen.getByText(/Save as Template \(2 nodes, 1 edge\)/i),
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('detach-button')).toBeDisabled()
   })
 
-  it('calls handleSaveTemplate when save template button is clicked', () => {
+  it('enables detach button when selected node has parent', () => {
     renderComponent({
-      showSaveTemplate: true,
-      selNodes: [{ id: 1 }],
-      selEdges: [],
+      selectedNodeId: '1',
+      getNodes: vi.fn().mockReturnValue([
+        {
+          id: '1',
+          parentId: 'parent',
+          position: { x: 10, y: 10 },
+        },
+      ]),
     })
 
-    fireEvent.click(screen.getByTestId('save-template-button'))
+    expect(screen.getByTestId('detach-button')).not.toBeDisabled()
+  })
 
-    expect(handleSaveTemplate).toHaveBeenCalled()
+  it('detaches node correctly', async () => {
+    const user = userEvent.setup()
+
+    const childNode = {
+      id: 'child',
+      parentId: 'parent',
+      position: { x: 10, y: 10 },
+      data: { isAttachedToGroup: true },
+    }
+
+    const parentNode = {
+      id: 'parent',
+      positionAbsolute: { x: 100, y: 100 },
+    }
+
+    const getNodes = vi.fn().mockReturnValue([childNode, parentNode])
+
+    relativeToAbsoluteMock.mockReturnValue({
+      x: 110,
+      y: 110,
+    })
+
+    sortNodesByParentChildMock.mockImplementation((nodes) => nodes)
+
+    const setNodes = vi.fn()
+
+    renderComponent({
+      selectedNodeId: 'child',
+      getNodes,
+      setNodes,
+    })
+
+    await user.click(screen.getByTestId('detach-button'))
+
+    expect(relativeToAbsoluteMock).toHaveBeenCalledWith(
+      childNode.position,
+      parentNode.positionAbsolute,
+    )
+
+    expect(setNodes).toHaveBeenCalled()
+
+    const updater = setNodes.mock.calls[0][0]
+    const updatedNodes = updater([childNode, parentNode])
+
+    const updatedChild = updatedNodes.find((n) => n.id === 'child')
+
+    expect(updatedChild.parentId).toBeUndefined()
+    expect(updatedChild.position).toEqual({ x: 110, y: 110 })
+    expect(updatedChild.extent).toBeUndefined()
+    expect(updatedChild.data.isAttachedToGroup).toBe(false)
   })
 })

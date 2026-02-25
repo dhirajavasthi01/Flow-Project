@@ -4,6 +4,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useMemo,
 } from 'react'
 import { NodeToolbar } from '@xyflow/react'
 import { twMerge } from 'tailwind-merge'
@@ -73,8 +74,12 @@ export function NodeTooltip({ children, nodeId }) {
     globalTooltipManager.clearActiveTooltip()
   }, [])
 
+  const TooltipContextValue = useMemo(() => {
+    return { isVisible, showTooltip, hideTooltip }
+  }, [isVisible])
+
   return (
-    <TooltipContext.Provider value={{ isVisible, showTooltip, hideTooltip }}>
+    <TooltipContext.Provider value={TooltipContextValue}>
       <div
         style={{
           width: '100%',

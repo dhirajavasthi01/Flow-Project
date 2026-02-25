@@ -2,6 +2,10 @@
  * Utility functions for managing parent-child relationships between nodes
  */
 
+import { CompareValuesWithSymbol } from "../../../../utills/nodeNameUtils/nodeNameUtils"
+
+
+
 /**
  * Convert absolute position to parent-relative position
  * @param {object} childAbsolutePos - Absolute position {x, y}
@@ -181,25 +185,18 @@ export const findGroupNodeAtPoint = (nodes, point, excludeNodeId = null) => {
     )
   }
 
-  // Helper function to check if a node is a TextBox/TextNode
-  const isTextBoxNode = (node) => {
-    return (
-      node?.type === 'textBoxNode' ||
-      node?.nodeType === 'text-box-node' ||
-      node?.type?.includes('textBox')
-    )
-  }
-
   // Find any node that can be a parent and contains the point
   // Sort by z-index or size (larger nodes first) to handle overlapping nodes
   // CRITICAL: Dot nodes and TextBox nodes cannot be parent nodes
   const candidateNodes = nodes
     .filter((node) => {
-      if (excludeNodeId && node.id === excludeNodeId) return false
-      if (node.parentId) return false // Nodes with parents can't be group nodes
-      if (isDotNode(node)) return false // Dot nodes cannot be parent nodes
-      if (isTextBoxNode(node)) return false // TextBox nodes cannot be parent nodes
-      return true
+      return !CompareValuesWithSymbol(
+        '||',
+        excludeNodeId && node.id === excludeNodeId,
+        node.parentId,
+        isDotNode(node),
+        isTextBoxNode(node),
+      )
     })
     .map((node) => {
       const nodeWidth = node.width || node.data?.width || 150
@@ -260,4 +257,7 @@ export const sortNodesByParentChild = (nodes) => {
   })
 
   return sorted
+}
+export const getNodeDimensionHightAndWidth = (node, key, defaultValue) => {
+  return node[key] ?? node.style?.[key] ?? node.data?.[key] ?? defaultValue
 }

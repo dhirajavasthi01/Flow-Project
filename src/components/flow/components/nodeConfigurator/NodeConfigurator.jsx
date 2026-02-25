@@ -26,6 +26,10 @@ import {
 } from './NodeConfigurator.function'
 import NodeConfiguration from './components/nodeConfiguration/NodeConfiguration'
 import EdgeConfiguration from './components/edgeConfiguration/EdgeConfiguration'
+import {
+  CompareValuesWithSymbol,
+  getValsBaseOnCondition,
+} from '../../../../utills/nodeNameUtils/nodeNameUtils'
 
 const NodeConfigurator = () => {
   const [config, setConfig] = useAtom(nodeConfigAtom)
@@ -95,13 +99,21 @@ const NodeConfigurator = () => {
         const hasNodeColor = prev.data?.nodeColor !== undefined
         const hasStrokeColor = prev.data?.strokeColor !== undefined
 
-        if (!hasNodeColor || !hasStrokeColor) {
+        if (CompareValuesWithSymbol('||', !hasNodeColor, !hasStrokeColor)) {
           return {
             ...prev,
             data: {
               ...prev.data,
-              nodeColor: hasNodeColor ? prev.data.nodeColor : '#d3d3d3',
-              strokeColor: hasStrokeColor ? prev.data.strokeColor : '#000000',
+              nodeColor: getValsBaseOnCondition(
+                hasNodeColor,
+                prev.data.nodeColor,
+                '#d3d3d3',
+              ),
+              strokeColor: getValsBaseOnCondition(
+                hasStrokeColor,
+                prev.data.strokeColor,
+                '#000000',
+              ),
             },
           }
         }
@@ -242,7 +254,7 @@ const NodeConfigurator = () => {
             const val = option.id !== undefined ? option.id : option.value
             const label = option.name !== undefined ? option.name : option.label
             return (
-              <option key={`${field.name}-${val}-${index}`} value={val}>
+              <option key={`${field.name}-${val}`} value={val}>
                 {label}
               </option>
             )

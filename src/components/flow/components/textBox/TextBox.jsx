@@ -14,7 +14,11 @@ import {
   developerModeAtom,
   failureNodeClickedAtom,
 } from '../../../../features/individualDetailWrapper/features/overview/store/OverviewStore'
-import { getValsBaseOnCondition } from '../../../../utills/nodeNameUtils/nodeNameUtils'
+import {
+  CompareValuesWithSymbol,
+  getSafe,
+  getValsBaseOnCondition,
+} from '../../../../utills/nodeNameUtils/nodeNameUtils'
 import { EXTRA_NODE_COLORS } from '../../../../utills/flowUtills/FlowUtills'
 import Handles from '../../handles/Handles'
 
@@ -23,12 +27,12 @@ import {
   NodeTooltipContent,
   useNodeTooltip,
 } from '../../nodes/nodeTooltip/NodeTooltip'
-import { RotateHandle, TextContent } from './TextBox.function'
+import { RotateHandle, setNodesHelperFn, TextContent } from './TextBox.function'
 import {
+  calculateAngle,
   calculateOptimalFontSize,
   formatTextContent,
   getRawText,
-  calculateAngle,
 } from './TextboxConfig'
 
 // Inner component that uses the tooltip hook - must be inside NodeTooltip context
@@ -243,7 +247,9 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     initialHeight,
   )
   useDeveloperModeSync(isDeveloperMode, id, setNodes)
-  const tagData = allTagsDataList.find((x) => x.tagId && x.tagId == linkedTag)
+  const tagData = allTagsDataList.find((x) =>
+    CompareValuesWithSymbol('&&', x.tagId, x.tagId == linkedTag),
+  )
   const fontSize = useAutoFontSize(textRef, currentDimensions, label, tagData)
   const onResizeEnd = (_, params) => {
     setCurrentDimensions({
@@ -251,28 +257,24 @@ export const TextboxNode = memo(({ data, id, selected }) => {
       height: params.height,
     })
     setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              width: params.width,
-              height: params.height,
-              rotation: rotationRef.current,
-            },
-          }
-        }
-        return node
+      setNodesHelperFn({
+        nds,
+        params,
+        rotationRefCurrent: rotationRef.current,
+        id,
       }),
     )
   }
-  const { bgColor } = EXTRA_NODE_COLORS[template] || {}
+  const { bgColor } = getSafe(() => EXTRA_NODE_COLORS[template], {})
   const { orientation = 'horizontal' } = data
   const rawText = getRawText(tagData, label)
   const textContent = formatTextContent(rawText, orientation)
 
-  const failureModeList = failureModeNames?.length ? failureModeNames : null
+  const failureModeList = getValsBaseOnCondition(
+    failureModeNames?.length,
+    failureModeNames,
+    null,
+  )
 
   // Get the node to check if it has a parent
   // Use parent's ID for tooltip if node has a parent, otherwise use node's own ID
@@ -283,7 +285,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     if (parentId) {
       // Verify parent node exists before using its ID
       const parentNode = getNode(parentId)
-      return parentNode ? parentId : id
+      return getValsBaseOnCondition(parentNode, parentId, id)
     }
     return id
   }, [id, getNode])
@@ -309,7 +311,8 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         minHeight={20}
         onResizeEnd={onResizeEnd}
       />
-      {isDeveloperMode ? (
+      {getValsBaseOnCondition(
+        isDeveloperMode,
         <div
           ref={containerRef}
           style={{
@@ -317,15 +320,26 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             justifyContent: 'center',
             alignItems: 'center',
             position: 'relative',
-            backgroundColor: bgColor || 'transparent',
+            backgroundColor: getSafe(() => bgColor, 'transparent'),
             width: '100%',
             height: '100%',
             padding: '4px 0px',
             boxSizing: 'border-box',
             pointerEvents: 'auto',
-            lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
-            cursor:
-              isDeveloperMode || setFailureNodeClicked ? 'default' : 'pointer',
+            lineHeight: getValsBaseOnCondition(
+              orientation === 'vertical',
+              '1.1',
+              '1.2',
+            ),
+            cursor: getValsBaseOnCondition(
+              CompareValuesWithSymbol(
+                '||',
+                isDeveloperMode,
+                setFailureNodeClicked,
+              ),
+              'default',
+              'pointer',
+            ),
             wordBreak: 'break-all',
             whiteSpace: 'nowrap',
           }}
@@ -345,8 +359,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             targetHandles={targetHandles}
             key='textBoxNode'
           />
-        </div>
-      ) : (
+        </div>,
         <TextBoxContent
           containerRef={containerRef}
           textRef={textRef}
@@ -362,7 +375,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
           targetHandles={targetHandles}
           bgColor={bgColor}
           isDeveloperMode={isDeveloperMode}
-        />
+        />,
       )}
     </div>
   )
@@ -370,11 +383,12 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     return (
       <NodeTooltip nodeId={tooltipNodeId}>
         <NodeTooltipContent id={tooltipNodeId} nodeId={tooltipNodeId}>
-          {failureModeList?.length ? (
+          {getValsBaseOnCondition(
+            failureModeList?.length,
             <div className='p-[.7vmin] flex flex-col uppercase'>
               <div className='border-b-[.1vmin] border-b-primary_gray_2 text-center'>
                 <span className='text-12 font-sabic_text_bold'>
-                  {tooltipContent || '-'}
+                  {getSafe(() => tooltipContent || '-')}
                 </span>
               </div>
 
@@ -383,23 +397,33 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                   <div className='text-12 font-sabic_text_bold'>
                     Estimated TTF :
                   </div>
-                  {ttfDays != undefined && ttfDays != null ? (
+                  {getValsBaseOnCondition(
+                    CompareValuesWithSymbol(
+                      '&&',
+                      ttfDays != undefined,
+                      ttfDays != null,
+                    ),
                     <div>
-                      {ttfDays} {ttfDays > 1 ? 'Days' : 'Day'}
-                    </div>
-                  ) : (
-                    <div>-</div>
+                      {ttfDays}{' '}
+                      {getValsBaseOnCondition(ttfDays > 1, 'Days', 'Day')}
+                    </div>,
+                    <div>-</div>,
                   )}
                 </div>
 
                 <div className='flex flex-col text-13 pt-[1vmin] gap-[0.5vmin] items-start'>
                   <div className='text-12 font-sabic_text_bold gap-1'>
                     Failure Mode
-                    {failureModeList.length > 1 ? 's' : ''} : &nbsp;
+                    {getValsBaseOnCondition(
+                      failureModeList?.length > 1,
+                      's',
+                      '',
+                    )}{' '}
+                    : &nbsp;
                   </div>
 
                   <ul className='flex flex-col gap-[0.5vmin] px-[0vmin] list-disc ml-[2vmin] mt-[-1vmin]'>
-                    {failureModeList.map((item) => (
+                    {failureModeList?.map((item) => (
                       <li
                         key={`${item}-flow`}
                         className='[&::marker]:text-[2.5vmin] [&::marker]:font-bold'
@@ -412,12 +436,17 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                   </ul>
                 </div>
               </div>
-            </div>
-          ) : tooltipContent || label ? (
-            <div className='p-[0_1vmin] text-center'>
-              <span className='text-14'>{tooltipContent || label}</span>
-            </div>
-          ) : null}
+            </div>,
+            getValsBaseOnCondition(
+              CompareValuesWithSymbol('||', tooltipContent, label),
+              <div className='p-[0_1vmin] text-center'>
+                <span className='text-14'>
+                  {getSafe(() => tooltipContent, label)}
+                </span>
+              </div>,
+              null,
+            ),
+          )}
         </NodeTooltipContent>
         {content}
       </NodeTooltip>

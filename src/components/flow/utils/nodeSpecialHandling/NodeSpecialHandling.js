@@ -46,6 +46,18 @@ const shouldIgnoreElement = (el) => {
   ].includes(el.tagName)
   return CompareValuesWithSymbol('||', isSvgRoot, isMaskRelated, isNonVisual)
 }
+
+const getStopColor = (stop) => {
+  const color = stop.getAttribute('stop-color')
+  if (color) return color.trim()
+  const style = stop.getAttribute('style')
+  if (style) {
+    const match = style.match(/stop-color:\s*([^;]+)/i)
+    if (match) return match[1].trim()
+  }
+  return null
+}
+
 // 3. Logic to validate and normalize a fill color
 const getValidFillColor = (el) => {
   const fill = el.getAttribute('fill')
@@ -53,22 +65,26 @@ const getValidFillColor = (el) => {
   const normalized = fill.trim().toUpperCase()
   return normalized !== 'NONE' ? normalized : null
 }
+
+const getAllFillColors = ({ allElements }) => {
+  const allFillColors = new Set()
+  for (const el of allElements) {
+    // eslint-disable-next-line no-continue
+    if (shouldIgnoreElement(el)) continue
+    const color = getValidFillColor(el)
+    if (color) allFillColors.add(color)
+  }
+
+  return allFillColors
+}
+
 /* ---------- Main Function ---------- */
 function analyzeSvgTextForSpecialHandling(svgText) {
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(svgText, 'image/svg+xml')
     const svgElement = doc.documentElement
-    const getStopColor = (stop) => {
-      let color = stop.getAttribute('stop-color')
-      if (color) return color.trim()
-      const style = stop.getAttribute('style')
-      if (style) {
-        const match = style.match(/stop-color:\s*([^;]+)/i)
-        if (match) return match[1].trim()
-      }
-      return null
-    }
+
     const gradients = svgElement.querySelectorAll(
       'linearGradient, radialGradient',
     )
@@ -79,13 +95,7 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     const allElements = Array.from(svgElement.querySelectorAll('*'))
     if (gradients.length === 0) {
       // Case 1: No gradients - Check for 2+ distinct fill colors
-      const allFillColors = new Set()
-      for (const el of allElements) {
-        // eslint-disable-next-line no-continue
-        if (shouldIgnoreElement(el)) continue
-        const color = getValidFillColor(el)
-        if (color) allFillColors.add(color)
-      }
+      const allFillColors = getAllFillColors({ allElements })
       return allFillColors.size >= 2
     }
     // Case 2: Gradients exist - Check for additional non-gradient colors
@@ -183,4 +193,29 @@ export function isSpecialNodeSync(nodeType, svgPath = null) {
  */
 export function clearSvgAnalysisCache() {
   svgAnalysisCache.clear()
+}
+
+// Helper: get node dimension (width or height) using getNestedValue + getSafe for consistent parsing
+
+export const storeNodeDimensions = ({
+  nodes,
+  updateOriginalFetchedNodesRef,
+  getNodeDimension,
+  prevNodeDimensionsRef,
+}) => {
+  updateOriginalFetchedNodesRef(nodes)
+
+  nodes.forEach((node) => {
+    const currentWidth = getNodeDimension(node, 'width')
+    const currentHeight = getNodeDimension(node, 'height')
+
+    if (
+      CompareValuesWithSymbol('&&', !isNaN(currentWidth), !isNaN(currentHeight))
+    ) {
+      prevNodeDimensionsRef.current.set(node.id, {
+        width: currentWidth,
+        height: currentHeight,
+      })
+    }
+  })
 }

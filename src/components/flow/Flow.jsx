@@ -71,7 +71,7 @@ import {
   absoluteToRelative,
   findGroupNodeAtPoint,
   getDescendantIds,
-  relativeToAbsolute,
+  getNodeDimensionHightAndWidth,
   sortNodesByParentChild,
   wouldCreateCircularDependency,
 } from './utils/parentChildUtils/ParentChildUtils'
@@ -80,6 +80,15 @@ import {
   handleSaveTemplate as handleSaveTemplateHelper,
   handleTemplateDropHelper,
 } from './utils/templateHelper/TemplateHelper'
+import {
+  callBackIfConditionIsTrue,
+  CompareValuesWithSymbol,
+  getNestedValue,
+  getSafe,
+  getValsBaseOnCondition,
+  ifElse,
+} from '../../utills/nodeNameUtils/nodeNameUtils'
+import { storeNodeDimensions } from './utils/nodeSpecialHandling/NodeSpecialHandling'
 import Marker from './marker'
 function Flow(props) {
   const { tableData = [], isLoading: isLoadingFailerMode = false } = props
@@ -125,6 +134,7 @@ function Flow(props) {
     nodes: fetchedNodes,
     edges: fetchedEdges,
     isLoading: loadingFlow,
+    isEnabled,
     legendPosition: fetchedLegendPosition,
     isAdding,
     error,
@@ -156,6 +166,9 @@ function Flow(props) {
     },
     [nodeLookup],
   )
+  // Track which nodes have already been synced to prevent infinite loops
+  const syncedNodeIdsRef = useRef(new Set())
+
   // Use custom hook for snapshot, undo, snapping, and keyboard handling
   const { takeSnapshot, applySnappingToChanges } = useFlowSnapshot({
     nodes,
@@ -175,131 +188,151 @@ function Flow(props) {
     setShouldDelete,
   })
 
+  // Helper: get node dimension (width or height) using getNestedValue + getSafe for consistent parsing
+  const getNodeDimension = useCallback((node, dimension) => {
+    const raw =
+      getNestedValue(node, dimension) ||
+      getNestedValue(node, `data.${dimension}`) ||
+      getNestedValue(node, `style.${dimension}`)
+    return getSafe(() => Number(raw), NaN)
+  }, [])
+
   useEffect(() => {
-    if (newNode) {
-      takeSnapshot()
-      const newId = `${newNode.nodeType}-${generateRandom8DigitNumber()}`
-      const svgPath =
-        newNode.svgPath || (newNode.nodeType ? svgMap[newNode.nodeType] : null)
+    if (getValsBaseOnCondition(!newNode, true, false)) return
 
-      // Function to create node with dimensions
-      // setupSvgViewBox is ONLY called here when dragging from node list
-      // After creation, user can resize manually - parent-child relationships are preserved
-      const createNodeWithDimensions = (dimensions) => {
-        // Helper function to apply dimensions consistently to root, style, and data
-        const applyDimensions = (node, width, height) => {
-          node.width = width
-          node.height = height
-          node.style = {
-            ...newNode.style,
-            ...node.style,
-            width,
-            height,
-          }
-          node.data = {
-            ...newNode.data,
-            ...node.data,
-            width,
-            height,
-          }
-          return node
+    takeSnapshot()
+    const newId = `${newNode.nodeType}-${generateRandom8DigitNumber()}`
+    const svgPath = getValsBaseOnCondition(
+      !!newNode.svgPath,
+      newNode.svgPath,
+      getValsBaseOnCondition(newNode.nodeType, svgMap[newNode.nodeType], null),
+    )
+
+    // Function to create node with dimensions
+    // setupSvgViewBox is ONLY called here when dragging from node list
+    // After creation, user can resize manually - parent-child relationships are preserved
+    const createNodeWithDimensions = (dimensions) => {
+      // Helper function to apply dimensions consistently to root, style, and data
+      const applyDimensions = (node, width, height) => {
+        node.width = width
+        node.height = height
+        node.style = {
+          ...newNode.style,
+          ...node.style,
+          width,
+          height,
         }
-
-        // Determine dimensions based on priority:
-        // 1. Paste operation (newNode.id exists) - preserve original dimensions
-        // 2. SVG dimensions (from node list drag) - scale by 10
-        // 3. Default dimensions (250x250)
-        let finalWidth, finalHeight
-        const DEFAULT_SIZE = 250
-
-        if (newNode.id) {
-          // Paste operation: preserve original dimensions from newNode
-          const existingWidth =
-            newNode.width || newNode.style?.width || newNode.data?.width
-          const existingHeight =
-            newNode.height || newNode.style?.height || newNode.data?.height
-          finalWidth =
-            existingWidth && existingHeight ? existingWidth : DEFAULT_SIZE
-          finalHeight =
-            existingWidth && existingHeight ? existingHeight : DEFAULT_SIZE
-        } else if (dimensions?.width && dimensions?.height) {
-          // SVG dimensions from node list drag: scale by 10
-          finalWidth = dimensions.width * 10
-          finalHeight = dimensions.height * 10
-        } else {
-          // Default dimensions
-          finalWidth = DEFAULT_SIZE
-          finalHeight = DEFAULT_SIZE
+        node.data = {
+          ...newNode.data,
+          ...node.data,
+          width,
+          height,
         }
-
-        // Create node with base properties
-        const nodeToCreate = {
-          ...newNode,
-          id: newId,
-          parentId: newNode.parentId,
-          extent: newNode.parentId ? 'parent' : undefined,
-          data: {
-            ...newNode.data,
-            isAttachedToGroup: !!newNode.parentId,
-          },
-        }
-
-        // Apply dimensions to root, style, and data
-        applyDimensions(nodeToCreate, finalWidth, finalHeight)
-
-        const newNodeWithDimensions = syncNodeDimensions(nodeToCreate)
-
-        // Mark as synced to prevent re-syncing in the other useEffect
-        syncedNodeIdsRef.current.add(newId)
-
-        // CRITICAL: Add new node to originalFetchedNodesRef immediately so dimensions can be persisted
-        // This ensures the node exists in originalFetchedNodesRef when it's resized or deselected
-        if (!originalFetchedNodesRef.current.find((n) => n.id === newId)) {
-          originalFetchedNodesRef.current.push(newNodeWithDimensions)
-        }
-
-        // Ensure parent-child ordering when adding new node
-        const updatedNodes = [...nodes, newNodeWithDimensions]
-        const sortedNodes = sortNodesByParentChild(updatedNodes)
-        setNodes(sortedNodes)
-        setSelectedNodeId(newId)
-        setConfig({ ...newNode, id: newId })
-        setNewNode(null)
+        return node
       }
 
-      // Try to get SVG dimensions by measuring bounding box (from cache or load them)
-      // setupSvgViewBox is called inside extractDimensionsFromSvgByBBox
-      // This ONLY happens when dragging from node list
-      if (svgPath) {
-        if (svgDimensionsCache.has(svgPath)) {
-          // Use cached dimensions immediately
-          const dimensions = svgDimensionsCache.get(svgPath)
-          createNodeWithDimensions(dimensions)
-        } else {
-          // Load SVG dimensions by measuring bounding box, then create node
-          // setupSvgViewBox is called here to set viewBox on the SVG
-          extractDimensionsFromSvgByBBox(svgPath)
-            .then((dimensions) => {
-              createNodeWithDimensions(dimensions)
-            })
-            .catch((error) => {
-              // If loading fails, create node with defaults (will use measured dimensions)
-              createNodeWithDimensions(null)
-            })
-        }
+      // Determine dimensions based on priority:
+      // 1. Paste operation (newNode.id exists) - preserve original dimensions
+      // 2. SVG dimensions (from node list drag) - scale by 10
+      // 3. Default dimensions (250x250)
+      let finalWidth, finalHeight
+      const DEFAULT_SIZE = 250
+      if (newNode.id) {
+        // Paste operation: preserve original dimensions from newNode
+        const existingWidth = getNodeDimensionHightAndWidth(
+          newNode,
+          'width',
+          newNode.data?.width,
+        )
+        const existingHeight = getNodeDimensionHightAndWidth(
+          newNode,
+          'height',
+          newNode.data?.height,
+        )
+        finalWidth = getValsBaseOnCondition(
+          CompareValuesWithSymbol('&&', existingWidth, existingHeight),
+          existingWidth,
+          DEFAULT_SIZE,
+        )
+        finalHeight = getValsBaseOnCondition(
+          CompareValuesWithSymbol('&&', existingWidth, existingHeight),
+          existingHeight,
+          DEFAULT_SIZE,
+        )
+      } else if (
+        CompareValuesWithSymbol('&&', dimensions?.width, dimensions?.height)
+      ) {
+        // SVG dimensions from node list drag: scale by 10
+        finalWidth = dimensions.width * 10
+        finalHeight = dimensions.height * 10
       } else {
-        // No SVG path, create node with defaults (will use measured dimensions)
-        createNodeWithDimensions(null)
+        // Default dimensions
+        finalWidth = DEFAULT_SIZE
+        finalHeight = DEFAULT_SIZE
       }
+
+      // Create node with base properties
+      const nodeToCreate = {
+        ...newNode,
+        id: newId,
+        parentId: newNode.parentId,
+        extent: getValsBaseOnCondition(newNode.parentId, 'parent', undefined),
+        data: {
+          ...newNode.data,
+          isAttachedToGroup: !!newNode.parentId,
+        },
+      }
+
+      // Apply dimensions to root, style, and data
+      applyDimensions(nodeToCreate, finalWidth, finalHeight)
+
+      const newNodeWithDimensions = syncNodeDimensions(nodeToCreate)
+
+      // Mark as synced to prevent re-syncing in the other useEffect
+      syncedNodeIdsRef.current.add(newId)
+
+      // CRITICAL: Add new node to originalFetchedNodesRef immediately so dimensions can be persisted
+      // This ensures the node exists in originalFetchedNodesRef when it's resized or deselected
+      callBackIfConditionIsTrue(
+        !originalFetchedNodesRef.current.find((n) => n.id === newId),
+        () => {
+          originalFetchedNodesRef.current.push(newNodeWithDimensions)
+        },
+      )
+
+      // Ensure parent-child ordering when adding new node
+      const updatedNodes = [...nodes, newNodeWithDimensions]
+      const sortedNodes = sortNodesByParentChild(updatedNodes)
+      setNodes(sortedNodes)
+      setSelectedNodeId(newId)
+      setConfig({ ...newNode, id: newId })
+      setNewNode(null)
     }
-  }, [newNode, nodes, takeSnapshot])
+
+    // Try to get SVG dimensions by measuring bounding box (from cache or load them)
+    ifElse(
+      !!svgPath,
+      () => {
+        ifElse(
+          svgDimensionsCache.has(svgPath),
+          () => {
+            const dimensions = svgDimensionsCache.get(svgPath)
+            createNodeWithDimensions(dimensions)
+          },
+          () => {
+            extractDimensionsFromSvgByBBox(svgPath)
+              .then((dimensions) => createNodeWithDimensions(dimensions))
+              .catch(() => createNodeWithDimensions(null))
+          },
+        )
+      },
+      () => createNodeWithDimensions(null),
+    )
+  }, [newNode, nodes, takeSnapshot, getNodeDimension])
 
   useEffect(() => {
     processNodesWithTableDataRef.current = processNodesWithTableData
   }, [processNodesWithTableData])
-
-  // Track which nodes have already been synced to prevent infinite loops
-  const syncedNodeIdsRef = useRef(new Set())
 
   useEffect(() => {
     //NOSONAR
@@ -449,43 +482,63 @@ function Flow(props) {
         // Check dimensions from all possible locations: root, style, data
         // Convert to numbers for accurate comparison (handles string vs number mismatches)
         // CRITICAL: Get dimensions from root first (most reliable), then style, then data
+
         const originalWidth = Number(
-          originalNode.width ||
-            originalNode.style?.width ||
+          getNodeDimensionHightAndWidth(
+            originalNode,
+            'width',
             originalNode.data?.width,
+          ),
         )
+
         const originalHeight = Number(
-          originalNode.height ||
-            originalNode.style?.height ||
+          getNodeDimensionHightAndWidth(
+            originalNode,
+            'height',
             originalNode.data?.height,
+          ),
         )
+
         const newWidth = Number(
-          node.width || node.style?.width || node.data?.width,
+          getNodeDimensionHightAndWidth(node, 'width', node.data?.width),
         )
+
         const newHeight = Number(
-          node.height || node.style?.height || node.data?.height,
+          getNodeDimensionHightAndWidth(node, 'height', node.data?.height),
         )
 
         // Only consider it a resize if dimensions actually changed (not just type conversion)
         if (
-          !isNaN(originalWidth) &&
-          !isNaN(originalHeight) &&
-          !isNaN(newWidth) &&
-          !isNaN(newHeight)
+          CompareValuesWithSymbol(
+            '&&',
+            !isNaN(originalWidth),
+            !isNaN(originalHeight),
+            !isNaN(newWidth),
+            !isNaN(newHeight),
+          )
         ) {
-          if (originalWidth !== newWidth || originalHeight !== newHeight) {
+          if (
+            CompareValuesWithSymbol(
+              '||',
+              originalWidth !== newWidth,
+              originalHeight !== newHeight,
+            )
+          ) {
             resizedNodeIds.add(node.id)
           }
         }
       } else {
         // Node doesn't exist in originalFetchedNodesRef, so it's a new node - treat as resized
+
         const newWidth = Number(
-          node.width || node.style?.width || node.data?.width,
+          getNodeDimensionHightAndWidth(node, 'width', node.data?.width),
         )
         const newHeight = Number(
-          node.height || node.style?.height || node.data?.height,
+          getNodeDimensionHightAndWidth(node, 'height', node.data?.height),
         )
-        if (!isNaN(newWidth) && !isNaN(newHeight)) {
+        if (
+          CompareValuesWithSymbol('&&', !isNaN(newWidth), !isNaN(newHeight))
+        ) {
           resizedNodeIds.add(node.id)
         }
       }
@@ -496,9 +549,16 @@ function Flow(props) {
     if (originalFetchedNodesRef.current.length === 0) {
       originalFetchedNodesRef.current = finalNodes.map((node) => {
         // CRITICAL: Get dimensions from root first (most reliable), then style, then data
-        const nodeWidth = node.width || node.style?.width || node.data?.width
-        const nodeHeight =
-          node.height || node.style?.height || node.data?.height
+        const nodeWidth = getNodeDimensionHightAndWidth(
+          node,
+          'width',
+          node.data?.width,
+        )
+        const nodeHeight = getNodeDimensionHightAndWidth(
+          node,
+          'height',
+          node.data?.height,
+        )
         return {
           ...node,
           width: nodeWidth,
@@ -527,12 +587,17 @@ function Flow(props) {
         )
         if (originalNode) {
           const parentIdChanged = node.parentId !== originalNode.parentId
-          const positionChanged =
-            node.position &&
-            originalNode.position &&
-            (node.position.x !== originalNode.position.x ||
-              node.position.y !== originalNode.position.y)
-          return parentIdChanged || positionChanged
+          const positionChanged = CompareValuesWithSymbol(
+            '&&',
+            node.position,
+            originalNode.position,
+            CompareValuesWithSymbol(
+              '||',
+              node.position.x !== originalNode.position.x,
+              node.position.y !== originalNode.position.y,
+            ),
+          )
+          return CompareValuesWithSymbol('||', parentIdChanged, positionChanged)
         }
         return false
       })
@@ -542,10 +607,16 @@ function Flow(props) {
       if (!hasParentOrPositionChanges) {
         finalNodes.forEach((node) => {
           if (!originalFetchedNodesRef.current.find((n) => n.id === node.id)) {
-            const nodeWidth =
-              node.width || node.data?.width || node.style?.width
-            const nodeHeight =
-              node.height || node.data?.height || node.style?.height
+            const nodeWidth = getNodeDimensionHightAndWidth(
+              node,
+              'width',
+              node.data?.width,
+            )
+            const nodeHeight = getNodeDimensionHightAndWidth(
+              node,
+              'height',
+              node.data?.height,
+            )
             originalFetchedNodesRef.current.push({
               ...node,
               width: nodeWidth,
@@ -572,29 +643,42 @@ function Flow(props) {
     originalFetchedNodesRef.current = originalFetchedNodesRef.current.map(
       (originalNode) => {
         const updatedNode = finalNodes.find((n) => n.id === originalNode.id)
-        if (updatedNode && resizedNodeIds.has(originalNode.id)) {
+        if (
+          CompareValuesWithSymbol(
+            '&&',
+            updatedNode,
+            resizedNodeIds.has(originalNode.id),
+          )
+        ) {
           // Only update dimensions for resized nodes, preserve everything else
           // Update dimensions in all locations: root, style, and data
           // CRITICAL: Get dimensions from root first (most reliable), then style, then data
           // This ensures we use the actual resized dimensions, not stale data dimensions
-          const updatedWidth =
-            updatedNode.width ||
-            updatedNode.style?.width ||
-            updatedNode.data?.width
-          const updatedHeight =
-            updatedNode.height ||
-            updatedNode.style?.height ||
-            updatedNode.data?.height
+          const updatedWidth = getNodeDimensionHightAndWidth(
+            updatedNode,
+            'width',
+            updatedNode.data?.width,
+          )
+          const updatedHeight = getNodeDimensionHightAndWidth(
+            updatedNode,
+            'height',
+            updatedNode.data?.height,
+          )
 
           // CRITICAL: Check if parentId or position changed (re-parenting scenario)
           // If parentId changed, we need to update it to preserve the new parent-child relationship
           // If position changed (and parentId is the same or both changed), update position
           const parentIdChanged = updatedNode.parentId !== originalNode.parentId
-          const positionChanged =
-            updatedNode.position &&
-            originalNode.position &&
-            (updatedNode.position.x !== originalNode.position.x ||
-              updatedNode.position.y !== originalNode.position.y)
+          const positionChanged = CompareValuesWithSymbol(
+            '&&',
+            updatedNode.position,
+            originalNode.position,
+            CompareValuesWithSymbol(
+              '||',
+              updatedNode.position.x !== originalNode.position.x,
+              updatedNode.position.y !== originalNode.position.y,
+            ),
+          )
 
           const updated = {
             ...originalNode,
@@ -603,18 +687,23 @@ function Flow(props) {
             height: updatedHeight,
             // CRITICAL: Update parentId and position if they changed (re-parenting scenario)
             // This ensures re-parented nodes maintain their new position when clicking on canvas
-            parentId: parentIdChanged
-              ? updatedNode.parentId
-              : originalNode.parentId,
+            parentId: getValsBaseOnCondition(
+              parentIdChanged,
+              updatedNode.parentId,
+              originalNode.parentId,
+            ),
             // Update position if parentId changed (new relative position) or if position explicitly changed
-            position:
-              parentIdChanged || positionChanged
-                ? updatedNode.position
-                : originalNode.position,
+            position: getValsBaseOnCondition(
+              CompareValuesWithSymbol('||', parentIdChanged, positionChanged),
+              updatedNode.position,
+              originalNode.position,
+            ),
             // positionAbsolute is calculated by React Flow, but we should update it if parentId changed
-            positionAbsolute: parentIdChanged
-              ? updatedNode.positionAbsolute
-              : originalNode.positionAbsolute,
+            positionAbsolute: getValsBaseOnCondition(
+              parentIdChanged,
+              updatedNode.positionAbsolute,
+              originalNode.positionAbsolute,
+            ),
             // CRITICAL: Update style dimensions - don't spread updatedNode.style first as it may have stale dimensions
             // Set width/height explicitly to ensure they match the root dimensions
             style: {
@@ -640,25 +729,35 @@ function Flow(props) {
         // For non-resized nodes, check if parentId or position changed (re-parenting without resize)
         if (updatedNode) {
           const parentIdChanged = updatedNode.parentId !== originalNode.parentId
-          const positionChanged =
-            updatedNode.position &&
-            originalNode.position &&
-            (updatedNode.position.x !== originalNode.position.x ||
-              updatedNode.position.y !== originalNode.position.y)
+          const positionChanged = CompareValuesWithSymbol(
+            '&&',
+            updatedNode.position,
+            originalNode.position,
+            CompareValuesWithSymbol(
+              '||',
+              updatedNode.position.x !== originalNode.position.x,
+              updatedNode.position.y !== originalNode.position.y,
+            ),
+          )
           // If parentId or position changed, update them to preserve re-parenting
-          if (parentIdChanged || positionChanged) {
+          if (CompareValuesWithSymbol('||', parentIdChanged, positionChanged)) {
             const updated = {
               ...originalNode,
-              parentId: parentIdChanged
-                ? updatedNode.parentId
-                : originalNode.parentId,
-              position:
-                parentIdChanged || positionChanged
-                  ? updatedNode.position
-                  : originalNode.position,
-              positionAbsolute: parentIdChanged
-                ? updatedNode.positionAbsolute
-                : originalNode.positionAbsolute,
+              parentId: getValsBaseOnCondition(
+                parentIdChanged,
+                updatedNode.parentId,
+                originalNode.parentId,
+              ),
+              position: getValsBaseOnCondition(
+                CompareValuesWithSymbol('||', parentIdChanged, positionChanged),
+                updatedNode.position,
+                originalNode.position,
+              ),
+              positionAbsolute: getValsBaseOnCondition(
+                parentIdChanged,
+                updatedNode.positionAbsolute,
+                originalNode.positionAbsolute,
+              ),
             }
             return updated
           }
@@ -674,9 +773,16 @@ function Flow(props) {
     finalNodes.forEach((node) => {
       if (!originalFetchedNodesRef.current.find((n) => n.id === node.id)) {
         // CRITICAL: Sync dimensions to all locations before adding
-        const nodeWidth = node.width || node.data?.width || node.style?.width
-        const nodeHeight =
-          node.height || node.data?.height || node.style?.height
+        const nodeWidth = getNodeDimensionHightAndWidth(
+          node,
+          'width',
+          node.data?.width,
+        )
+        const nodeHeight = getNodeDimensionHightAndWidth(
+          node,
+          'height',
+          node.data?.height,
+        )
         const nodeToAdd = {
           ...node,
           width: nodeWidth,
@@ -818,89 +924,94 @@ function Flow(props) {
   // IMPORTANT: This only updates dimensions, preserving all other properties including parentId
   // CRITICAL: Only runs when dimensions change, not on position changes or parent-child relationship changes
   useEffect(() => {
-    if (!isDeveloperMode) {
+    if (getValsBaseOnCondition(!isDeveloperMode, true, false)) return
+    if (
+      getValsBaseOnCondition(
+        originalFetchedNodesRef.current.length === 0,
+        true,
+        false,
+      )
+    )
       return
-    }
-
-    // CRITICAL: Skip if originalFetchedNodesRef is empty
-    if (originalFetchedNodesRef.current.length === 0) {
-      return
-    }
-
-    const wasResizing = lastResizingStateRef.current
     const isResizing = isResizingRef.current
     lastResizingStateRef.current = isResizing
 
-    // If resizing, don't update tracking - wait for resize to end
-    // This ensures we can detect dimension changes when resize ends
-    if (isResizing) {
-      return
-    }
-
-    // If resize just ended (was true, now false), we need to check for dimension changes
-    // even if nodes haven't changed in this render cycle
-    const resizeJustEnded = wasResizing && !isResizing
+    if (getValsBaseOnCondition(isResizing, true, false)) return
 
     // Check if any node dimensions have actually changed (not just position or parentId changes)
     let hasDimensionChanges = false
+    // eslint-disable-next-line sonarjs/no-unused-collection
     const dimensionChanges = new Map()
+
+    // MOVED THIS FUNCTION OUTSIDE THE FOREACH
+    const getValidNodeDimensions = (node, prevDims) => {
+      if (prevDims) return null
+
+      // Use a simple for loop instead of find with callback
+      let originalNode = null
+      for (let i = 0; i < originalFetchedNodesRef.current.length; i++) {
+        if (originalFetchedNodesRef.current[i].id === node.id) {
+          originalNode = originalFetchedNodesRef.current[i]
+          break
+        }
+      }
+
+      if (!originalNode) return null
+
+      const width = getNodeDimension(originalNode, 'width')
+      const height = getNodeDimension(originalNode, 'height')
+
+      const isValid = CompareValuesWithSymbol(
+        '&&',
+        !isNaN(width),
+        !isNaN(height),
+      )
+
+      return isValid ? { width, height } : null
+    }
 
     nodes.forEach((node) => {
       let prevDims = prevNodeDimensionsRef.current.get(node.id)
 
-      // If we don't have previous dimensions, try to get them from originalFetchedNodesRef
-      // This ensures we compare against the original stored dimensions, not the current dimensions
-      if (!prevDims) {
-        const originalNode = originalFetchedNodesRef.current.find(
-          (n) => n.id === node.id,
+      const dimensions = getValidNodeDimensions(node, prevDims)
+      if (dimensions) {
+        prevDims = dimensions
+        prevNodeDimensionsRef.current.set(node.id, dimensions)
+      }
+
+      const currentWidth = getNodeDimension(node, 'width')
+      const currentHeight = getNodeDimension(node, 'height')
+
+      if (
+        !CompareValuesWithSymbol(
+          '&&',
+          !isNaN(currentWidth),
+          !isNaN(currentHeight),
         )
-        if (originalNode) {
-          const origWidth = Number(
-            originalNode.width ||
-              originalNode.data?.width ||
-              originalNode.style?.width,
-          )
-          const origHeight = Number(
-            originalNode.height ||
-              originalNode.data?.height ||
-              originalNode.style?.height,
-          )
-          if (!isNaN(origWidth) && !isNaN(origHeight)) {
-            prevDims = { width: origWidth, height: origHeight }
-            prevNodeDimensionsRef.current.set(node.id, prevDims)
-          }
-        }
-      }
-
-      // Convert to numbers for accurate comparison (handles string vs number mismatches)
-      const currentWidth = Number(
-        node.width || node.data?.width || node.style?.width,
       )
-      const currentHeight = Number(
-        node.height || node.data?.height || node.style?.height,
-      )
-
-      // Skip if dimensions are invalid
-      if (isNaN(currentWidth) || isNaN(currentHeight)) {
         return
-      }
 
       if (!prevDims) {
-        // First time seeing this node and no original found, store current dimensions
         prevNodeDimensionsRef.current.set(node.id, {
           width: currentWidth,
           height: currentHeight,
         })
-        return // Don't trigger update on first render
+        return
       }
 
-      // Check if dimensions changed (ignore position, parentId, or other property changes)
-      // Compare as numbers to handle type mismatches
       const prevWidth = Number(prevDims.width)
       const prevHeight = Number(prevDims.height)
 
-      if (!isNaN(prevWidth) && !isNaN(prevHeight)) {
-        if (prevWidth !== currentWidth || prevHeight !== currentHeight) {
+      if (
+        CompareValuesWithSymbol('&&', !isNaN(prevWidth), !isNaN(prevHeight))
+      ) {
+        if (
+          CompareValuesWithSymbol(
+            '||',
+            prevWidth !== currentWidth,
+            prevHeight !== currentHeight,
+          )
+        ) {
           hasDimensionChanges = true
           dimensionChanges.set(node.id, {
             prev: prevDims,
@@ -910,58 +1021,42 @@ function Flow(props) {
       }
     })
 
-    // Only update if dimensions actually changed (not just position or parent-child relationship changes)
-    if (!hasDimensionChanges) {
-      // Update tracking even if no changes detected, to keep baseline current
-      // This handles cases where nodes are updated for other reasons (position, parentId, etc.)
-      // BUT: Don't update if resize just ended - we want to preserve the baseline for comparison
-      // CRITICAL: Always update tracking to preserve manually resized dimensions
-      // This ensures dimensions are preserved when clicking outside or on another node
-      nodes.forEach((node) => {
-        const currentWidth = Number(
-          node.width || node.data?.width || node.style?.width,
-        )
-        const currentHeight = Number(
-          node.height || node.data?.height || node.style?.height,
-        )
-        if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
-          prevNodeDimensionsRef.current.set(node.id, {
-            width: currentWidth,
-            height: currentHeight,
-          })
-        }
-      })
-      return
-    }
-
-    // Small delay to ensure resize flag is cleared and state has settled
-    // This prevents interference with parent-child drag operations
-    const timeoutId = setTimeout(() => {
-      // Double-check that resize is not active (in case it was set during the timeout)
-      if (!isResizingRef.current) {
-        // Update original fetched nodes with current node dimensions
-        // updateOriginalFetchedNodesRef only updates dimensions and preserves all other properties
-        // including parentId, position, and all data properties
-        updateOriginalFetchedNodesRef(nodes)
-        // Update tracking after persisting changes
+    return ifElse(
+      hasDimensionChanges,
+      () => {
+        const timeoutId = setTimeout(() => {
+          if (!isResizingRef.current) {
+            storeNodeDimensions({
+              nodes,
+              updateOriginalFetchedNodesRef,
+              getNodeDimension,
+              prevNodeDimensionsRef,
+            })
+          }
+        }, 300)
+        return () => clearTimeout(timeoutId)
+      },
+      () => {
         nodes.forEach((node) => {
-          const currentWidth = Number(
-            node.width || node.data?.width || node.style?.width,
-          )
-          const currentHeight = Number(
-            node.height || node.data?.height || node.style?.height,
-          )
-          if (!isNaN(currentWidth) && !isNaN(currentHeight)) {
+          const currentWidth = getNodeDimension(node, 'width')
+          const currentHeight = getNodeDimension(node, 'height')
+          if (
+            CompareValuesWithSymbol(
+              '&&',
+              !isNaN(currentWidth),
+              !isNaN(currentHeight),
+            )
+          ) {
             prevNodeDimensionsRef.current.set(node.id, {
               width: currentWidth,
               height: currentHeight,
             })
           }
         })
-      }
-    }, 300)
-    return () => clearTimeout(timeoutId)
-  }, [nodes, isDeveloperMode, updateOriginalFetchedNodesRef])
+        return undefined
+      },
+    )
+  }, [nodes, isDeveloperMode, updateOriginalFetchedNodesRef, getNodeDimension])
 
   // Handle drag start - immediately set dragging node ID for helper lines
   const onNodeDragStart = useCallback(
@@ -1569,10 +1664,18 @@ function Flow(props) {
         createdOn: new Date().toISOString(),
         legendPosition: legendPosition,
       }
-      addFlow(flowData)
-      setDeveloperMode(false)
+      addFlow(flowData, {
+        onSuccess: () => {
+          showToast({ message: 'Flow diagram saved successfully' })
+          setDeveloperMode(false)
+          toggle(false)
+        },
+        onError: (error) => {
+          showToast({ message: 'Error saving flow diagram' })
+        },
+      })
     } catch (error) {
-      // Error handling is done by addFlow's onError callback
+      console.error('Error saving flow diagram:', error)
     }
   }
 
@@ -1672,111 +1775,115 @@ function Flow(props) {
   }, [])
   return (
     <div id='react-flow-container' className='h-full w-full relative'>
-      <>
-        <ReactFlow
-          nodes={nodes.map((node) => {
-            // CRITICAL: Ensure all nodes have dimensions in style for NodeResizer to work
-            // NodeResizer REQUIRES style.width and style.height
-            const syncedNode = syncNodeDimensions(node)
+      {isLoadingFailerMode && loadingFlow && !isEnabled ? (
+        <Loader />
+      ) : (
+        <>
+          <ReactFlow
+            nodes={nodes.map((node) => {
+              // CRITICAL: Ensure all nodes have dimensions in style for NodeResizer to work
+              // NodeResizer REQUIRES style.width and style.height
+              const syncedNode = syncNodeDimensions(node)
 
-            // Add visual highlight to potential parent during drag
-            if (potentialParentId === syncedNode.id && draggingNodeId) {
-              return {
-                ...syncedNode,
-                style: {
-                  ...syncedNode.style,
-                  border: '1px dashed #009FDF',
-                  borderRadius: '4px',
-                  boxShadow: '0 0 10px rgba(0, 159, 223, 0.5)',
-                },
+              // Add visual highlight to potential parent during drag
+              if (potentialParentId === syncedNode.id && draggingNodeId) {
+                return {
+                  ...syncedNode,
+                  style: {
+                    ...syncedNode.style,
+                    border: '1px dashed #009FDF',
+                    borderRadius: '4px',
+                    boxShadow: '0 0 10px rgba(0, 159, 223, 0.5)',
+                  },
+                }
               }
-            }
-            return syncedNode
-          })}
-          edges={edges}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={handleEdgesChange}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onNodeDrag={onNodeDrag}
-          defaultEdgeOptions={{
-            style: { strokeWidth: 5, stroke: '#000' },
-            type: 'flowingPipeStraightArrow',
-          }}
-          onConnect={onConnect}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onSelectionChange={handleSelectionChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 2000 }}
-          minZoom={0.05}
-          maxZoom={3}
-          nodesDraggable={isDeveloperMode}
-          nodesConnectable={isDeveloperMode}
-          multiSelectionKeyCode='Control'
-          selectionOnDrag={isDeveloperMode}
-          selectionMode='partial'
-          onInit={fitViewWithPadding}
-          onPaneClick={onPaneClick}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          style={{ backgroundColor: '#FFFFFF' }}
-        >
-          {partial && <SelectionFlowRect partial={partial} />}
-          {isDeveloperMode && !isFullView && (
-            <HelperLines draggingNodeId={draggingNodeId} nodes={nodes} />
-          )}
-          <Suspense fallback={null}>
-            <Marker type='flowingPipeStraightArrow' />
-          </Suspense>
-          <Suspense fallback={null}>
-            <Marker type='flowingPipe' />
-          </Suspense>
-          <Suspense fallback={null}>
-            <Marker type='flowingPipeDotted' />
-          </Suspense>
-          <Suspense fallback={null}>
-            <Marker type='flowingPipeDottedArrow' />
-          </Suspense>
-          <FlowPanels
-            {...{
-              isFullView,
-              showDeveloperMode: props?.showDeveloperMode,
-              isDeveloperMode,
-              partial,
-              setPartial,
-              show,
-              toggle,
-              handleSaveClick,
-              isAdding,
-              showSaveTemplate,
-              handleSaveTemplate,
-              selNodes,
-              selEdges,
-              legendPosition,
-              showDrawer,
-              setShowDrawer,
-              selectedNodeId,
-              getNodes,
-              setNodes,
-              nodes,
-              handleDeleteAll,
+              return syncedNode
+            })}
+            edges={edges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onNodeDrag={onNodeDrag}
+            defaultEdgeOptions={{
+              style: { strokeWidth: 5, stroke: '#000' },
+              type: 'flowingPipeStraightArrow',
             }}
-          />
-          <Controls
-            position='center-right'
-            showInteractive={isDeveloperMode}
-            fitViewOptions={{ padding: 0.2 }}
-          />
-          <Background
-            variant={
-              props?.showDeveloperMode && isDeveloperMode ? 'lines' : 'none'
-            }
-          />
-        </ReactFlow>
-      </>
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onSelectionChange={handleSelectionChange}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            fitViewOptions={{ padding: 2000 }}
+            minZoom={0.05}
+            maxZoom={3}
+            nodesDraggable={isDeveloperMode}
+            nodesConnectable={isDeveloperMode}
+            multiSelectionKeyCode='Control'
+            selectionOnDrag={isDeveloperMode}
+            selectionMode='partial'
+            onInit={fitViewWithPadding}
+            onPaneClick={onPaneClick}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            style={{ backgroundColor: '#FFFFFF' }}
+          >
+            {partial && <SelectionFlowRect partial={partial} />}
+            {isDeveloperMode && !isFullView && (
+              <HelperLines draggingNodeId={draggingNodeId} nodes={nodes} />
+            )}
+            <Suspense fallback={null}>
+              <Marker type='flowingPipeStraightArrow' />
+            </Suspense>
+            <Suspense fallback={null}>
+              <Marker type='flowingPipe' />
+            </Suspense>
+            <Suspense fallback={null}>
+              <Marker type='flowingPipeDotted' />
+            </Suspense>
+            <Suspense fallback={null}>
+              <Marker type='flowingPipeDottedArrow' />
+            </Suspense>
+            <FlowPanels
+              {...{
+                isFullView,
+                showDeveloperMode: props?.showDeveloperMode,
+                isDeveloperMode,
+                partial,
+                setPartial,
+                show,
+                toggle,
+                handleSaveClick,
+                isAdding,
+                showSaveTemplate,
+                handleSaveTemplate,
+                selNodes,
+                selEdges,
+                legendPosition,
+                showDrawer,
+                setShowDrawer,
+                selectedNodeId,
+                getNodes,
+                setNodes,
+                nodes,
+                handleDeleteAll,
+              }}
+            />
+            <Controls
+              position='center-right'
+              showInteractive={isDeveloperMode}
+              fitViewOptions={{ padding: 0.2 }}
+            />
+            <Background
+              variant={
+                props?.showDeveloperMode && isDeveloperMode ? 'lines' : 'none'
+              }
+            />
+          </ReactFlow>
+        </>
+      )}
     </div>
   )
 }

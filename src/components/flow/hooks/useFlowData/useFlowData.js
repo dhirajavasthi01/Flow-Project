@@ -42,8 +42,8 @@ export function useFlowData(caseId = 1) {
       } catch (err) {
         // If 404, return null (no diagram exists yet) instead of throwing
         if (err?.response?.status === 404) {
-          return null
-        }
+        return null
+      }
         throw err
       }
     },

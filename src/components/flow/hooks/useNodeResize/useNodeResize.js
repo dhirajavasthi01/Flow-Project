@@ -142,7 +142,7 @@ export const persistResizeChangesRef = { current: null }
 
 // Custom hook that provides resize handler for nodes
 export const useNodeResize = (id) => {
-  const { setNodes, getNodes } = useReactFlow()
+  const { setNodes } = useReactFlow()
 
   // Handle resize during dragging (real-time updates)
   // React Flow's NodeResizer doesn't automatically update state when onResize is provided

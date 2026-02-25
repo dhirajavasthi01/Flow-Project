@@ -1,6 +1,5 @@
 import { memo } from 'react'
 import { NodeResizer } from '@xyflow/react'
-import { useNodeResize } from '../../hooks/useNodeResize/useNodeResize'
 import Handles from '../../handles/Handles'
 import SvgNode from 'uivisual/SvgNode'
 

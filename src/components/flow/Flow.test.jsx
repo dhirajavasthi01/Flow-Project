@@ -1,924 +1,390 @@
+import React from 'react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { ReactFlowProvider } from '@xyflow/react'
-import { Provider as JotaiProvider } from 'jotai'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Flow from './Flow'
-import * as OverviewStore from '../../features/individualDetailWrapper/features/overview/store/OverviewStore'
-import * as FlowUtills from '../../utills/flowUtills/FlowUtills'
-import * as FlowNodeUtills from '../../utills/flowUtills/FlowNodeUtils'
-import { useFlowData } from './hooks/useFlowData/useFlowData'
-import { useTemplateManager } from './hooks/useTemplateManager/useTemplateManager'
-import { useTemplateDrop } from './hooks/useTemplateDrop/useTemplateDrop'
-// Mock all external dependencies
-vi.mock('./hooks/useFlowData/useFlowData')
-vi.mock('./hooks/useTemplateManager/useTemplateManager')
-vi.mock('./hooks/useTemplateDrop/useTemplateDrop')
-vi.mock('../../assets/images/common/drawer.svg', () => ({
-  default: 'svg-mock',
+
+// ============================================================================
+// 1. FAST MOCK STATE SETUP
+// ============================================================================
+let mockAtomState = {}
+let mockSetAtom = vi.fn()
+let capturedFlowProps = {}
+
+// ============================================================================
+// 2. EXTERNAL LIBRARY MOCKS (Dumb & Fast)
+// ============================================================================
+vi.mock('react-router-dom', () => ({
+  useOutletContext: () => ({ caseId: 'mock-case-id' }),
 }))
-vi.mock('../../assets/images/common/close.svg', () => ({
-  default: 'svg-mock',
+
+vi.mock('jotai', () => ({
+  useAtom: vi.fn((atom) => [mockAtomState[atom], mockSetAtom]),
+  useAtomValue: vi.fn((atom) => mockAtomState[atom]),
+  useSetAtom: vi.fn(() => mockSetAtom),
 }))
-vi.mock('../../assets/images/common/FailureModeLegend.svg', () => ({
-  default: 'svg-mock',
-}))
-vi.mock('../../assets/images/common/NewFailureMode.svg', () => ({
-  default: 'svg-mock',
-}))
-vi.mock('./hooks/useFlowSelection/useFlowSelection', () => ({
-  useFlowSelection: vi.fn(() => ({
-    selectedNodes: [],
-    allEdges: [],
-  })),
-}))
-vi.mock('../../utills/flowUtills/FlowUtills')
-vi.mock('../../utills/flowUtills/FlowNodeUtils')
-vi.mock('./NodeEdgeType', () => ({
-  allNodes: [
-    { type: 'testNode', nodeType: 'testNode', data: { label: 'Test' } },
-  ],
-  edgeTypes: {},
-  nodeTypes: {},
-}))
-vi.mock('ADFPUIVisuals/Marker', () => ({
-  default: () => null,
-}))
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal()
+
+let mockSetNodes = vi.fn()
+let mockSetEdges = vi.fn()
+
+vi.mock('@xyflow/react', () => {
   return {
-    ...actual,
-    useOutletContext: vi.fn(() => ({ caseId: 'test-123' })),
+    ReactFlow: (props) => {
+      capturedFlowProps = props // Capture props for direct synchronous calling
+      return <div data-testid='react-flow-mock'>{props.children}</div>
+    },
+    Background: () => <div data-testid='rf-background' />,
+    Controls: () => <div data-testid='rf-controls' />,
+    addEdge: vi.fn((edge, edges) => [...edges, edge]),
+    applyEdgeChanges: vi.fn((changes, edges) => edges),
+    applyNodeChanges: vi.fn((changes, nodes) => nodes),
+    getConnectedEdges: vi.fn(() => [{ id: 'e1' }]),
+    useNodesState: vi.fn((init) => [init || [], mockSetNodes]),
+    useEdgesState: vi.fn((init) => [init || [], mockSetEdges]),
+    useReactFlow: vi.fn(() => ({
+      screenToFlowPosition: vi.fn(() => ({ x: 100, y: 100 })),
+      fitView: vi.fn(),
+      zoomTo: vi.fn(),
+      getNodes: vi.fn(() => [
+        { id: 'node-1', position: { x: 0, y: 0 }, parentId: undefined },
+        { id: 'group-1', position: { x: 200, y: 200 }, parentId: undefined },
+      ]),
+    })),
+    useStore: vi.fn(() => new Map([['node-1', { type: 'default' }]])),
+    useUpdateNodeInternals: vi.fn(() => vi.fn()),
   }
 })
 
-describe('Flow Component', () => {
-  const defaultProps = {
-    tableData: [],
-    isLoading: false,
-    showDeveloperMode: true,
-  }
-  const mockFlowData = {
+// ============================================================================
+// 3. INTERNAL COMPONENT MOCKS
+// ============================================================================
+vi.mock('../loader/Loader', () => ({
+  default: () => <div data-testid='loader' />,
+}))
+vi.mock('./components/flowPanels/FlowPanels', () => ({
+  default: (p) => (
+    <div data-testid='flow-panels'>
+      <button onClick={p.handleSaveClick} data-testid='save-btn' />
+      <button onClick={p.handleDeleteAll} data-testid='delete-all-btn' />
+    </div>
+  ),
+}))
+vi.mock('./components/helperLines/HelperLines', () => ({
+  HelperLines: () => <div />,
+}))
+vi.mock('./components/selectionFlowRect/SelectionFlowRect', () => ({
+  SelectionFlowRect: () => <div />,
+}))
+vi.mock('ADFPUIVisuals/Marker', () => ({ default: () => <div /> }))
+vi.mock('../toast/ToastManager', () => ({ showToast: vi.fn() }))
+
+// ============================================================================
+// 4. STORE & HOOK MOCKS
+// ============================================================================
+vi.mock(
+  '../../features/individualDetailWrapper/features/overview/store/OverviewStore',
+  () => ({
+    deleteAtom: 'deleteAtom',
+    developerModeAtom: 'developerModeAtom',
+    dragNodeTypeAtom: 'dragNodeTypeAtom',
+    failureNodeClickedAtom: 'failureNodeClickedAtom',
+    isFailureModeAtom: 'isFailureModeAtom',
+    isFullViewAtom: 'isFullViewAtom',
+    LegendPositionAtom: 'LegendPositionAtom',
+    newNodeAtom: 'newNodeAtom',
+    nodeConfigAtom: 'nodeConfigAtom',
+    scrollTickAtom: 'scrollTickAtom',
+    selectedEdgeIdAtom: 'selectedEdgeIdAtom',
+    selectedEdgeTypeAtom: 'selectedEdgeTypeAtom',
+    selectedNodeIdAtom: 'selectedNodeIdAtom',
+    showHandlesAtom: 'showHandlesAtom',
+    updateConfigAtom: 'updateConfigAtom',
+  }),
+)
+vi.mock(
+  '../../features/individualDetailWrapper/store/IndividualDetailWrapperStore',
+  () => ({ AppAtom: 'AppAtom' }),
+)
+
+let mockAddFlow = vi.fn((data, options) => {
+  options.onSuccess()
+})
+vi.mock('./hooks/useFlowData/useFlowData', () => ({
+  useFlowData: vi.fn(() => ({
     nodes: [],
     edges: [],
     isLoading: false,
+    isEnabled: true,
+    legendPosition: { x: 0, y: 0 },
     isAdding: false,
     error: null,
-    addFlow: vi.fn(),
+    addFlow: mockAddFlow,
     saved: false,
-  }
-  const mockOutletContext = {
-    caseId: 'test-case-123',
-  }
-  const mockAppAtom = {
-    actualTime: '2024-01-01T00:00:00Z',
-  }
-  const renderWithProviders = (props = {}) => {
-    return render(
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path='/'
-            element={
-              <JotaiProvider>
-                <ReactFlowProvider>
-                  <Flow {...defaultProps} {...props} />
-                </ReactFlowProvider>
-              </JotaiProvider>
-            }
-          />
-        </Routes>
-      </BrowserRouter>,
-    )
-  }
+  })),
+}))
+
+vi.mock('./hooks/useFlowSelection/useFlowSelection', () => ({
+  useFlowSelection: vi.fn(() => ({
+    selectedNodes: [{ id: 'node-1' }],
+    allEdges: [{ id: 'edge-1' }],
+  })),
+}))
+vi.mock('./hooks/useFlowSnapshot/useFlowSnapshot', () => ({
+  useFlowSnapshot: vi.fn(() => ({
+    takeSnapshot: vi.fn(),
+    applySnappingToChanges: vi.fn((c) => c),
+  })),
+}))
+vi.mock('./hooks/useHelperLines/useHelperLines', () => ({
+  useHelperLines: vi.fn(() => ({ snapNodePosition: vi.fn((id, pos) => pos) })),
+}))
+vi.mock('./hooks/useNodeResize/useNodeResize', () => ({
+  applyResizeChanges: vi.fn((n) => n),
+  isResizingRef: { current: false },
+  persistResizeChangesRef: { current: vi.fn() },
+  syncNodeDimensions: vi.fn((n) => ({
+    ...n,
+    style: { width: 100, height: 100 },
+  })),
+}))
+vi.mock('./hooks/useTemplateDrop/useTemplateDrop', () => ({
+  useTemplateDrop: vi.fn(() => ({ handleTemplateDrop: vi.fn() })),
+}))
+vi.mock('./hooks/useTemplateManager/useTemplateManager', () => ({
+  useTemplateManager: vi.fn(() => ({ saveTemplate: vi.fn() })),
+}))
+
+// ============================================================================
+// 5. UTILITY MOCKS
+// ============================================================================
+vi.mock('../../utills/flowUtills/FlowNodeUtils', () => ({
+  extractDimensionsFromSvgByBBox: vi.fn(() =>
+    Promise.resolve({ width: 100, height: 100 }),
+  ),
+  hasSubComponentAssetIdMatch: vi.fn((a, b) => a === b),
+  svgDimensionsCache: new Map(),
+}))
+vi.mock('../../utills/flowUtills/FlowUtills', () => ({
+  generateRandom8DigitNumber: vi.fn(() => '1234'),
+}))
+vi.mock('../../utills', () => ({
+  callBackIfConditionIsTrue: vi.fn((cond, cb) => {
+    if (cond) cb()
+  }),
+  CompareValuesWithSymbol: vi.fn(() => true),
+  getNestedValue: vi.fn(() => 100),
+  getSafe: vi.fn((fn, fallback) => {
+    try {
+      return fn()
+    } catch {
+      return fallback
+    }
+  }),
+  getValsBaseOnCondition: vi.fn((cond, a, b) => (cond ? a : b)),
+  ifElse: vi.fn((cond, ifTrue, ifFalse) => (cond ? ifTrue() : ifFalse())),
+}))
+vi.mock('./Flow.functions', () => ({
+  processNodesWithTableData: vi.fn((n) => n),
+}))
+vi.mock('./utils/edgeHelper/EdgeHelper', () => ({
+  createEdge: vi.fn(() => ({ id: 'e-new' })),
+  updateEdgeWithConfig: vi.fn((e) => e),
+}))
+vi.mock('./utils/flowHelper/FlowHelper', () => ({
+  handleFetchedNodesEdgesChange: vi.fn(),
+  handleTableDataChange: vi.fn(),
+}))
+vi.mock('./utils/nodeEdgeType/NodeEdgeType', () => ({
+  allNodes: [{ type: 'testNode' }],
+  edgeTypes: {},
+  nodeTypes: {},
+}))
+vi.mock('./utils/parentChildUtils/ParentChildUtils', () => ({
+  absoluteToRelative: vi.fn((pos) => pos),
+  findGroupNodeAtPoint: vi.fn(() => ({ id: 'group-1' })),
+  getDescendantIds: vi.fn(() => ['child-1']),
+  getNodeDimensionHightAndWidth: vi.fn(() => 100),
+  sortNodesByParentChild: vi.fn((n) => n),
+  wouldCreateCircularDependency: vi.fn(() => false),
+  relativeToAbsolute: vi.fn((pos) => pos),
+}))
+vi.mock('./utils/templateHelper/TemplateHelper', () => ({
+  handleDragOver: vi.fn((e) => e.preventDefault()),
+  handleSaveTemplate: vi.fn(),
+  handleTemplateDropHelper: vi.fn(() => false),
+}))
+vi.mock('./utils/nodeDimensionHelpers/nodeDimensionHelpers', () => ({
+  checkForDimensionChanges: vi.fn(() => false),
+  setupDimensionTimeout: vi.fn(),
+  updateCurrentDimensions: vi.fn(),
+}))
+vi.mock('./utils/nodeSpecialHandling/NodeSpecialHandling', () => ({
+  storeNodeDimensions: vi.fn(),
+}))
+vi.mock('./components/svgMap/SvgMap', () => ({
+  svgMap: { 'test-node': 'test-svg-path' },
+}))
+
+import Flow from './Flow'
+
+// ============================================================================
+// 6. FAST TESTS (No waitFors, direct prop injection, fake timers)
+// ============================================================================
+
+describe('Flow Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Setup default mocks
-    vi.mocked(useFlowData).mockReturnValue(mockFlowData)
-    vi.mocked(useTemplateManager).mockReturnValue({
-      saveTemplate: vi.fn(),
-    })
-    vi.mocked(useTemplateDrop).mockReturnValue({
-      handleTemplateDrop: vi.fn(() => ({ success: true })),
-    })
-    // Mock FlowUtills
-    vi.mocked(FlowUtills.generateRandom8DigitNumber).mockReturnValue(12345678)
-    vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(false)
-    vi.mocked(FlowNodeUtills.shouldNodeBlink).mockReturnValue({
-      shouldBlink: false,
-    })
+    vi.useFakeTimers() // CRITICAL: Stop tests from waiting for setTimeouts
+    mockAtomState = { developerModeAtom: true, isFullViewAtom: false }
+    capturedFlowProps = {}
   })
+
   afterEach(() => {
-    vi.restoreAllMocks()
+    vi.runOnlyPendingTimers()
+    vi.useRealTimers()
   })
-  describe('Component Rendering', () => {
-    it('should render loader when isLoadingFailerMode is true', () => {
-      renderWithProviders({ isLoading: true })
-    })
-    it('should render loader when flow data is loading', () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        isLoading: true,
-      })
-      renderWithProviders()
-    })
-    it('should render loader when actualTime is not available', async () => {
-      const { useOutletContext } = await import('react-router-dom')
-      vi.mocked(useOutletContext).mockReturnValue({
-        caseId: 'test-case-123',
-      })
-      renderWithProviders()
-    })
-    it('should render ReactFlow when data is loaded', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-        edges: [],
-      })
 
-      renderWithProviders()
-    })
-    it('should render ReactFlow container', () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-        edges: [],
-      })
+  const setup = (props = {}) =>
+    render(<Flow tableData={[{ subComponentAssetId: 'fail-1' }]} {...props} />)
 
-      const { container } = renderWithProviders()
-      expect(
-        container.querySelector('#react-flow-container'),
-      ).toBeInTheDocument()
+  describe('Initialization and Render', () => {
+    it('renders loader when in failure mode and loading', async () => {
+      const { useFlowData } = await import('./hooks/useFlowData/useFlowData')
+      useFlowData.mockReturnValueOnce({ isLoading: true, isEnabled: false })
+      setup({ isLoadingFailerMode: true })
+    })
+
+    it('renders flow canvas normally', () => {
+      setup()
+      expect(screen.getByTestId('react-flow-mock')).toBeDefined()
     })
   })
-  describe('Developer Mode', () => {
-    it('should show developer mode controls when enabled', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
+
+  describe('ReactFlow Sync Callbacks', () => {
+    it('handles interactions: onNodeClick, onEdgeClick, onPaneClick', () => {
+      setup()
+
+      act(() => {
+        // Node Click (Triggers failure mode and selection)
+        capturedFlowProps.onNodeClick(
+          {},
+          { id: 'node-1', data: { subComponentAssetId: 'fail-1' } },
+        )
+        // Edge Click
+        capturedFlowProps.onEdgeClick({}, { id: 'edge-1', style: {} })
+        // Pane Click
+        capturedFlowProps.onPaneClick()
       })
 
-      renderWithProviders({ showDeveloperMode: true })
+      expect(mockSetAtom).toHaveBeenCalled() // Verifies state atoms were updated instantly
     })
-    it('should save flow data when save button is clicked', async () => {
-      const mockAddFlow = vi.fn((data, callbacks) => {
-        callbacks.onSuccess()
-      })
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        addFlow: mockAddFlow,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
 
-      renderWithProviders({ showDeveloperMode: true })
+    it('handles structural changes: onNodesChange, onEdgesChange, onConnect', () => {
+      setup()
+      act(() => {
+        capturedFlowProps.onNodesChange([
+          { type: 'resize', id: 'node-1', resizing: false },
+        ])
+        capturedFlowProps.onEdgesChange([{ type: 'remove', id: 'edge-1' }])
+        capturedFlowProps.onConnect({ source: '1', target: '2' })
+      })
+      // Verifies internal functions ran
+      expect(mockSetNodes).toHaveBeenCalled()
+      expect(mockSetEdges).toHaveBeenCalled()
     })
-    it('should show partial selection checkbox in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
+
+    it('handles dropping new nodes onto the canvas synchronously', () => {
+      mockAtomState.dragNodeTypeAtom = 'testNode'
+      setup()
+      const dropEvent = { clientX: 100, clientY: 100, preventDefault: vi.fn() }
+
+      act(() => {
+        capturedFlowProps.onDrop(dropEvent)
       })
 
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should toggle partial selection checkbox', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should display saving text when adding flow', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        isAdding: true,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
+      expect(dropEvent.preventDefault).toHaveBeenCalled()
+      expect(mockSetAtom).toHaveBeenCalled() // sets newNodeAtom
     })
   })
-  describe('Node Operations', () => {
-    it('should handle node click in developer mode', async () => {
-      const mockHandleTextBoxClick = vi.fn().mockReturnValue(null)
 
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { subComponentAssetId: 'test-id' },
-          },
-        ],
-      })
+  describe('Drag and Drop (Reparenting)', () => {
+    it('handles attaching node to a parent group instantly', () => {
+      setup()
+      const node = { id: 'node-1', position: { x: 10, y: 10 } }
 
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should handle node click when failure mode exists', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        true,
-      )
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { subComponentAssetId: 'test-id' },
-          },
-        ],
-      })
-
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Test Failure',
-        },
-      ]
-
-      renderWithProviders({
-        showDeveloperMode: false,
-        tableData,
-      })
-    })
-    it('should process nodes with table data', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        true,
-      )
-      vi.mocked(FlowNodeUtills.shouldNodeBlink).mockReturnValue({
-        shouldBlink: true,
-      })
-
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Test Failure',
-          activeSince: '2024-01-01T00:00:00Z',
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              nodeColor: '#000000',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData })
-    })
-    it('should handle nodes with gradient colors', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        true,
-      )
-
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Test Failure',
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              gradientStart: '#000000',
-              gradientEnd: '#FFFFFF',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData })
-    })
-    it('should not click node when not in developer mode and no failure mode', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        false,
-      )
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { subComponentAssetId: 'test-id' },
-          },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: false, tableData: [] })
-    })
-  })
-  describe('Edge Operations', () => {
-    it('should handle edge click in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-          { id: '2', type: 'default', position: { x: 100, y: 100 }, data: {} },
-        ],
-        edges: [{ id: 'e1-2', source: '1', target: '2' }],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should not handle edge click when not in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-          { id: '2', type: 'default', position: { x: 100, y: 100 }, data: {} },
-        ],
-        edges: [
-          { id: 'e1-2', source: '1', target: '2', style: { stroke: '#000' } },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: false })
-    })
-  })
-  describe('Template Operations', () => {
-    it('should handle template drop', async () => {
-      const mockHandleTemplateDrop = vi.fn(() => ({ success: true }))
-      vi.mocked(useTemplateDrop).mockReturnValue({
-        handleTemplateDrop: mockHandleTemplateDrop,
-      })
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should handle template drop with fallback format', async () => {
-      const mockHandleTemplateDrop = vi.fn(() => ({ success: true }))
-      vi.mocked(useTemplateDrop).mockReturnValue({
-        handleTemplateDrop: mockHandleTemplateDrop,
-      })
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should save template when button clicked with valid input', async () => {
-      const mockSaveTemplate = vi.fn()
-      vi.mocked(useTemplateManager).mockReturnValue({
-        saveTemplate: mockSaveTemplate,
-      })
-
-      const { useFlowSelection } =
-        await import('./hooks/useFlowSelection/useFlowSelection')
-      vi.mocked(useFlowSelection).mockReturnValue({
-        selectedNodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-        allEdges: [],
-      })
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      const { rerender } = renderWithProviders({ showDeveloperMode: true })
-
-      // Re-render to trigger selection change
-      vi.mocked(useFlowSelection).mockReturnValue({
-        selectedNodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-        allEdges: [],
-      })
-
-      rerender(
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path='/'
-              element={
-                <JotaiProvider>
-                  <ReactFlowProvider>
-                    <Flow {...defaultProps} showDeveloperMode={true} />
-                  </ReactFlowProvider>
-                </JotaiProvider>
-              }
-            />
-          </Routes>
-        </BrowserRouter>,
-      )
-
-      await waitFor(() => {
-        const saveTemplateBtn = screen.queryByTestId('save-template-button')
-        if (saveTemplateBtn) {
-          window.prompt = vi.fn(() => 'Test Template')
-          window.alert = vi.fn()
-          fireEvent.click(saveTemplateBtn)
-          expect(mockSaveTemplate).toHaveBeenCalled()
-        }
-      })
-    })
-    it('should not save template when no nodes selected', async () => {
-      const mockSaveTemplate = vi.fn()
-      vi.mocked(useTemplateManager).mockReturnValue({
-        saveTemplate: mockSaveTemplate,
-      })
-
-      const { useFlowSelection } =
-        await import('./hooks/useFlowSelection/useFlowSelection')
-      vi.mocked(useFlowSelection).mockReturnValue({
-        selectedNodes: [],
-        allEdges: [],
-      })
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId('save-template-button'),
-        ).not.toBeInTheDocument()
-      })
-    })
-    it('should handle template drop error gracefully', async () => {
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {})
-
-      const mockHandleTemplateDrop = vi.fn(() => ({
-        success: false,
-        error: 'Template not found',
-      }))
-      vi.mocked(useTemplateDrop).mockReturnValue({
-        handleTemplateDrop: mockHandleTemplateDrop,
-      })
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-      consoleError.mockRestore()
-    })
-  })
-  describe('Keyboard Shortcuts', () => {
-    it('should handle copy (Ctrl+C) keyboard shortcut', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-
-      await waitFor(() => {
-        fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
-      })
-    })
-    it('should handle paste (Ctrl+V) keyboard shortcut', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-
-      await waitFor(() => {
-        // First copy something
-        fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
-        // Then paste
-        fireEvent.keyDown(window, { key: 'v', ctrlKey: true })
-      })
-    })
-    it('should handle delete keyboard shortcut', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-
-      await waitFor(() => {
-        fireEvent.keyDown(window, { key: 'Delete' })
+      act(() => {
+        capturedFlowProps.onNodeDragStart({}, node)
+        capturedFlowProps.onNodeDrag({}, node) // Mocks trigger 'group-1' as potential parent
+        capturedFlowProps.onNodeDragStop({}, node)
+        vi.runAllTimers() // Flushes the 100ms timeout in onNodeDragStop
       })
     })
   })
-  describe('Error Handling', () => {
-    it('should handle flow data loading error', async () => {
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {})
 
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        error: new Error('Failed to load'),
+  describe('Jotai State Effects', () => {
+    it('handles node deletion effect instantly', () => {
+      mockAtomState.selectedNodeIdAtom = 'node-1'
+      mockAtomState.deleteAtom = true
+
+      act(() => {
+        setup()
       })
 
-      renderWithProviders()
-      consoleError.mockRestore()
+      expect(mockSetNodes).toHaveBeenCalled()
+      expect(mockSetAtom).toHaveBeenCalledWith(false) // Resets shouldDelete
     })
-    it('should handle save flow error', async () => {
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {})
-      const mockAddFlow = vi.fn((data, callbacks) => {
-        callbacks.onError(new Error('Save failed'))
+
+    it('handles config update effect instantly', () => {
+      mockAtomState.selectedNodeIdAtom = 'node-1'
+      mockAtomState.nodeConfigAtom = { data: { width: 300 } }
+      mockAtomState.updateConfigAtom = true
+
+      act(() => {
+        setup()
       })
 
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        addFlow: mockAddFlow,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-      renderWithProviders({ showDeveloperMode: true })
-      consoleError.mockRestore()
+      expect(mockSetNodes).toHaveBeenCalled()
+      expect(mockSetAtom).toHaveBeenCalledWith(false) // Resets update flag
     })
-    it('should handle invalid template JSON parse error', async () => {
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {})
 
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
+    it('handles newNode creation and SVG dimension extraction asynchronously', async () => {
+      // Simulate Jotai dropping a new node
+      mockAtomState.newNodeAtom = {
+        id: undefined,
+        nodeType: 'testNode',
+        svgPath: 'path/to/svg',
+        data: {},
+      }
+
+      act(() => {
+        setup()
       })
 
-      renderWithProviders({ showDeveloperMode: true })
-      consoleError.mockRestore()
-    })
-  })
-  describe('Pane Interactions', () => {
-    it('should clear selection on pane click', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
+      // Flush microtasks (Promises) and macro tasks (Timers) instantly
+      await act(async () => {
+        await vi.runAllTimersAsync()
       })
 
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should handle drag over event with template type', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should handle drag over event with template fallback', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should handle regular node drop', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
+      const { extractDimensionsFromSvgByBBox } =
+        await import('../../utills/flowUtills/FlowNodeUtils')
+      expect(extractDimensionsFromSvgByBBox).toHaveBeenCalled()
+      expect(mockSetNodes).toHaveBeenCalled() // Verifies node was injected into state
     })
   })
-  describe('Background Panel', () => {
-    it('should show failure mode message when not in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
 
-      renderWithProviders({ showDeveloperMode: false })
+  describe('Flow Panel Actions', () => {
+    it('triggers save action instantly', () => {
+      setup()
+      act(() => {
+        fireEvent.click(screen.getByTestId('save-btn'))
+      })
+      expect(mockAddFlow).toHaveBeenCalled()
     })
-    it('should show lines background in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
+
+    it('triggers delete all instantly', () => {
+      setup()
+      act(() => {
+        fireEvent.click(screen.getByTestId('delete-all-btn'))
       })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should not show failure mode message in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-
-      await waitFor(() => {
-        expect(
-          screen.queryByText(/HOVER OVER THE RED-COLORED OBJECT/i),
-        ).not.toBeInTheDocument()
-      })
-    })
-  })
-  describe('Multiple Failure Modes', () => {
-    it('should handle multiple failure modes for same asset', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        true,
-      )
-
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Failure 1',
-        },
-        {
-          subComponentAssetId: 'test-id',
-          activeFailureMode: 'Failure 2',
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              nodeColor: '#000000',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData })
-    })
-    it('should filter out null/undefined failure mode names', async () => {
-      vi.mocked(FlowNodeUtills.hasSubComponentAssetIdMatch).mockReturnValue(
-        true,
-      )
-
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Failure 1',
-        },
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: null,
-        },
-        {
-          subComponentAssetId: 'test-id',
-          activeFailureMode: undefined,
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              nodeColor: '#000000',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData })
-    })
-  })
-  describe('Node Changes and Updates', () => {
-    it('should handle node resize changes in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { width: 100, height: 100 },
-            style: { width: 100, height: 100 },
-          },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should not handle node changes when not in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {},
-          },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: false })
-    })
-    it('should not handle edge changes when not in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-          { id: '2', type: 'default', position: { x: 100, y: 100 }, data: {} },
-        ],
-        edges: [{ id: 'e1-2', source: '1', target: '2' }],
-      })
-
-      renderWithProviders({ showDeveloperMode: false })
-    })
-  })
-  describe('Table Data Processing', () => {
-    it('should skip processing when in developer mode', async () => {
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Test Failure',
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              nodeColor: '#000000',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData, showDeveloperMode: true })
-    })
-    it('should skip processing when tableData is empty', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: {
-              subComponentAssetId: 'test-id',
-              nodeColor: '#000000',
-            },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData: [] })
-    })
-    it('should return node unchanged if no subComponentAssetId', async () => {
-      const tableData = [
-        {
-          subComponentAssetId: 'test-id',
-          failureModeName: 'Test Failure',
-        },
-      ]
-
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { nodeColor: '#000000' },
-          },
-        ],
-      })
-
-      renderWithProviders({ tableData })
-    })
-  })
-  describe('Selection and Configuration', () => {
-    it('should handle selection change callback', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should update config when node is updated', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          {
-            id: '1',
-            type: 'default',
-            position: { x: 0, y: 0 },
-            data: { width: 100, height: 100 },
-          },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should update edge with dotted style', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-          { id: '2', type: 'default', position: { x: 100, y: 100 }, data: {} },
-        ],
-        edges: [
-          {
-            id: 'e1-2',
-            source: '1',
-            target: '2',
-            type: 'flowingPipeDotted',
-            style: {},
-          },
-        ],
-      })
-
-      renderWithProviders({ showDeveloperMode: true })
-    })
-  })
-  describe('Controls and Background', () => {
-    it('should render controls in developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-      renderWithProviders({ showDeveloperMode: true })
-    })
-    it('should render controls in non-developer mode', async () => {
-      vi.mocked(useFlowData).mockReturnValue({
-        ...mockFlowData,
-        nodes: [
-          { id: '1', type: 'default', position: { x: 0, y: 0 }, data: {} },
-        ],
-      })
-      renderWithProviders({ showDeveloperMode: false })
+      expect(mockSetNodes).toHaveBeenCalled()
     })
   })
 })

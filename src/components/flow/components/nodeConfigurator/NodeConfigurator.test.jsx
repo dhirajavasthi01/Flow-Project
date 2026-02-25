@@ -51,6 +51,17 @@ vi.mock('../../../../utills/flowUtills/FlowUtills', () => ({
     { id: 'tpl1', bgColor: '#111111', borderColor: '#222222' },
   ],
 }))
+
+vi.mock('../../../../utills', () => ({
+  CompareValuesWithSymbol: vi.fn((op, ...vals) => {
+    if (op === '&&')
+      return vals.every((v) => v !== undefined && v !== null && v !== false)
+    if (op === '||') return vals.some((v) => v)
+    return false
+  }),
+  getValsBaseOnCondition: vi.fn((cond, t, f) => (cond ? t : f)),
+}))
+
 vi.mock('../svgMap/SvgMap', () => ({
   svgMap: {
     boxNode: '/fake/path.svg',

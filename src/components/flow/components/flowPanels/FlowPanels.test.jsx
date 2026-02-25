@@ -3,6 +3,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import FlowPanels from './FlowPanels'
 
+const mockGetNodes = vi.fn()
+vi.mock('@xyflow/react', async () => {
+  return {
+    Panel: ({ children }) => <div>{children}</div>,
+    useReactFlow: () => ({
+      getNodes: mockGetNodes,
+    }),
+    getNodesBounds: vi.fn(() => ({
+      x: 0,
+      y: 0,
+      width: 500,
+      height: 400,
+    })),
+  }
+})
 /* ------------------------------------------------------------------
 Mock child components
 ------------------------------------------------------------------- */

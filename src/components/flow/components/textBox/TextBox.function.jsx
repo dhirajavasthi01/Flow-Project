@@ -52,3 +52,20 @@ export const RotateHandle = ({ onMouseDown }) => (
     </div>
   </div>
 )
+
+export const setNodesHelperFn = ({ nds, params, rotationRefCurrent, id }) => {
+  return nds?.map((node) => {
+    if (node.id === id) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          width: params.width,
+          height: params.height,
+          rotation: rotationRefCurrent,
+        },
+      }
+    }
+    return node
+  })
+}

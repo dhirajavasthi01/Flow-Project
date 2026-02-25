@@ -30,6 +30,7 @@ beforeEach(() => {
       return selector(global.__CURRENT_MOCK_STATE)
     } catch (err) {
       //NOSONAR
+      console.log(err)
       // In the real hook selector is executed in the component; for safety return undefined
       return undefined
     }
