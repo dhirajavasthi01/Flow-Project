@@ -154,3 +154,66 @@ export function mapNodesWithSnap(nds, nodeId, snappedPosition) {
 export function isDotNodeType(node) {
   return isDotNode(node)
 }
+
+/**
+ * Decide what drag-stop action to take (attach, detach, snap, or none).
+ * Returns an action object so the caller can apply it with minimal branching.
+ * @returns {{ type: 'attach'|'detach'|'snap'|'none', nodeId?: string, potentialParentId?: string, relativePos?: object, absolutePos?: object, snappedPosition?: object }}
+ */
+export function getDragStopAction(
+  currentNodes,
+  draggedNode,
+  nodeId,
+  potentialParentId,
+  snapNodePositionFn,
+  node,
+) {
+  const hasParent = !!draggedNode.parentId
+  const oldParentId = draggedNode.parentId
+
+  if (potentialParentId && potentialParentId !== oldParentId) {
+    const newParent = currentNodes.find((n) => n.id === potentialParentId)
+    if (isValidNewParent(newParent)) {
+      const relativePos = computeRelativePosForAttach(
+        draggedNode,
+        newParent,
+        oldParentId,
+        currentNodes,
+      )
+      if (relativePos) {
+        return {
+          type: 'attach',
+          nodeId,
+          potentialParentId,
+          relativePos,
+        }
+      }
+    }
+  }
+
+  if (hasParent && !potentialParentId) {
+    const oldParent = currentNodes.find((n) => n.id === oldParentId)
+    if (oldParent) {
+      const absolutePos = computeDetachAbsolutePos(draggedNode, oldParent)
+      if (absolutePos) {
+        return { type: 'detach', nodeId, absolutePos }
+      }
+    }
+  }
+
+  if (isDotNodeType(node) || !node.position) {
+    return { type: 'none' }
+  }
+
+  const positionForSnapping = getPositionForSnapping(draggedNode, currentNodes)
+  if (!positionForSnapping) {
+    return { type: 'none' }
+  }
+
+  const snappedPosition = snapNodePositionFn(nodeId, positionForSnapping)
+  if (!shouldApplySnap(positionForSnapping, snappedPosition)) {
+    return { type: 'none' }
+  }
+
+  return { type: 'snap', nodeId, snappedPosition }
+}

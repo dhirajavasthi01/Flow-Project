@@ -1144,6 +1144,42 @@ function Flow(props) {
     [getNodes, updateOriginalFetchedNodesRef],
   )
 
+  const applyDragStopAction = useCallback(
+    (action, setNodesFn, scheduleRef) => {
+      if (action.type === 'attach') {
+        setNodesFn((nds) => {
+          const sortedNodes = mapNodesWithAttach(
+            nds,
+            action.nodeId,
+            action.potentialParentId,
+            action.relativePos,
+          )
+          scheduleRef(action.nodeId)
+          return sortedNodes
+        })
+        return
+      }
+      if (action.type === 'detach') {
+        setNodesFn((nds) => {
+          const sortedNodes = mapNodesWithDetach(
+            nds,
+            action.nodeId,
+            action.absolutePos,
+          )
+          scheduleRef(action.nodeId)
+          return sortedNodes
+        })
+        return
+      }
+      if (action.type === 'snap') {
+        setNodesFn((nds) =>
+          mapNodesWithSnap(nds, action.nodeId, action.snappedPosition),
+        )
+      }
+    },
+    [],
+  )
+
   const onNodeDragStop = useCallback(
     (event, node) => {
       if (!isDeveloperMode) return
@@ -1152,73 +1188,15 @@ function Flow(props) {
       const draggedNode = currentNodes.find((n) => n.id === node.id)
       if (!draggedNode) return
 
-      const hasParent = !!draggedNode.parentId
-      const oldParentId = draggedNode.parentId
-
-      // ATTACH: Node is dropped over a group/parent node
-      if (potentialParentId && potentialParentId !== oldParentId) {
-        const newParent = currentNodes.find((n) => n.id === potentialParentId)
-        if (isValidNewParent(newParent)) {
-          const relativePos = computeRelativePosForAttach(
-            draggedNode,
-            newParent,
-            oldParentId,
-            currentNodes,
-          )
-          if (relativePos) {
-            setNodes((nds) => {
-              const sortedNodes = mapNodesWithAttach(
-                nds,
-                node.id,
-                potentialParentId,
-                relativePos,
-              )
-              const reParentedNode = sortedNodes.find((n) => n.id === node.id)
-              if (reParentedNode) scheduleRefUpdateForNode(node.id)
-              return sortedNodes
-            })
-            setPotentialParentId(null)
-            setDraggingNodeId(null)
-            return
-          }
-        }
-      }
-
-      // DETACH: Node with parentId is dropped outside any group
-      if (hasParent && !potentialParentId) {
-        const oldParent = currentNodes.find((n) => n.id === oldParentId)
-        if (oldParent) {
-          const absolutePos = computeDetachAbsolutePos(draggedNode, oldParent)
-          if (absolutePos) {
-            setNodes((nds) => {
-              const sortedNodes = mapNodesWithDetach(nds, node.id, absolutePos)
-              const detachedNode = sortedNodes.find((n) => n.id === node.id)
-              if (detachedNode) scheduleRefUpdateForNode(node.id)
-              return sortedNodes
-            })
-            setPotentialParentId(null)
-            setDraggingNodeId(null)
-            return
-          }
-        }
-      }
-
-      // Snapping (non-dot nodes only)
-      if (!isDotNodeType(node) && node.position) {
-        const positionForSnapping = getPositionForSnapping(
-          draggedNode,
-          currentNodes,
-        )
-        if (positionForSnapping) {
-          const snappedPosition = snapNodePosition(node.id, positionForSnapping)
-          if (shouldApplySnap(positionForSnapping, snappedPosition)) {
-            setNodes((nds) =>
-              mapNodesWithSnap(nds, node.id, snappedPosition),
-            )
-          }
-        }
-      }
-
+      const action = getDragStopAction(
+        currentNodes,
+        draggedNode,
+        node.id,
+        potentialParentId,
+        snapNodePosition,
+        node,
+      )
+      applyDragStopAction(action, setNodes, scheduleRefUpdateForNode)
       setPotentialParentId(null)
       setDraggingNodeId(null)
     },
@@ -1230,6 +1208,7 @@ function Flow(props) {
       getNodes,
       potentialParentId,
       scheduleRefUpdateForNode,
+      applyDragStopAction,
     ],
   )
 
