@@ -66,7 +66,7 @@ describe("History & Undo Utilities", () => {
       setEdges,
       setSelectedNodeId,
       setSelectedEdgeId,
-      setConfig
+      setConfig,
     );
 
     expect(setNodes).toHaveBeenCalledWith([{ id: "1" }]);
@@ -167,26 +167,20 @@ describe("History & Undo Utilities", () => {
     expect(
       shouldApplySnapping(
         { type: "position", position: {}, dragging: true },
-        null
-      )
+        null,
+      ),
     ).toBe(true);
   });
 
   it("isValidSnapDistance validates snap range", () => {
-    expect(
-      isValidSnapDistance({ x: 2, y: 2 }, { x: 0, y: 0 })
-    ).toBe(true);
+    expect(isValidSnapDistance({ x: 2, y: 2 }, { x: 0, y: 0 })).toBe(true);
 
-    expect(
-      isValidSnapDistance({ x: 10, y: 10 }, { x: 0, y: 0 })
-    ).toBe(false);
+    expect(isValidSnapDistance({ x: 10, y: 10 }, { x: 0, y: 0 })).toBe(false);
   });
 
   it("applySnappingToChange returns original when snapping not allowed", () => {
     const change = { id: "1", type: "other" };
-    expect(
-      applySnappingToChange(change, null, vi.fn(), vi.fn())
-    ).toBe(change);
+    expect(applySnappingToChange(change, null, vi.fn(), vi.fn())).toBe(change);
   });
 
   it("applySnappingToChange applies snapping correctly", () => {
@@ -201,7 +195,7 @@ describe("History & Undo Utilities", () => {
       change,
       null,
       () => false,
-      () => ({ x: 2, y: 2 })
+      () => ({ x: 2, y: 2 }),
     );
 
     expect(snapped.position).toEqual({ x: 2, y: 2 });
@@ -216,10 +210,9 @@ describe("History & Undo Utilities", () => {
       changes,
       null,
       () => false,
-      () => ({ x: 2, y: 2 })
+      () => ({ x: 2, y: 2 }),
     );
 
     expect(result[0].position).toEqual({ x: 2, y: 2 });
   });
 });
- 

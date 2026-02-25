@@ -1,8 +1,8 @@
-import { memo } from 'react';
-import { NodeResizer } from '@xyflow/react';
-import { useNodeResize } from '../../hooks/useNodeResize/useNodeResize';
-import Handles from '../../handles/Handles';
-import SvgNode from 'uivisual/SvgNode';
+import { memo } from "react";
+import { NodeResizer } from "@xyflow/react";
+import { useNodeResize } from "../../hooks/useNodeResize/useNodeResize";
+import Handles from "../../handles/Handles";
+import SvgNode from "uivisual/SvgNode";
 
 const BaseSvgNode = ({
   id,
@@ -23,7 +23,7 @@ const BaseSvgNode = ({
   // We'll track resize state separately and persist in handleNodesChange
   const {
     defaultNodeColor,
-    defaultStrokeColor = '#000000',
+    defaultStrokeColor = "#000000",
     ...restSvgNodeProps
   } = svgNodeProps;
 
@@ -36,24 +36,22 @@ const BaseSvgNode = ({
         // Don't provide onResize/onResizeEnd - let React Flow handle it through handleNodesChange
         // This ensures NodeResizer works for both new and existing nodes
       />
-        <SvgNode
-          id={id}
-          data={data}
-          svgPath={svgPath}
-          nodeType={nodeType}
-          defaultNodeColor={defaultNodeColor}
-          defaultStrokeColor={defaultStrokeColor}
-          HandlesComponent={Handles}
-          isHighlighted={isHighlighted}
-          selected={selected}
-          isSelected={isSelected}
-          isDeveloperMode={isDeveloperMode}
-          {...restSvgNodeProps}
-        />
+      <SvgNode
+        id={id}
+        data={data}
+        svgPath={svgPath}
+        nodeType={nodeType}
+        defaultNodeColor={defaultNodeColor}
+        defaultStrokeColor={defaultStrokeColor}
+        HandlesComponent={Handles}
+        isHighlighted={isHighlighted}
+        selected={selected}
+        isSelected={isSelected}
+        isDeveloperMode={isDeveloperMode}
+        {...restSvgNodeProps}
+      />
     </>
   );
 };
 
 export default memo(BaseSvgNode);
-
- 

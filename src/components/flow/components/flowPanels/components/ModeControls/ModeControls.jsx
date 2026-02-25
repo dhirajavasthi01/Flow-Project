@@ -1,6 +1,9 @@
 import { Panel } from "@xyflow/react";
 import { useCallback, useMemo } from "react";
-import { relativeToAbsolute, sortNodesByParentChild } from "../../../../utils/parentChildUtils/ParentChildUtils";
+import {
+  relativeToAbsolute,
+  sortNodesByParentChild,
+} from "../../../../utils/parentChildUtils/ParentChildUtils";
 
 /**
  * ModeControls Component
@@ -23,13 +26,13 @@ const ModeControls = ({
   getNodes,
   setNodes,
   nodes,
-  handleDeleteAll
+  handleDeleteAll,
 }) => {
   // Get the currently selected node to check if it has a parent
   const selectedNode = useMemo(() => {
     if (!selectedNodeId || !getNodes) return null;
     const currentNodes = getNodes();
-    return currentNodes.find(n => n.id === selectedNodeId);
+    return currentNodes.find((n) => n.id === selectedNodeId);
   }, [selectedNodeId, getNodes]);
 
   const canDetach = Boolean(selectedNode?.parentId);
@@ -44,7 +47,8 @@ const ModeControls = ({
     const parentNode = currentNodes.find((n) => n.id === nodeToDetach.parentId);
     if (!parentNode) return;
 
-    const parentAbsolutePos = parentNode.positionAbsolute ?? parentNode.position;
+    const parentAbsolutePos =
+      parentNode.positionAbsolute ?? parentNode.position;
     const relativePos = nodeToDetach.position;
     if (!parentAbsolutePos || !relativePos) return;
 
@@ -58,9 +62,9 @@ const ModeControls = ({
               parentId: undefined,
               position: absolutePos,
               extent: undefined,
-              data: { ...n.data, isAttachedToGroup: false }
+              data: { ...n.data, isAttachedToGroup: false },
             }
-          : n
+          : n,
       );
       return sortNodesByParentChild(updated);
     });
@@ -85,10 +89,7 @@ const ModeControls = ({
           </span>
         </label>
       </Panel>
-      <Panel
-        position="top-right"
-        className="p-0 flex flex-col items-end gap-2"
-      >
+      <Panel position="top-right" className="p-0 flex flex-col items-end gap-2">
         <div className="flex gap-2">
           <button
             id="handles-button"
@@ -106,7 +107,7 @@ const ModeControls = ({
               className="text-[1.4vmin] font-medium uppercase text-white bg-red-600 hover:bg-red-700 transition rounded-[0.3vmin] px-[1.5vmin] py-[0.4vmin]"
             >
               Delete All ({selNodes.length} node
-              {selNodes.length !== 1 ? 's' : ''})
+              {selNodes.length !== 1 ? "s" : ""})
             </button>
           )}
           <button
@@ -115,7 +116,11 @@ const ModeControls = ({
             onClick={handleDetach}
             disabled={!canDetach}
             className="w-fit flex justify-center items-center cursor-pointer uppercase text-14 font-medium bg-orange-600 text-white rounded-[0.3vmin] h-full px-[1.5vmin] py-[1vmin] hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title={canDetach ? "Remove child from parent group" : "Select a child node to detach"}
+            title={
+              canDetach
+                ? "Remove child from parent group"
+                : "Select a child node to detach"
+            }
           >
             Detach
           </button>
@@ -136,8 +141,8 @@ const ModeControls = ({
             className="text-[1.4vmin] font-medium uppercase text-white bg-green-600 hover:bg-green-700 transition rounded-[0.3vmin] px-[1.5vmin] py-[0.4vmin]"
           >
             Save as Template ({selNodes.length} node
-            {selNodes.length !== 1 ? "s" : ""}, {selEdges.length}{" "}
-            edge{selEdges.length !== 1 ? "s" : ""})
+            {selNodes.length !== 1 ? "s" : ""}, {selEdges.length} edge
+            {selEdges.length !== 1 ? "s" : ""})
           </button>
         )}
       </Panel>
@@ -146,5 +151,3 @@ const ModeControls = ({
 };
 
 export default ModeControls;
-
- 

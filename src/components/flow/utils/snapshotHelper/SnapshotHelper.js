@@ -25,7 +25,7 @@ export const undo = (
   setEdges,
   setSelectedNodeId,
   setSelectedEdgeId,
-  setConfig
+  setConfig,
 ) => {
   if (historyRef.current.length === 0) return;
   isUndoingRef.current = true;
@@ -94,7 +94,7 @@ export const applySnappingToChange = (
   change,
   dragEndNodeId,
   checkIsDotNode,
-  snapNodePosition
+  snapNodePosition,
 ) => {
   if (!shouldApplySnapping(change, dragEndNodeId)) {
     return change;
@@ -117,10 +117,14 @@ export const applySnappingToChanges = (
   changes,
   dragEndNodeId,
   checkIsDotNode,
-  snapNodePosition
+  snapNodePosition,
 ) => {
   return changes.map((change) =>
-    applySnappingToChange(change, dragEndNodeId, checkIsDotNode, snapNodePosition)
+    applySnappingToChange(
+      change,
+      dragEndNodeId,
+      checkIsDotNode,
+      snapNodePosition,
+    ),
   );
 };
- 

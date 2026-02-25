@@ -6,15 +6,15 @@ import { useNodeProcessing } from "./useNodeProcessing";
 
 vi.mock("../../Flow.functions", () => ({
   processNodesWithTableData: vi.fn((nodes) =>
-    nodes.map(n => ({ ...n, processed: true }))
+    nodes.map((n) => ({ ...n, processed: true })),
   ),
   mergeProcessedNodesWithCurrent: vi.fn((processed, current) => processed),
-  createTableDataKey: vi.fn(data => JSON.stringify(data)),
+  createTableDataKey: vi.fn((data) => JSON.stringify(data)),
 }));
 
 import {
-    createTableDataKey,
-    processNodesWithTableData
+  createTableDataKey,
+  processNodesWithTableData,
 } from "../../Flow.functions";
 
 /* -------------------- TEST DATA -------------------- */
@@ -24,10 +24,7 @@ const nodes = [
   { id: "2", data: { value: 20 } },
 ];
 
-const edges = [
-  { id: "e1", style: { strokeWidth: 2 } },
-  { id: "e2" },
-];
+const edges = [{ id: "e1", style: { strokeWidth: 2 } }, { id: "e2" }];
 
 /* -------------------- HELPERS -------------------- */
 
@@ -71,7 +68,7 @@ describe("useNodeProcessing", () => {
 
     expect(result.current.originalFetchedNodesRef.current.length).toBe(2);
     expect(result.current.originalFetchedNodesRef.current[0].data).not.toBe(
-      nodes[0].data
+      nodes[0].data,
     );
   });
 
@@ -100,7 +97,7 @@ describe("useNodeProcessing", () => {
         setEdges,
         fitView: vi.fn(),
         zoomTo: vi.fn(),
-      })
+      }),
     );
 
     expect(setNodes).toHaveBeenCalledWith([]);
@@ -124,7 +121,7 @@ describe("useNodeProcessing", () => {
         setEdges: vi.fn(),
         fitView: vi.fn(),
         zoomTo: vi.fn(),
-      })
+      }),
     );
 
     expect(createTableDataKey).toHaveBeenCalled();
@@ -147,9 +144,8 @@ describe("useNodeProcessing", () => {
         setEdges: vi.fn(),
         fitView: vi.fn(),
         zoomTo: vi.fn(),
-      })
+      }),
     );
-
   });
 
   it("restores original node data when switching to developer mode", () => {
@@ -171,7 +167,7 @@ describe("useNodeProcessing", () => {
         setEdges: vi.fn(),
         fitView: vi.fn(),
         zoomTo: vi.fn(),
-      })
+      }),
     );
 
     expect(setNodes).toHaveBeenCalled();
@@ -184,5 +180,3 @@ describe("useNodeProcessing", () => {
     expect(result.current.processNodesWithTableDataRef).toBeDefined();
   });
 });
-
- 

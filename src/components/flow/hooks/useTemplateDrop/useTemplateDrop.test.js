@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTemplateDrop } from "./useTemplateDrop";
- 
+
 vi.mock("../useTemplateManager/useTemplateManager", () => ({
   useTemplateManager: () => ({
     getTemplate: mockGetTemplate,
@@ -11,7 +11,7 @@ vi.mock("../../../../utills/flowUtills/FlowUtills", () => ({
   generateRandom8DigitNumber: () => 12345678,
 }));
 let mockGetTemplate;
- 
+
 const sampleTemplate = {
   nodes: [
     {
@@ -35,7 +35,7 @@ const sampleTemplate = {
     },
   ],
 };
- 
+
 describe("useTemplateDrop", () => {
   beforeEach(() => {
     mockGetTemplate = vi.fn();
@@ -44,7 +44,7 @@ describe("useTemplateDrop", () => {
     mockGetTemplate.mockReturnValue(undefined);
     const { result } = renderHook(() => useTemplateDrop());
     expect(() =>
-      result.current.cloneTemplate("unknown", { x: 100, y: 100 })
+      result.current.cloneTemplate("unknown", { x: 100, y: 100 }),
     ).toThrowError("Template with ID unknown not found");
   });
   it("should clone nodes with new IDs & updated positions", () => {
@@ -53,18 +53,18 @@ describe("useTemplateDrop", () => {
     const { nodes } = result.current.cloneTemplate(
       "template1",
       { x: 100, y: 200 },
-      { x: 20, y: 20 }
+      { x: 20, y: 20 },
     );
     expect(nodes.length).toBe(2);
- 
+
     expect(nodes[0].id).toMatch(/TypeA-12345678/);
     expect(nodes[1].id).toMatch(/TypeB-12345678/);
- 
+
     expect(nodes[0].position).toEqual(
       expect.objectContaining({
         x: expect.any(Number),
         y: expect.any(Number),
-      })
+      }),
     );
   });
   it("should clone edges and remap source/target and handles", () => {
@@ -73,17 +73,17 @@ describe("useTemplateDrop", () => {
     const { edges } = result.current.cloneTemplate(
       "template1",
       { x: 0, y: 0 },
-      { x: 20, y: 20 }
+      { x: 20, y: 20 },
     );
     expect(edges.length).toBe(1);
     const edge = edges[0];
- 
+
     expect(edge.source).toMatch(/TypeA-12345678/);
     expect(edge.target).toMatch(/TypeB-12345678/);
- 
+
     expect(edge.sourceHandle.startsWith(edge.source)).toBe(true);
     expect(edge.targetHandle.startsWith(edge.target)).toBe(true);
- 
+
     expect(edge.id).toContain("xy-edge__");
   });
   it("should filter edge if source/target not found in nodeIdMap", () => {
@@ -120,7 +120,7 @@ describe("useTemplateDrop", () => {
       { x: 50, y: 50 },
       onNodesAdd,
       onEdgesAdd,
-      0
+      0,
     );
     expect(output.success).toBe(true);
     expect(onNodesAdd).toHaveBeenCalled();
@@ -133,10 +133,9 @@ describe("useTemplateDrop", () => {
       "badID",
       { x: 0, y: 0 },
       vi.fn(),
-      vi.fn()
+      vi.fn(),
     );
     expect(output.success).toBe(false);
     expect(output.error).toContain("Template with ID badID not found");
   });
 });
- 

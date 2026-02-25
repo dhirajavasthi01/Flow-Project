@@ -61,7 +61,7 @@ describe("FlowPanels", () => {
         showDrawer={false}
         setShowDrawer={setShowDrawer}
         {...props}
-      />
+      />,
     );
 
   it("does NOT render ModeControls when isFullView is true", () => {
@@ -70,4 +70,3 @@ describe("FlowPanels", () => {
     expect(screen.queryByTestId("mode-controls")).not.toBeInTheDocument();
   });
 });
- 

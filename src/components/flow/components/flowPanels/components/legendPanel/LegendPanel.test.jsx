@@ -41,9 +41,7 @@ describe("LegendPanel", () => {
   });
 
   it("renders Panel with default position", () => {
-    render(
-      <LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />
-    );
+    render(<LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />);
 
     const panel = screen.getByTestId("panel");
     expect(panel).toBeInTheDocument();
@@ -51,32 +49,26 @@ describe("LegendPanel", () => {
   });
 
   it("renders legend content when showDrawer is false", () => {
-    render(
-      <LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />
-    );
+    render(<LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />);
 
     expect(
       screen.getByText(
-        /HOVER OVER THE RED-COLORED OBJECT TO VIEW THE FAILURE MODE/i
-      )
+        /HOVER OVER THE RED-COLORED OBJECT TO VIEW THE FAILURE MODE/i,
+      ),
     ).toBeInTheDocument();
 
     expect(screen.getByText(/NEW FAILURE MODE/i)).toBeInTheDocument();
   });
 
   it("renders drawer icon when showDrawer is true", () => {
-    render(
-      <LegendPanel showDrawer={true} setShowDrawer={setShowDrawer} />
-    );
+    render(<LegendPanel showDrawer={true} setShowDrawer={setShowDrawer} />);
 
     const drawerImg = screen.getByRole("presentation");
     expect(drawerImg).toBeInTheDocument();
   });
 
   it("calls setShowDrawer with toggled value when drawer icon is clicked", () => {
-    render(
-      <LegendPanel showDrawer={true} setShowDrawer={setShowDrawer} />
-    );
+    render(<LegendPanel showDrawer={true} setShowDrawer={setShowDrawer} />);
 
     fireEvent.click(screen.getByRole("presentation"));
 
@@ -84,9 +76,7 @@ describe("LegendPanel", () => {
   });
 
   it("calls setShowDrawer when close icon is clicked", () => {
-    render(
-      <LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />
-    );
+    render(<LegendPanel showDrawer={false} setShowDrawer={setShowDrawer} />);
 
     const closeIcon = screen.getAllByRole("presentation")[0];
     fireEvent.click(closeIcon);
@@ -100,7 +90,7 @@ describe("LegendPanel", () => {
         legendPosition="top-center"
         showDrawer={true}
         setShowDrawer={setShowDrawer}
-      />
+      />,
     );
 
     const wrapper = screen.getByRole("presentation").parentElement;
@@ -113,7 +103,7 @@ describe("LegendPanel", () => {
         legendPosition="bottom-center"
         showDrawer={true}
         setShowDrawer={setShowDrawer}
-      />
+      />,
     );
 
     const wrapper = screen.getByRole("presentation").parentElement;
@@ -126,7 +116,7 @@ describe("LegendPanel", () => {
         legendPosition="left"
         showDrawer={true}
         setShowDrawer={setShowDrawer}
-      />
+      />,
     );
 
     const wrapper = screen.getByRole("presentation").parentElement;
@@ -139,11 +129,10 @@ describe("LegendPanel", () => {
         legendPosition="right"
         showDrawer={true}
         setShowDrawer={setShowDrawer}
-      />
+      />,
     );
 
     const wrapper = screen.getByRole("presentation").parentElement;
     expect(wrapper.className).toContain("rotate-0");
   });
 });
- 

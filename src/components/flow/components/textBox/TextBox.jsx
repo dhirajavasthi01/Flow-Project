@@ -1,5 +1,5 @@
-import { NodeResizer, useReactFlow } from '@xyflow/react'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { NodeResizer, useReactFlow } from "@xyflow/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   memo,
   useCallback,
@@ -8,20 +8,29 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react'
+} from "react";
 import {
   allTagsDataAtom,
   developerModeAtom,
   failureNodeClickedAtom,
-} from '../../../../features/individualDetailWrapper/features/overview/store/OverviewStore';
-import { getValsBaseOnCondition } from '../../../../utills/nodeNameUtils/nodeNameUtils';
-import { EXTRA_NODE_COLORS } from '../../../../utills/flowUtills/FlowUtills';
-import Handles from '../../handles/Handles';
- 
-import { NodeTooltip, NodeTooltipContent, useNodeTooltip } from '../../nodes/nodeTooltip/NodeTooltip';
-import { RotateHandle, TextContent } from './TextBox.function';
-import { calculateOptimalFontSize, formatTextContent, getRawText, calculateAngle } from './TextboxConfig';
- 
+} from "../../../../features/individualDetailWrapper/features/overview/store/OverviewStore";
+import { getValsBaseOnCondition } from "../../../../utills/nodeNameUtils/nodeNameUtils";
+import { EXTRA_NODE_COLORS } from "../../../../utills/flowUtills/FlowUtills";
+import Handles from "../../handles/Handles";
+
+import {
+  NodeTooltip,
+  NodeTooltipContent,
+  useNodeTooltip,
+} from "../../nodes/nodeTooltip/NodeTooltip";
+import { RotateHandle, TextContent } from "./TextBox.function";
+import {
+  calculateOptimalFontSize,
+  formatTextContent,
+  getRawText,
+  calculateAngle,
+} from "./TextboxConfig";
+
 // Inner component that uses the tooltip hook - must be inside NodeTooltip context
 const TextBoxContent = memo(
   ({
@@ -40,33 +49,33 @@ const TextBoxContent = memo(
     bgColor,
     isDeveloperMode,
   }) => {
-    const tooltip = useNodeTooltip()
- 
+    const tooltip = useNodeTooltip();
+
     const handleMouseEnter = useCallback(() => {
-      tooltip?.showTooltip()
-    }, [tooltip])
- 
+      tooltip?.showTooltip();
+    }, [tooltip]);
+
     const handleMouseLeave = useCallback(() => {
-      tooltip?.hideTooltip()
-    }, [tooltip])
- 
+      tooltip?.hideTooltip();
+    }, [tooltip]);
+
     return (
       <div
         ref={containerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
-          display: 'inline-flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative',
-          backgroundColor: bgColor || 'transparent',
-          width: '100%',
-          height: '100%',
-          padding: '4px',
-          boxSizing: 'border-box',
-          pointerEvents: 'auto',
-          cursor: isDeveloperMode ? 'default' : 'pointer',
+          display: "inline-flex",
+          justifyContent: "center",
+          alignItems: "center",
+          position: "relative",
+          backgroundColor: bgColor || "transparent",
+          width: "100%",
+          height: "100%",
+          padding: "4px",
+          boxSizing: "border-box",
+          pointerEvents: "auto",
+          cursor: isDeveloperMode ? "default" : "pointer",
         }}
       >
         <p
@@ -76,103 +85,103 @@ const TextBoxContent = memo(
             __html: textContent,
           }}
           style={{
-            color: label.toLowerCase().includes('header') ? 'red' : color,
-            textAlign: 'center',
+            color: label.toLowerCase().includes("header") ? "red" : color,
+            textAlign: "center",
             fontSize: `${fontSize}px`,
             margin: 0,
             padding: 0,
-            fontWeight: 'bold',
-            display: 'block',
-            lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
-            overflow: 'hidden',
-            wordBreak: 'break-all',
-            whiteSpace: 'nowrap',
+            fontWeight: "bold",
+            display: "block",
+            lineHeight: orientation === "vertical" ? "1.1" : "1.2",
+            overflow: "hidden",
+            wordBreak: "break-all",
+            whiteSpace: "nowrap",
           }}
-          className='text-uppercase'
+          className="text-uppercase"
         />
- 
+
         <Handles
           numSourceHandlesRight={numSourceHandlesRight}
           numTargetHandlesTop={numTargetHandlesTop}
           numSourceHandlesBottom={numSourceHandlesBottom}
           numTargetHandlesLeft={numTargetHandlesLeft}
           targetHandles={targetHandles}
-          key='textBoxNode'
+          key="textBoxNode"
         />
       </div>
-    )
+    );
   },
-)
- 
-TextBoxContent.displayName = 'TextBoxContent'
- 
+);
+
+TextBoxContent.displayName = "TextBoxContent";
+
 const useNodeRotation = (initialRotation, id, setNodes) => {
-  const [rotation, setRotation] = useState(initialRotation)
-  const rotationRef = useRef(initialRotation)
-  const isRotating = useRef(false)
-  const nodeRef = useRef(null)
+  const [rotation, setRotation] = useState(initialRotation);
+  const rotationRef = useRef(initialRotation);
+  const isRotating = useRef(false);
+  const nodeRef = useRef(null);
   useEffect(() => {
-    setRotation(initialRotation)
-    rotationRef.current = initialRotation
-  }, [initialRotation])
+    setRotation(initialRotation);
+    rotationRef.current = initialRotation;
+  }, [initialRotation]);
   const startRotation = useCallback(
     (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      isRotating.current = true
-      const nodeBounds = nodeRef.current.getBoundingClientRect()
-      const centerX = nodeBounds.left + nodeBounds.width / 2
-      const centerY = nodeBounds.top + nodeBounds.height / 2
+      event.preventDefault();
+      event.stopPropagation();
+      isRotating.current = true;
+      const nodeBounds = nodeRef.current.getBoundingClientRect();
+      const centerX = nodeBounds.left + nodeBounds.width / 2;
+      const centerY = nodeBounds.top + nodeBounds.height / 2;
       const onMouseMove = (moveEvent) => {
-        if (!isRotating.current) return
+        if (!isRotating.current) return;
         const newRotation = calculateAngle(
           centerX,
           centerY,
           moveEvent.clientX,
           moveEvent.clientY,
-        )
-        setRotation(newRotation)
-        rotationRef.current = newRotation
-      }
+        );
+        setRotation(newRotation);
+        rotationRef.current = newRotation;
+      };
       const updateNodeRotation = (nodes, nodeId, rotationValue) => {
         return nodes.map((node) => {
           if (node.id === nodeId) {
             return {
               ...node,
               data: { ...node.data, rotation: rotationValue },
-            }
+            };
           }
-          return node
-        })
-      }
+          return node;
+        });
+      };
       const onMouseUp = () => {
-        if (!isRotating.current) return
-        isRotating.current = false
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-        const finalRotation = rotationRef.current
-        setNodes((nds) => updateNodeRotation(nds, id, finalRotation))
-      }
-      document.addEventListener('mousemove', onMouseMove)
-      document.addEventListener('mouseup', onMouseUp)
+        if (!isRotating.current) return;
+        isRotating.current = false;
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        const finalRotation = rotationRef.current;
+        setNodes((nds) => updateNodeRotation(nds, id, finalRotation));
+      };
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
     },
     [id, setNodes],
-  )
-  return { rotation, rotationRef, nodeRef, startRotation }
-}
+  );
+  return { rotation, rotationRef, nodeRef, startRotation };
+};
 const useNodeDimensions = (initialWidth, initialHeight) => {
   const [currentDimensions, setCurrentDimensions] = useState({
     width: initialWidth,
     height: initialHeight,
-  })
+  });
   useEffect(() => {
     setCurrentDimensions({
       width: initialWidth,
       height: initialHeight,
-    })
-  }, [initialWidth, initialHeight])
-  return [currentDimensions, setCurrentDimensions]
-}
+    });
+  }, [initialWidth, initialHeight]);
+  return [currentDimensions, setCurrentDimensions];
+};
 const useDeveloperModeSync = (isDeveloperMode, id, setNodes) => {
   useEffect(() => {
     setNodes((nodes) =>
@@ -181,32 +190,32 @@ const useDeveloperModeSync = (isDeveloperMode, id, setNodes) => {
           ...node,
           draggable: isDeveloperMode,
           selectable: isDeveloperMode,
-        })
+        });
       }),
-    )
-  }, [isDeveloperMode, id, setNodes])
-}
+    );
+  }, [isDeveloperMode, id, setNodes]);
+};
 const useAutoFontSize = (textRef, dimensions, label, tagData) => {
-  const [fontSize, setFontSize] = useState(16)
+  const [fontSize, setFontSize] = useState(16);
   useLayoutEffect(() => {
-    if (!textRef.current) return
+    if (!textRef.current) return;
     const optimalSize = calculateOptimalFontSize(
       textRef.current,
       dimensions.width,
       dimensions.height,
-    )
-    setFontSize(optimalSize)
-  }, [dimensions.width, dimensions.height, label, tagData])
-  return fontSize
-}
- 
+    );
+    setFontSize(optimalSize);
+  }, [dimensions.width, dimensions.height, label, tagData]);
+  return fontSize;
+};
+
 export const TextboxNode = memo(({ data, id, selected }) => {
-  const isDeveloperMode = useAtomValue(developerModeAtom)
-  const allTagsDataList = useAtomValue(allTagsDataAtom)
-  const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom)
-  const { setNodes, getNode } = useReactFlow()
-  const textRef = useRef(null)
-  const containerRef = useRef(null)
+  const isDeveloperMode = useAtomValue(developerModeAtom);
+  const allTagsDataList = useAtomValue(allTagsDataAtom);
+  const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
+  const { setNodes, getNode } = useReactFlow();
+  const textRef = useRef(null);
+  const containerRef = useRef(null);
   const {
     width: initialWidth = 200,
     height: initialHeight = 100,
@@ -223,24 +232,24 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     tooltipContent,
     failureModeNames,
     ttfDays = null,
-  } = data
+  } = data;
   const { rotation, rotationRef, nodeRef, startRotation } = useNodeRotation(
     initialRotation,
     id,
     setNodes,
-  )
+  );
   const [currentDimensions, setCurrentDimensions] = useNodeDimensions(
     initialWidth,
     initialHeight,
-  )
-  useDeveloperModeSync(isDeveloperMode, id, setNodes)
-  const tagData = allTagsDataList.find((x) => x.tagId && x.tagId == linkedTag)
-  const fontSize = useAutoFontSize(textRef, currentDimensions, label, tagData)
+  );
+  useDeveloperModeSync(isDeveloperMode, id, setNodes);
+  const tagData = allTagsDataList.find((x) => x.tagId && x.tagId == linkedTag);
+  const fontSize = useAutoFontSize(textRef, currentDimensions, label, tagData);
   const onResizeEnd = (_, params) => {
     setCurrentDimensions({
       width: params.width,
       height: params.height,
-    })
+    });
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === id) {
@@ -252,33 +261,33 @@ export const TextboxNode = memo(({ data, id, selected }) => {
               height: params.height,
               rotation: rotationRef.current,
             },
-          }
+          };
         }
-        return node
+        return node;
       }),
-    )
-  }
-  const { bgColor } = EXTRA_NODE_COLORS[template] || {}
-  const { orientation = 'horizontal' } = data
-  const rawText = getRawText(tagData, label)
-  const textContent = formatTextContent(rawText, orientation)
- 
-  const failureModeList = failureModeNames?.length ? failureModeNames : null
- 
+    );
+  };
+  const { bgColor } = EXTRA_NODE_COLORS[template] || {};
+  const { orientation = "horizontal" } = data;
+  const rawText = getRawText(tagData, label);
+  const textContent = formatTextContent(rawText, orientation);
+
+  const failureModeList = failureModeNames?.length ? failureModeNames : null;
+
   // Get the node to check if it has a parent
   // Use parent's ID for tooltip if node has a parent, otherwise use node's own ID
   // This ensures tooltip appears at the same position as parent node when text node is a child
   const tooltipNodeId = useMemo(() => {
-    const node = getNode(id)
-    const parentId = node?.parentId
+    const node = getNode(id);
+    const parentId = node?.parentId;
     if (parentId) {
       // Verify parent node exists before using its ID
-      const parentNode = getNode(parentId)
-      return parentNode ? parentId : id
+      const parentNode = getNode(parentId);
+      return parentNode ? parentId : id;
     }
-    return id
-  }, [id, getNode])
- 
+    return id;
+  }, [id, getNode]);
+
   // Content that will be wrapped with NodeTooltip when not in developer mode
   const content = (
     <div
@@ -286,9 +295,9 @@ export const TextboxNode = memo(({ data, id, selected }) => {
       style={{
         transform: `rotate(${rotation}deg)`,
         width: currentDimensions.width,
-        height: 'fit-content',
-        position: 'relative',
-        cursor: 'grab',
+        height: "fit-content",
+        position: "relative",
+        cursor: "grab",
       }}
     >
       {selected && isDeveloperMode && (
@@ -304,21 +313,21 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         <div
           ref={containerRef}
           style={{
-            display: 'inline-flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            position: 'relative',
-            backgroundColor: bgColor || 'transparent',
-            width: '100%',
-            height: '100%',
-            padding: '4px 0px',
-            boxSizing: 'border-box',
-            pointerEvents: 'auto',
-            lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
+            display: "inline-flex",
+            justifyContent: "center",
+            alignItems: "center",
+            position: "relative",
+            backgroundColor: bgColor || "transparent",
+            width: "100%",
+            height: "100%",
+            padding: "4px 0px",
+            boxSizing: "border-box",
+            pointerEvents: "auto",
+            lineHeight: orientation === "vertical" ? "1.1" : "1.2",
             cursor:
-              isDeveloperMode || setFailureNodeClicked ? 'default' : 'pointer',
-            wordBreak: 'break-all',
-            whiteSpace: 'nowrap',
+              isDeveloperMode || setFailureNodeClicked ? "default" : "pointer",
+            wordBreak: "break-all",
+            whiteSpace: "nowrap",
           }}
         >
           <TextContent
@@ -334,7 +343,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
             numSourceHandlesBottom={numSourceHandlesBottom}
             numTargetHandlesLeft={numTargetHandlesLeft}
             targetHandles={targetHandles}
-            key='textBoxNode'
+            key="textBoxNode"
           />
         </div>
       ) : (
@@ -356,46 +365,46 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         />
       )}
     </div>
-  )
+  );
   if (!isDeveloperMode) {
     return (
       <NodeTooltip nodeId={tooltipNodeId}>
         <NodeTooltipContent id={tooltipNodeId} nodeId={tooltipNodeId}>
           {failureModeList?.length ? (
-            <div className='p-[.7vmin] flex flex-col uppercase'>
-              <div className='border-b-[.1vmin] border-b-primary_gray_2 text-center'>
-                <span className='text-12 font-sabic_text_bold'>
-                  {tooltipContent || '-'}
+            <div className="p-[.7vmin] flex flex-col uppercase">
+              <div className="border-b-[.1vmin] border-b-primary_gray_2 text-center">
+                <span className="text-12 font-sabic_text_bold">
+                  {tooltipContent || "-"}
                 </span>
               </div>
- 
-              <div className='flex flex-col uppercase'>
-                <div className='flex text-13 pt-1 gap-1 items-start'>
-                  <div className='text-12 font-sabic_text_bold'>
+
+              <div className="flex flex-col uppercase">
+                <div className="flex text-13 pt-1 gap-1 items-start">
+                  <div className="text-12 font-sabic_text_bold">
                     Estimated TTF :
                   </div>
                   {ttfDays != undefined && ttfDays != null ? (
                     <div>
-                      {ttfDays} {ttfDays > 1 ? 'Days' : 'Day'}
+                      {ttfDays} {ttfDays > 1 ? "Days" : "Day"}
                     </div>
                   ) : (
                     <div>-</div>
                   )}
                 </div>
- 
-                <div className='flex flex-col text-13 pt-[1vmin] gap-[0.5vmin] items-start'>
-                  <div className='text-12 font-sabic_text_bold gap-1'>
+
+                <div className="flex flex-col text-13 pt-[1vmin] gap-[0.5vmin] items-start">
+                  <div className="text-12 font-sabic_text_bold gap-1">
                     Failure Mode
-                    {failureModeList.length > 1 ? 's' : ''} : &nbsp;
+                    {failureModeList.length > 1 ? "s" : ""} : &nbsp;
                   </div>
- 
-                  <ul className='flex flex-col gap-[0.5vmin] px-[0vmin] list-disc ml-[2vmin] mt-[-1vmin]'>
+
+                  <ul className="flex flex-col gap-[0.5vmin] px-[0vmin] list-disc ml-[2vmin] mt-[-1vmin]">
                     {failureModeList.map((item) => (
                       <li
                         key={`${item}-flow`}
-                        className='[&::marker]:text-[2.5vmin] [&::marker]:font-bold'
+                        className="[&::marker]:text-[2.5vmin] [&::marker]:font-bold"
                       >
-                        <span className='max-w-[250px] text-13 whitespace-normal break-words inline-block align-top'>
+                        <span className="max-w-[250px] text-13 whitespace-normal break-words inline-block align-top">
                           {item}
                         </span>
                       </li>
@@ -405,16 +414,15 @@ export const TextboxNode = memo(({ data, id, selected }) => {
               </div>
             </div>
           ) : tooltipContent || label ? (
-            <div className='p-[0_1vmin] text-center'>
-              <span className='text-14'>{tooltipContent || label}</span>
+            <div className="p-[0_1vmin] text-center">
+              <span className="text-14">{tooltipContent || label}</span>
             </div>
           ) : null}
         </NodeTooltipContent>
         {content}
       </NodeTooltip>
-    )
+    );
   }
- 
-  return content
-})
- 
+
+  return content;
+});

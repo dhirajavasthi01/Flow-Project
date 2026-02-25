@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import { useStore } from '@xyflow/react';
-import { CompareValuesWithSymbol } from '../../../../utills/nodeNameUtils/nodeNameUtils';
+import { useCallback } from "react";
+import { useStore } from "@xyflow/react";
+import { CompareValuesWithSymbol } from "../../../../utills/nodeNameUtils/nodeNameUtils";
 
 const SNAP_THRESHOLD = 5; // pixels in flow coordinates
 const DOT_NODE_SIZE = 12; // Dot nodes are 12px x 12px
@@ -9,9 +9,9 @@ const DOT_NODE_SIZE = 12; // Dot nodes are 12px x 12px
  * Check if a node is a dot node
  */
 function isDotNode(node) {
-  const type = String(node?.type || '').toLowerCase();
-  const nodeType = String(node?.nodeType || '').toLowerCase();
-  return type.includes('dotnode') || nodeType.includes('dot-node');
+  const type = String(node?.type || "").toLowerCase();
+  const nodeType = String(node?.nodeType || "").toLowerCase();
+  return type.includes("dotnode") || nodeType.includes("dot-node");
 }
 
 /**
@@ -20,8 +20,20 @@ function isDotNode(node) {
 function getNodeDimensions({ node, isDot }) {
   if (isDot) return { width: DOT_NODE_SIZE, height: DOT_NODE_SIZE };
   return {
-    width: CompareValuesWithSymbol("||", node?.measured?.width, node?.width, node?.data?.width, 0),
-    height: CompareValuesWithSymbol("||", node?.measured?.height, node?.height, node?.data?.height, 0),
+    width: CompareValuesWithSymbol(
+      "||",
+      node?.measured?.width,
+      node?.width,
+      node?.data?.width,
+      0,
+    ),
+    height: CompareValuesWithSymbol(
+      "||",
+      node?.measured?.height,
+      node?.height,
+      node?.data?.height,
+      0,
+    ),
   };
 }
 
@@ -83,7 +95,12 @@ function snapCenterToCenter({
     newMinYDiff = centerYDiff;
   }
 
-  return { snappedX: newSnappedX, snappedY: newSnappedY, minXDiff: newMinXDiff, minYDiff: newMinYDiff };
+  return {
+    snappedX: newSnappedX,
+    snappedY: newSnappedY,
+    minXDiff: newMinXDiff,
+    minYDiff: newMinYDiff,
+  };
 }
 
 /**
@@ -100,15 +117,39 @@ function snapRegularNode({
   minYDiff,
 }) {
   const horizontalAlignments = [
-    { dragging: draggingPoints.top, other: otherPoints.top, snapY: otherPoints.top },
-    { dragging: draggingPoints.centerY, other: otherPoints.centerY, snapY: otherPoints.centerY - nodeHeight / 2 },
-    { dragging: draggingPoints.bottom, other: otherPoints.bottom, snapY: otherPoints.bottom - nodeHeight },
+    {
+      dragging: draggingPoints.top,
+      other: otherPoints.top,
+      snapY: otherPoints.top,
+    },
+    {
+      dragging: draggingPoints.centerY,
+      other: otherPoints.centerY,
+      snapY: otherPoints.centerY - nodeHeight / 2,
+    },
+    {
+      dragging: draggingPoints.bottom,
+      other: otherPoints.bottom,
+      snapY: otherPoints.bottom - nodeHeight,
+    },
   ];
 
   const verticalAlignments = [
-    { dragging: draggingPoints.left, other: otherPoints.left, snapX: otherPoints.left },
-    { dragging: draggingPoints.centerX, other: otherPoints.centerX, snapX: otherPoints.centerX - nodeWidth / 2 },
-    { dragging: draggingPoints.right, other: otherPoints.right, snapX: otherPoints.right - nodeWidth },
+    {
+      dragging: draggingPoints.left,
+      other: otherPoints.left,
+      snapX: otherPoints.left,
+    },
+    {
+      dragging: draggingPoints.centerX,
+      other: otherPoints.centerX,
+      snapX: otherPoints.centerX - nodeWidth / 2,
+    },
+    {
+      dragging: draggingPoints.right,
+      other: otherPoints.right,
+      snapX: otherPoints.right - nodeWidth,
+    },
   ];
 
   let newSnappedX = snappedX;
@@ -134,7 +175,12 @@ function snapRegularNode({
     }
   }
 
-  return { snappedX: newSnappedX, snappedY: newSnappedY, minXDiff: newMinXDiff, minYDiff: newMinYDiff };
+  return {
+    snappedX: newSnappedX,
+    snappedY: newSnappedY,
+    minXDiff: newMinXDiff,
+    minYDiff: newMinYDiff,
+  };
 }
 
 /**
@@ -157,8 +203,15 @@ function processNodeForSnapping({
   }
 
   const isOtherDotNode = isDotNode(node);
-  const { width: otherWidth, height: otherHeight } = getNodeDimensions({ node, isDot: isOtherDotNode });
-  const otherPoints = getAlignmentPoints({ position: nodePosition, width: otherWidth, height: otherHeight });
+  const { width: otherWidth, height: otherHeight } = getNodeDimensions({
+    node,
+    isDot: isOtherDotNode,
+  });
+  const otherPoints = getAlignmentPoints({
+    position: nodePosition,
+    width: otherWidth,
+    height: otherHeight,
+  });
 
   // Handle dot node snapping (center-to-center only)
   if (isDraggingDotNode || isOtherDotNode) {
@@ -200,8 +253,15 @@ export function useHelperLines() {
       if (!draggingNode) return position;
 
       const isDraggingDotNode = isDotNode(draggingNode);
-      const { width: nodeWidth, height: nodeHeight } = getNodeDimensions({ node: draggingNode, isDot: isDraggingDotNode });
-      const draggingPoints = getAlignmentPoints({ position, width: nodeWidth, height: nodeHeight });
+      const { width: nodeWidth, height: nodeHeight } = getNodeDimensions({
+        node: draggingNode,
+        isDot: isDraggingDotNode,
+      });
+      const draggingPoints = getAlignmentPoints({
+        position,
+        width: nodeWidth,
+        height: nodeHeight,
+      });
 
       let snappedX = position.x;
       let snappedY = position.y;
@@ -234,9 +294,8 @@ export function useHelperLines() {
 
       return { x: snappedX, y: snappedY };
     },
-    [nodeLookup]
+    [nodeLookup],
   );
 
   return { snapNodePosition };
 }
- 

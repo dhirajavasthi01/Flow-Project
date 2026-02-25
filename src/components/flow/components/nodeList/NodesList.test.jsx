@@ -28,7 +28,7 @@ vi.mock(
     selectedNodeIdAtom: { key: "selectedNodeIdAtom" },
     selectedEdgeIdAtom: { key: "selectedEdgeIdAtom" },
     dragNodeTypeAtom: { key: "dragNodeTypeAtom" },
-  })
+  }),
 );
 // Assets
 vi.mock("../../../../assets/images/common/MinusBlue.svg", () => ({
@@ -121,5 +121,3 @@ describe("NodesList component", () => {
     render(<NodesList />);
   });
 });
- 
- 

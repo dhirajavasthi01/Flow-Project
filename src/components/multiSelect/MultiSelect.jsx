@@ -18,8 +18,8 @@ export default function MultiSelectV2({
     initialValues?.length
       ? false
       : currentActiveTags.findIndex(
-          (obj) => obj?.display_name?.toLowerCase() === "all"
-        ) >= 0
+          (obj) => obj?.display_name?.toLowerCase() === "all",
+        ) >= 0,
   );
 
   /** Reset when data changes */
@@ -37,8 +37,8 @@ export default function MultiSelectV2({
       setCurrentActiveTags(resetActiveTags);
       setIsAllSelected(
         resetActiveTags.findIndex(
-          (obj) => obj?.display_name?.toLowerCase() === "all"
-        ) >= 0
+          (obj) => obj?.display_name?.toLowerCase() === "all",
+        ) >= 0,
       );
     }
   }, [data]);
@@ -49,7 +49,7 @@ export default function MultiSelectV2({
       setCurrentActiveTags(initialValues);
 
       const hasAllValue = initialValues.some(
-        (obj) => obj?.display_name?.toLowerCase() === "all"
+        (obj) => obj?.display_name?.toLowerCase() === "all",
       );
 
       if (!hasAllValue) setIsAllSelected(false);
@@ -75,15 +75,14 @@ export default function MultiSelectV2({
     let temp_tags = JSON.parse(JSON.stringify(currentActiveTags));
 
     const allIndex = temp_tags.findIndex(
-      (obj) => obj?.display_name?.toLowerCase() === "all"
+      (obj) => obj?.display_name?.toLowerCase() === "all",
     );
 
     if (allIndex >= 0) temp_tags.splice(allIndex, 1);
 
     const existsIndex = currentActiveTags.findIndex(
       (obj) =>
-        obj?.display_name?.toLowerCase() ===
-        ev.display_name?.toLowerCase()
+        obj?.display_name?.toLowerCase() === ev.display_name?.toLowerCase(),
     );
 
     if (existsIndex >= 0) {
@@ -107,8 +106,8 @@ export default function MultiSelectV2({
       } else {
         setIsAllSelected(
           temp_tags.findIndex(
-            (obj) => obj?.display_name?.toLowerCase() === "all"
-          ) >= 0
+            (obj) => obj?.display_name?.toLowerCase() === "all",
+          ) >= 0,
         );
       }
     }
@@ -131,7 +130,7 @@ export default function MultiSelectV2({
       currentActiveTags.length > 1 &&
       currentActiveTags.length < data?.length &&
       !currentActiveTags.some(
-        (obj) => obj?.display_name?.toLowerCase() === "all"
+        (obj) => obj?.display_name?.toLowerCase() === "all",
       )
     )
       return "Multiple Selected";
@@ -139,7 +138,7 @@ export default function MultiSelectV2({
     if (
       data?.length > 1 &&
       currentActiveTags.some(
-        (obj) => obj?.display_name?.toLowerCase() === "all"
+        (obj) => obj?.display_name?.toLowerCase() === "all",
       )
     )
       return "All";
@@ -154,7 +153,7 @@ export default function MultiSelectV2({
     if (
       data?.length === currentActiveTags.length ||
       currentActiveTags.some((obj) =>
-        obj?.tag_name?.toLowerCase().includes("all")
+        obj?.tag_name?.toLowerCase().includes("all"),
       )
     )
       return "All";
@@ -187,9 +186,7 @@ export default function MultiSelectV2({
             className="text-14 text-sabic_text_regular text-primary_gray uppercase dropPara"
             id="multi-select-click"
           >
-            {data?.length > 0
-              ? getActiveText(currentActiveTags, data)
-              : "-"}
+            {data?.length > 0 ? getActiveText(currentActiveTags, data) : "-"}
           </p>
 
           {data?.length > 0 && (
@@ -227,7 +224,7 @@ export default function MultiSelectV2({
                           : currentActiveTags.findIndex(
                               (obj) =>
                                 obj?.display_name?.toLowerCase() ===
-                                val.display_name?.toLowerCase()
+                                val.display_name?.toLowerCase(),
                             ) >= 0
                       }
                     />

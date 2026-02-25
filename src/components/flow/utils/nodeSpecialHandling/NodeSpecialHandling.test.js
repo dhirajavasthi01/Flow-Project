@@ -24,7 +24,7 @@ const svgAnalysisCache = new Map();
 const getGradientColors = (gradient, getStopColor) => {
   const colors = new Set();
   const stops = gradient.querySelectorAll("stop");
-  stops.forEach(stop => {
+  stops.forEach((stop) => {
     const color = getStopColor(stop);
     if (color) colors.add(color.trim().toUpperCase());
   });
@@ -33,9 +33,18 @@ const getGradientColors = (gradient, getStopColor) => {
 // 2. Logic to determine if an element should be ignored
 const shouldIgnoreElement = (el) => {
   const isSvgRoot = el.tagName === "svg";
-  const isMaskRelated = CompareValuesWithSymbol('||', el.tagName === "mask", el.closest("mask")) || el.hasAttribute("mask");
-  const isNonVisual = ["defs", "style", "script", "title", "desc", "metadata"].includes(el.tagName);
-  return CompareValuesWithSymbol('||', isSvgRoot, isMaskRelated, isNonVisual);
+  const isMaskRelated =
+    CompareValuesWithSymbol("||", el.tagName === "mask", el.closest("mask")) ||
+    el.hasAttribute("mask");
+  const isNonVisual = [
+    "defs",
+    "style",
+    "script",
+    "title",
+    "desc",
+    "metadata",
+  ].includes(el.tagName);
+  return CompareValuesWithSymbol("||", isSvgRoot, isMaskRelated, isNonVisual);
 };
 // 3. Logic to validate and normalize a fill color
 const getValidFillColor = (el) => {
@@ -60,13 +69,16 @@ function analyzeSvgTextForSpecialHandling(svgText) {
       }
       return null;
     };
-    const gradients = svgElement.querySelectorAll("linearGradient, radialGradient");
+    const gradients = svgElement.querySelectorAll(
+      "linearGradient, radialGradient",
+    );
     const gradientColors = new Set();
-    gradients.forEach(g => {
-      getGradientColors(g, getStopColor).forEach(c => gradientColors.add(c));
+    gradients.forEach((g) => {
+      getGradientColors(g, getStopColor).forEach((c) => gradientColors.add(c));
     });
     const allElements = Array.from(svgElement.querySelectorAll("*"));
-    if (gradients.length === 0) { // Case 1: No gradients - Check for 2+ distinct fill colors
+    if (gradients.length === 0) {
+      // Case 1: No gradients - Check for 2+ distinct fill colors
       const allFillColors = new Set();
       for (const el of allElements) {
         if (shouldIgnoreElement(el)) continue;
@@ -79,7 +91,8 @@ function analyzeSvgTextForSpecialHandling(svgText) {
     for (const el of allElements) {
       if (shouldIgnoreElement(el)) continue;
       const color = getValidFillColor(el);
-      if (CompareValuesWithSymbol('&&', color, !gradientColors.has(color))) return true;
+      if (CompareValuesWithSymbol("&&", color, !gradientColors.has(color)))
+        return true;
     }
     return false;
   } catch (error) {
@@ -104,10 +117,7 @@ async function analyzeSvgForSpecialHandling(svgPath) {
     svgAnalysisCache.set(svgPath, isSpecial);
     return isSpecial;
   } catch (error) {
-    console.error(
-      "Error analyzing SVG for special handling:",
-      error
-    );
+    console.error("Error analyzing SVG for special handling:", error);
     svgAnalysisCache.set(svgPath, false);
     return false;
   }
@@ -127,18 +137,14 @@ export async function isSpecialNode(nodeType, svgPath = null) {
     return analyzeSvgForSpecialHandling(svgPath);
   }
   try {
-    const { svgMap } = await import("../../components/svgMap/SvgMap")
+    const { svgMap } = await import("../../components/svgMap/SvgMap");
     const resolvedSvgPath = svgMap[nodeType];
     if (!resolvedSvgPath) {
       return false;
     }
     return analyzeSvgForSpecialHandling(resolvedSvgPath);
   } catch (error) {
-    console.error(
-      "Error resolving SVG path for node type:",
-      nodeType,
-      error
-    );
+    console.error("Error resolving SVG path for node type:", nodeType, error);
     return false;
   }
 }
@@ -176,7 +182,7 @@ export function isSpecialNodeSync(nodeType, svgPath = null) {
 export function clearSvgAnalysisCache() {
   svgAnalysisCache.clear();
 }
- import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import {
   isSpecialNode,
@@ -371,5 +377,3 @@ describe("NodeSpecialHandling", () => {
     });
   });
 });
-
- 

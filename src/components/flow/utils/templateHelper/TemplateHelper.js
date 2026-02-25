@@ -1,4 +1,4 @@
-import { sortNodesByParentChild } from '../parentChildUtils/ParentChildUtils';
+import { sortNodesByParentChild } from "../parentChildUtils/ParentChildUtils";
 
 /**
  * Handles drag over event for templates
@@ -6,9 +6,9 @@ import { sortNodesByParentChild } from '../parentChildUtils/ParentChildUtils';
  */
 export const handleDragOver = (event) => {
   event.preventDefault();
-  const hasTemplateType = Array.from(
-    event.dataTransfer?.types || []
-  ).includes("application/template");
+  const hasTemplateType = Array.from(event.dataTransfer?.types || []).includes(
+    "application/template",
+  );
   const plain =
     event.dataTransfer?.getData && event.dataTransfer.getData("text/plain");
   const isTemplateFallback = plain?.startsWith("TEMPLATE:");
@@ -66,7 +66,7 @@ export const handleTemplateDropHelper = ({
     const { templateId } = JSON.parse(templateData);
     const currentDropCount = templateDropCounts[templateId] || 0;
     const newDropCount = currentDropCount + 1;
-    
+
     // Update drop count
     setTemplateDropCounts((prev) => ({
       ...prev,
@@ -79,7 +79,7 @@ export const handleTemplateDropHelper = ({
       if (takeSnapshot) {
         takeSnapshot();
       }
-      
+
       handleTemplateDrop(
         templateId,
         position,
@@ -95,7 +95,7 @@ export const handleTemplateDropHelper = ({
           // Add edges to the flow
           setEdges((prevEdges) => [...prevEdges, ...edges]);
         },
-        currentDropCount
+        currentDropCount,
       );
     }
   } catch (error) {
@@ -134,10 +134,9 @@ export const handleSaveTemplate = ({
     saveTemplate(name.trim(), selNodes, selEdges);
     setShowSaveTemplate(false);
     alert(
-      `Template "${name}" saved successfully with ${selNodes.length} node${selNodes.length !== 1 ? "s" : ""} and ${selEdges.length} edge${selEdges.length !== 1 ? "s" : ""}!`
+      `Template "${name}" saved successfully with ${selNodes.length} node${selNodes.length !== 1 ? "s" : ""} and ${selEdges.length} edge${selEdges.length !== 1 ? "s" : ""}!`,
     );
   } catch (error) {
     alert(`Error saving template: ${error.message}`);
   }
 };
- 

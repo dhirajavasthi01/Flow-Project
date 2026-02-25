@@ -1,5 +1,12 @@
-import { useReactTable, flexRender, getCoreRowModel } from "@tanstack/react-table";
-import { computeRowSpanForColumn, getColumns } from "./FailureModeTable.function";
+import {
+  useReactTable,
+  flexRender,
+  getCoreRowModel,
+} from "@tanstack/react-table";
+import {
+  computeRowSpanForColumn,
+  getColumns,
+} from "./FailureModeTable.function";
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAtomValue } from "jotai";
@@ -11,7 +18,8 @@ const FailureModeTable = ({ data }) => {
 
   const [subSystemModalOpen, setSubSystemModalOpen] = useState(false);
   const [isAnomalyIndexModal, setIsAnomalyIndexModal] = useState(false);
-  const [isTimeEstimationTrendModal, setIsTimeEstimationTrendModal] = useState(false);
+  const [isTimeEstimationTrendModal, setIsTimeEstimationTrendModal] =
+    useState(false);
   const [isParameterTrendModal, setIsParameterTrendModal] = useState(false);
 
   const tableContainerRef = useRef(null);
@@ -27,15 +35,21 @@ const FailureModeTable = ({ data }) => {
       onSubSystemModalClick,
       onAnomalyIndexModalClick,
       onTimeEstimationModalClick,
-      onParameterTrendModalClick
+      onParameterTrendModalClick,
     ),
     data,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
   });
 
   const baseRows = table.getRowModel().rows;
 
-  const renderGroupedCell = (cell, spanMap, meta, extraClass, isHighlighted) => {
+  const renderGroupedCell = (
+    cell,
+    spanMap,
+    meta,
+    extraClass,
+    isHighlighted,
+  ) => {
     const info = spanMap.get(cell.row.id);
     if (!info?.isFirst) return null;
 
@@ -68,7 +82,13 @@ const FailureModeTable = ({ data }) => {
     const colId = cell.column.id;
 
     if (colId === "subSystem" || colId === "anomalyIndex") {
-      return renderGroupedCell(cell, maps.rowSpanSubsystem, meta, null, isHighlighted);
+      return renderGroupedCell(
+        cell,
+        maps.rowSpanSubsystem,
+        meta,
+        null,
+        isHighlighted,
+      );
     }
 
     return renderDefaultCell(cell, meta, isHighlighted);
@@ -88,7 +108,7 @@ const FailureModeTable = ({ data }) => {
 
     return {
       visibleRows: visible,
-      rowSpanSubsystem: subsystemSpan
+      rowSpanSubsystem: subsystemSpan,
     };
   }, [baseRows]);
 
@@ -98,19 +118,22 @@ const FailureModeTable = ({ data }) => {
         highlightedRowRef.current.scrollIntoView({
           behavior: "smooth",
           block: "start",
-          inline: "nearest"
+          inline: "nearest",
         });
       }, 100);
     }
   }, [failureNodeClicked, visibleRows]);
 
   return (
-    <div ref={tableContainerRef} className="max-w-full h-full overflow-x-auto overflow-y-auto grow">
+    <div
+      ref={tableContainerRef}
+      className="max-w-full h-full overflow-x-auto overflow-y-auto grow"
+    >
       <table className="table-fixed shadow-[0px_0px_3px_0px_#00000029] w-full">
         <thead className="bg-primary_blue_bg sticky top-0 uppercase">
-          {table.getHeaderGroups().map(hg => (
+          {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="sticky top-0 z-30">
-              {hg.headers.map(header => {
+              {hg.headers.map((header) => {
                 const meta = header.column.columnDef.meta;
 
                 return (
@@ -123,10 +146,13 @@ const FailureModeTable = ({ data }) => {
                     style={{
                       whiteSpace: "normal",
                       wordBreak: "break-word",
-                      overflowWrap: "break-word"
+                      overflowWrap: "break-word",
                     }}
                   >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </th>
                 );
               })}
@@ -136,7 +162,7 @@ const FailureModeTable = ({ data }) => {
 
         <tbody>
           {visibleRows.length ? (
-            visibleRows.map(row => {
+            visibleRows.map((row) => {
               const rowEntityId = row.original?.subComponentAssetId;
               const hasFailureMode = row.original?.hasFailureMode !== false; // Default to true if not set
 
@@ -154,19 +180,26 @@ const FailureModeTable = ({ data }) => {
                   key={row.id}
                   ref={isHighlighted ? highlightedRowRef : null}
                   className={`text-12 border-primary_gray_4 py-1 border-b ${
-                    isDisabled ? "bg-gray-100 opacity-50 cursor-not-allowed" : "bg-primary_white"
+                    isDisabled
+                      ? "bg-gray-100 opacity-50 cursor-not-allowed"
+                      : "bg-primary_white"
                   }`}
-                  style={isDisabled ? { pointerEvents: 'none' } : {}}
+                  style={isDisabled ? { pointerEvents: "none" } : {}}
                 >
-                  {row.getVisibleCells().map(cell =>
-                    renderCell(cell, { rowSpanSubsystem }, isHighlighted)
-                  )}
+                  {row
+                    .getVisibleCells()
+                    .map((cell) =>
+                      renderCell(cell, { rowSpanSubsystem }, isHighlighted),
+                    )}
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={table.getAllLeafColumns().length} className="p-4 text-center">
+              <td
+                colSpan={table.getAllLeafColumns().length}
+                className="p-4 text-center"
+              >
                 No Data
               </td>
             </tr>

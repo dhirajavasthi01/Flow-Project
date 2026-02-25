@@ -1,12 +1,11 @@
-import { useAtomValue } from 'jotai';
+import { useAtomValue } from "jotai";
 import {
   allTagsDataAtom,
   selectedNodeIdAtom,
   highlightedNodeTypeAtom,
   developerModeAtom,
-} from '../../../../features/individualDetailWrapper/features/overview/store/OverviewStore';
-import { useReactFlow } from '@xyflow/react';
-
+} from "../../../../features/individualDetailWrapper/features/overview/store/OverviewStore";
+import { useReactFlow } from "@xyflow/react";
 
 //Custom hook that provides common node functionality used across all SVG nodes
 export const useNodeCommon = (id, data) => {
@@ -23,9 +22,7 @@ export const useNodeCommon = (id, data) => {
     highlightedNodeType !== null &&
     highlightedNodeType === subSystem;
 
-  const tagData = allTagsDataList.find(
-    (x) => x.tagId && x.tagId === linkedTag
-  );
+  const tagData = allTagsDataList.find((x) => x.tagId && x.tagId === linkedTag);
 
   const isNodeActive = tagData ? tagData?.actual == 1 : isActive;
 
@@ -41,5 +38,3 @@ export const useNodeCommon = (id, data) => {
     isSelected,
   };
 };
-
- 

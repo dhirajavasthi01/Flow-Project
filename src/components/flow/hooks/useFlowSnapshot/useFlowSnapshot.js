@@ -41,7 +41,7 @@ export const useFlowSnapshot = ({
       setEdges,
       setSelectedNodeId,
       setSelectedEdgeId,
-      setConfig
+      setConfig,
     );
   }, [setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, setConfig]);
 
@@ -52,10 +52,10 @@ export const useFlowSnapshot = ({
         changes,
         dragEndNodeId,
         checkIsDotNode,
-        snapNodePosition
+        snapNodePosition,
       );
     },
-    [checkIsDotNode, snapNodePosition]
+    [checkIsDotNode, snapNodePosition],
   );
 
   // Keyboard handler effect
@@ -94,4 +94,3 @@ export const useFlowSnapshot = ({
     applySnappingToChanges,
   };
 };
- 

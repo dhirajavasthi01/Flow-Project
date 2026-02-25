@@ -30,7 +30,7 @@ vi.mock("../../hooks/useNodeResize/useNodeResize", () => ({
   useNodeResize: vi.fn(),
 }));
 import { useNodeResize } from "../../hooks/useNodeResize/useNodeResize";
-import BaseSvgNode from './BaseSvgNode';
+import BaseSvgNode from "./BaseSvgNode";
 describe("BaseSvgNode Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,11 +57,11 @@ describe("BaseSvgNode Component", () => {
     const resizer = screen.getByTestId("node-resizer");
     expect(resizer.dataset.visible).toBe("true");
     rerender(
-      <BaseSvgNode {...defaultProps} selected={false} isDeveloperMode={true} />
+      <BaseSvgNode {...defaultProps} selected={false} isDeveloperMode={true} />,
     );
     expect(screen.getByTestId("node-resizer").dataset.visible).toBe("false");
     rerender(
-      <BaseSvgNode {...defaultProps} selected={true} isDeveloperMode={false} />
+      <BaseSvgNode {...defaultProps} selected={true} isDeveloperMode={false} />,
     );
     expect(screen.getByTestId("node-resizer").dataset.visible).toBe("false");
   });
@@ -78,12 +78,7 @@ describe("BaseSvgNode Component", () => {
   });
   it("passes null svgPath if svgMap value is not a string", () => {
     vi.mocked(useNodeResize).mockReturnValue(() => {});
-    render(
-      <BaseSvgNode
-        {...defaultProps}
-        nodeType="no-path-node"
-      />
-    );
+    render(<BaseSvgNode {...defaultProps} nodeType="no-path-node" />);
   });
   it("passes expected props to SvgNode", () => {
     vi.mocked(useNodeResize).mockReturnValue(() => {});
@@ -91,15 +86,9 @@ describe("BaseSvgNode Component", () => {
   });
   it("uses default minWidth & minHeight when resizeOptions is not provided", () => {
     vi.mocked(useNodeResize).mockReturnValue(() => {});
-    render(
-      <BaseSvgNode
-        {...defaultProps}
-        resizeOptions={undefined}
-      />
-    );
+    render(<BaseSvgNode {...defaultProps} resizeOptions={undefined} />);
     const resizer = screen.getByTestId("node-resizer");
     expect(resizer.dataset.minwidth).toBe("10");
     expect(resizer.dataset.minheight).toBe("20");
   });
 });
- 

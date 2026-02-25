@@ -55,7 +55,7 @@ export const isPointInNode = (point, node) => {
  * @returns {array} Array of child nodes
  */
 export const getChildNodes = (nodes, parentId) => {
-  return nodes.filter(node => node.parentId === parentId);
+  return nodes.filter((node) => node.parentId === parentId);
 };
 
 /**
@@ -89,7 +89,7 @@ export const wouldCreateCircularDependency = (nodes, childId, parentId) => {
       return true; // Circular dependency detected
     }
 
-    const parentNode = nodes.find(n => n.id === currentParentId);
+    const parentNode = nodes.find((n) => n.id === currentParentId);
     if (!parentNode?.parentId) break;
 
     currentParentId = parentNode.parentId;
@@ -110,9 +110,9 @@ export const getDescendantIds = (nodes, parentId) => {
 
   while (queue.length > 0) {
     const currentId = queue.shift();
-    const children = nodes.filter(n => n.parentId === currentId);
+    const children = nodes.filter((n) => n.parentId === currentId);
 
-    children.forEach(child => {
+    children.forEach((child) => {
       descendants.add(child.id);
       queue.push(child.id);
     });
@@ -127,7 +127,9 @@ export const getDescendantIds = (nodes, parentId) => {
  * @returns {boolean} True if node is a Dot node
  */
 const isDotNode = (node) => {
-  return node?.type?.includes("dotNode") || node?.nodeType?.includes("dot-node");
+  return (
+    node?.type?.includes("dotNode") || node?.nodeType?.includes("dot-node")
+  );
 };
 
 /**
@@ -136,7 +138,11 @@ const isDotNode = (node) => {
  * @returns {boolean} True if node is a TextBox node
  */
 const isTextBoxNode = (node) => {
-  return node?.type === "textBoxNode" || node?.nodeType === "text-box-node" || node?.type?.includes("textBox");
+  return (
+    node?.type === "textBoxNode" ||
+    node?.nodeType === "text-box-node" ||
+    node?.type?.includes("textBox")
+  );
 };
 
 /**
@@ -159,7 +165,7 @@ export const canBeGroupNode = (node) => {
  * @returns {array} Array of nodes that can be parents
  */
 export const getGroupNodes = (nodes) => {
-  return nodes.filter(node => canBeGroupNode(node));
+  return nodes.filter((node) => canBeGroupNode(node));
 };
 
 /**
@@ -172,26 +178,32 @@ export const getGroupNodes = (nodes) => {
 export const findGroupNodeAtPoint = (nodes, point, excludeNodeId = null) => {
   // Helper function to check if a node is a Dot node
   const isDotNode = (node) => {
-    return node?.type?.includes("dotNode") || node?.nodeType?.includes("dot-node");
+    return (
+      node?.type?.includes("dotNode") || node?.nodeType?.includes("dot-node")
+    );
   };
 
   // Helper function to check if a node is a TextBox/TextNode
   const isTextBoxNode = (node) => {
-    return node?.type === "textBoxNode" || node?.nodeType === "text-box-node" || node?.type?.includes("textBox");
+    return (
+      node?.type === "textBoxNode" ||
+      node?.nodeType === "text-box-node" ||
+      node?.type?.includes("textBox")
+    );
   };
 
   // Find any node that can be a parent and contains the point
   // Sort by z-index or size (larger nodes first) to handle overlapping nodes
   // CRITICAL: Dot nodes and TextBox nodes cannot be parent nodes
   const candidateNodes = nodes
-    .filter(node => {
+    .filter((node) => {
       if (excludeNodeId && node.id === excludeNodeId) return false;
       if (node.parentId) return false; // Nodes with parents can't be group nodes
       if (isDotNode(node)) return false; // Dot nodes cannot be parent nodes
       if (isTextBoxNode(node)) return false; // TextBox nodes cannot be parent nodes
       return true;
     })
-    .map(node => {
+    .map((node) => {
       const nodeWidth = node.width || node.data?.width || 150;
       const nodeHeight = node.height || node.data?.height || 150;
       const area = nodeWidth * nodeHeight;
@@ -209,7 +221,6 @@ export const findGroupNodeAtPoint = (nodes, point, excludeNodeId = null) => {
   return null;
 };
 
-
 /**
  * Sort nodes to ensure parents appear before their children
  * @param {array} nodes - Array of nodes to sort
@@ -220,7 +231,7 @@ export const sortNodesByParentChild = (nodes) => {
   const processed = new Set();
 
   // First, add all nodes without parents
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     if (!node.parentId) {
       sorted.push(node);
       processed.add(node.id);
@@ -229,7 +240,7 @@ export const sortNodesByParentChild = (nodes) => {
 
   // Then, recursively add children
   const addChildren = (parentId) => {
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (node.parentId === parentId && !processed.has(node.id)) {
         sorted.push(node);
         processed.add(node.id);
@@ -239,12 +250,12 @@ export const sortNodesByParentChild = (nodes) => {
   };
 
   // Add children for all parent nodes
-  sorted.forEach(node => {
+  sorted.forEach((node) => {
     addChildren(node.id);
   });
 
   // Add any remaining nodes (shouldn't happen in valid hierarchy)
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     if (!processed.has(node.id)) {
       sorted.push(node);
     }

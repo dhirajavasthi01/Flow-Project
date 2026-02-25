@@ -50,16 +50,11 @@ describe("ModeControls", () => {
         selNodes={[]}
         selEdges={[]}
         {...props}
-      />
+      />,
     );
 
   it("does not render when developer mode is disabled", () => {
-    render(
-      <ModeControls
-        showDeveloperMode={false}
-        isDeveloperMode={true}
-      />
-    );
+    render(<ModeControls showDeveloperMode={false} isDeveloperMode={true} />);
 
     expect(screen.queryByTestId("panel-top-left")).not.toBeInTheDocument();
   });
@@ -122,7 +117,7 @@ describe("ModeControls", () => {
     });
 
     expect(
-      screen.getByText(/Save as Template \(2 nodes, 1 edge\)/i)
+      screen.getByText(/Save as Template \(2 nodes, 1 edge\)/i),
     ).toBeInTheDocument();
   });
 
@@ -138,4 +133,3 @@ describe("ModeControls", () => {
     expect(handleSaveTemplate).toHaveBeenCalled();
   });
 });
- 

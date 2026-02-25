@@ -25,7 +25,7 @@ const FlowPanels = (props = {}) => {
     getNodes,
     setNodes,
     nodes,
-    handleDeleteAll
+    handleDeleteAll,
   } = props || {};
 
   return (
@@ -44,7 +44,7 @@ const FlowPanels = (props = {}) => {
           handleSaveTemplate={handleSaveTemplate}
           selNodes={selNodes}
           selEdges={selEdges}
-          selectedNodeId ={selectedNodeId}
+          selectedNodeId={selectedNodeId}
           getNodes={getNodes}
           setNodes={setNodes}
           nodes={nodes}

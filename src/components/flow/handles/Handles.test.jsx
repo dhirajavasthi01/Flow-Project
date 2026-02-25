@@ -5,13 +5,13 @@ import Handles from "./Handles";
 import { Position } from "@xyflow/react";
 import { useAtomValue } from "jotai";
 
- vi.mock(import("jotai"), async (importOriginal) => {
-  const actual = await importOriginal()
+vi.mock(import("jotai"), async (importOriginal) => {
+  const actual = await importOriginal();
   return {
     ...actual,
-   useAtomValue: vi.fn(),
-  }
-})
+    useAtomValue: vi.fn(),
+  };
+});
 
 vi.mock("@xyflow/react", () => {
   return {
@@ -22,7 +22,7 @@ vi.mock("@xyflow/react", () => {
       Bottom: "bottom",
     },
     Handle: ({ id, type, position, style, "data-testid": dtid }) => (
-<div
+      <div
         data-testid={dtid || id}
         data-type={type}
         data-position={position}

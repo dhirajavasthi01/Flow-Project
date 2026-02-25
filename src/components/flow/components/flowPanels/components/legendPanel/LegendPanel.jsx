@@ -1,12 +1,13 @@
 import { Panel } from "@xyflow/react";
-import SquareIcon from '@mui/icons-material/Square';
-import CloseIcon from '@mui/icons-material/Close';
+import SquareIcon from "@mui/icons-material/Square";
+import CloseIcon from "@mui/icons-material/Close";
 /**
  * Helper function to get drawer rotation classes based on legend position
  */
 const getDrawerRotationClass = (legendPosition) => {
   if (!legendPosition) return "";
-  if (legendPosition.includes("top-center")) return "rotate-[270deg] mt-[-2vmin]";
+  if (legendPosition.includes("top-center"))
+    return "rotate-[270deg] mt-[-2vmin]";
   if (legendPosition.includes("bottom-center")) return "rotate-90 mb-[-2vmin]";
   if (legendPosition.includes("left")) return "rotate-180";
   if (legendPosition.includes("right")) return "rotate-0";
@@ -69,4 +70,3 @@ const LegendPanel = ({
 };
 
 export default LegendPanel;
- 

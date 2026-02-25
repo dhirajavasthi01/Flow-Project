@@ -1,5 +1,4 @@
 export const variables = {
-
   primary_white: "#ffffff",
 
   primary_gray: "#4d4d4d",
@@ -18,7 +17,7 @@ export const variables = {
 
   primary_gray_8: "#f4f4f4",
 
-  primary_gray_9:"#d6d6d6",
+  primary_gray_9: "#d6d6d6",
 
   primary_gray_12: "rgba(85, 86, 90, 0.12)",
 
@@ -87,15 +86,6 @@ export const variables = {
   primary_bg: "#fbfcfd",
 
   primary_bg_transperant: "#333",
-
- 
-
- 
-
 };
 
- 
-
 export default variables;
-
- 

@@ -23,9 +23,7 @@ vi.mock("../baseSvgNode/BaseSvgNode", () => ({
   default: (props) => (
     <div data-testid="base-svg-node">
       <span data-testid="svgPath">{props.svgPath}</span>
-      <span data-testid="isActive">
-        {String(props.isNodeActive)}
-      </span>
+      <span data-testid="isActive">{String(props.isNodeActive)}</span>
     </div>
   ),
 }));
@@ -87,16 +85,15 @@ describe("generateNodeComponent", () => {
         selected={true}
         type="testNode"
         data={{ width: 100, height: 80 }}
-      />
+      />,
     );
-
   });
   it("passes null svgPath if svgMap value is not string", async () => {
     const svg = await import("../svgMap/SvgMap");
     svg.svgMap["test-node"] = { invalid: true };
     const Node = generateNodeComponent("MyNode");
     const { getByTestId } = render(
-      <Node id="1" selected={false} type="testNode" data={{}} />
+      <Node id="1" selected={false} type="testNode" data={{}} />,
     );
     expect(getByTestId("svgPath").textContent).toBe("");
   });
@@ -111,7 +108,8 @@ describe("generateNodeExports", () => {
     expect(result.TestNodeConfig.nodeType).toBe("test-node");
   });
   it("returns null when an error is thrown", async () => {
-    const utils = await import("../../../../utills/nodeNameUtils/nodeNameUtils");
+    const utils =
+      await import("../../../../utills/nodeNameUtils/nodeNameUtils");
     vi.spyOn(utils, "toPascalCase").mockImplementation(() => {
       throw new Error("failure");
     });

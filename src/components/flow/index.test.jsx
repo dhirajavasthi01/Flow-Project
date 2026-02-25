@@ -6,14 +6,14 @@ import { ReactFlowProvider } from "@xyflow/react"; // Use your installed version
 import App from "./index";
 // 1. Mock Jotai
 vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal();
   return {
     ...actual,
     useAtom: vi.fn(),
     useAtomValue: vi.fn(),
-  }
-})
-vi.mock("./components/nodeList/NodesList", () => ({ 
+  };
+});
+vi.mock("./components/nodeList/NodesList", () => ({
   default: () => <div data-testid="nodes-list">NodesList</div>,
 }));
 vi.mock("./components/handleNodeList/HandleNodeList", () => ({
@@ -34,28 +34,40 @@ describe("App Component", () => {
     cleanup();
   });
 
-  const setMockValues = ({ isDeveloperMode = false, isFullView = false, showHandles = false }) => {
+  const setMockValues = ({
+    isDeveloperMode = false,
+    isFullView = false,
+    showHandles = false,
+  }) => {
     vi.mocked(useAtom).mockReturnValue([showHandles, vi.fn()]);
     vi.mocked(useAtomValue)
       .mockReturnValueOnce(isDeveloperMode) // 1st useAtomValue call
-      .mockReturnValueOnce(isFullView);     // 2nd useAtomValue call
+      .mockReturnValueOnce(isFullView); // 2nd useAtomValue call
   };
   it("should NOT render HandleNodeList when showHandles is false", () => {
-    setMockValues({ isDeveloperMode: true, isFullView: false, showHandles: false });
+    setMockValues({
+      isDeveloperMode: true,
+      isFullView: false,
+      showHandles: false,
+    });
     render(
       <ReactFlowProvider>
-      <App />
-      </ReactFlowProvider>
+        <App />
+      </ReactFlowProvider>,
     );
     expect(screen.getByTestId("nodes-list")).toBeInTheDocument();
     expect(screen.queryByTestId("handle-node-list")).not.toBeInTheDocument();
   });
   it("should render HandleNodeList when showHandles is true", () => {
-    setMockValues({ isDeveloperMode: true, isFullView: false, showHandles: true });
+    setMockValues({
+      isDeveloperMode: true,
+      isFullView: false,
+      showHandles: true,
+    });
     render(
       <ReactFlowProvider>
-      <App />
-      </ReactFlowProvider>
+        <App />
+      </ReactFlowProvider>,
     );
     expect(screen.getByTestId("handle-node-list")).toBeInTheDocument();
   });
@@ -63,8 +75,8 @@ describe("App Component", () => {
     setMockValues({ isDeveloperMode: true, isFullView: true });
     const { container } = render(
       <ReactFlowProvider>
-      <App />
-      </ReactFlowProvider>
+        <App />
+      </ReactFlowProvider>,
     );
     const flowContainer = container.querySelector(".flex-2");
     expect(flowContainer).toBeInTheDocument();

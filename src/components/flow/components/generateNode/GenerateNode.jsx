@@ -1,9 +1,14 @@
-import { memo } from 'react';
-import { useReactFlow } from '@xyflow/react';
-import { useNodeCommon } from '../../hooks/useNodeCommon/useNodeCommon';
-import { toPascalCase, toKebabCase, toCamelCase, getDisplayName } from '../../../../utills/nodeNameUtils/nodeNameUtils';
-import BaseSvgNode from '../baseSvgNode/BaseSvgNode';
-import { svgMap } from '../svgMap/SvgMap';
+import { memo } from "react";
+import { useReactFlow } from "@xyflow/react";
+import { useNodeCommon } from "../../hooks/useNodeCommon/useNodeCommon";
+import {
+  toPascalCase,
+  toKebabCase,
+  toCamelCase,
+  getDisplayName,
+} from "../../../../utills/nodeNameUtils/nodeNameUtils";
+import BaseSvgNode from "../baseSvgNode/BaseSvgNode";
+import { svgMap } from "../svgMap/SvgMap";
 
 export function generateNodeFieldConfig() {
   return {
@@ -42,7 +47,7 @@ export function generateNodeComponent(filename) {
     const nodeType = node?.nodeType || data?.nodeType || kebabName;
     const nodeCommon = useNodeCommon(id, data);
     const svgPathValue = svgMap[nodeType];
-    const svgPath = (typeof svgPathValue === 'string') ? svgPathValue : null;
+    const svgPath = typeof svgPathValue === "string" ? svgPathValue : null;
     return (
       <BaseSvgNode
         id={id}
@@ -84,8 +89,7 @@ export function generateNodeExports(filename) {
       [`${pascalName}Node`]: nodeComponent,
     };
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return null;
   }
 }
-

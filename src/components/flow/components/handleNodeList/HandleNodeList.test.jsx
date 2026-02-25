@@ -83,6 +83,8 @@ describe("HandleNodeList", () => {
     fireEvent.click(dotNodeDiv);
     expect(setSelectedNodeId).toHaveBeenCalledWith(null);
 
-    expect(setNewNode).toHaveBeenCalledWith(expect.objectContaining({ name: "Dot Node" }));
+    expect(setNewNode).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Dot Node" }),
+    );
   });
 });

@@ -12,7 +12,7 @@ export const getColumns = (
   onSubSystemModalClick,
   onAnomalyIndexModalClick,
   onTimeEstimationModalClick,
-  onParameterTrendModalClick
+  onParameterTrendModalClick,
 ) => {
   return [
     {
@@ -81,7 +81,9 @@ export const getColumns = (
         const value = getValue();
         return (
           <div className="px-1">
-            <div>{value ? value : <span className="text-primary_gray_18">-</span>}</div>
+            <div>
+              {value ? value : <span className="text-primary_gray_18">-</span>}
+            </div>
           </div>
         );
       },
@@ -105,9 +107,20 @@ export const getColumns = (
         return (
           <div className="flex justify-between items-center">
             <div className="px-1 flex flex-col text-left gap-1">
-              <div>{value ? value : <span className="text-primary_gray_18">-</span>}</div>
+              <div>
+                {value ? (
+                  value
+                ) : (
+                  <span className="text-primary_gray_18">-</span>
+                )}
+              </div>
               <div className="uppercase text-primary_gray_2">
-                ACTIVE SINCE: {row.original?.activeSince ? row.original.activeSince : <span className="text-primary_gray_18">-</span>}
+                ACTIVE SINCE:{" "}
+                {row.original?.activeSince ? (
+                  row.original.activeSince
+                ) : (
+                  <span className="text-primary_gray_18">-</span>
+                )}
               </div>
             </div>
             <TrendingUpIcon
@@ -136,11 +149,7 @@ export const getColumns = (
         const value = getValue();
         // Handle null/undefined values (when no failureMode)
         if (!value) {
-          return (
-            <div className="px-1 text-primary_gray_18">
-              -
-            </div>
-          );
+          return <div className="px-1 text-primary_gray_18">-</div>;
         }
         const isLong = value.length > 150;
         return (
@@ -240,8 +249,7 @@ export const mechanicalParameters = [
     actualDeviation: "NORMAL",
   },
   {
-    parameter:
-      "CGC MP DE PRIMARY SEAL GAS SUPPLY PDIC OP STATE",
+    parameter: "CGC MP DE PRIMARY SEAL GAS SUPPLY PDIC OP STATE",
     actualValue: 1,
     smeLowLimit: "NA",
     smeHighLimit: "NA",
@@ -262,8 +270,7 @@ export const mechanicalParameters = [
     actualDeviation: "NORMAL",
   },
   {
-    parameter:
-      "CGC MP DE PRIMARY VENT AND FLARE HEADER PRESSURE PDI",
+    parameter: "CGC MP DE PRIMARY VENT AND FLARE HEADER PRESSURE PDI",
     actualValue: 1,
     smeLowLimit: "NA",
     smeHighLimit: "NA",

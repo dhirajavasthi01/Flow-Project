@@ -1,5 +1,11 @@
-import { createTableDataKey, mergeProcessedNodesWithCurrent } from "../../Flow.functions";
-import { syncNodeDimensions, isResizingRef } from "../../hooks/useNodeResize/useNodeResize";
+import {
+  createTableDataKey,
+  mergeProcessedNodesWithCurrent,
+} from "../../Flow.functions";
+import {
+  syncNodeDimensions,
+  isResizingRef,
+} from "../../hooks/useNodeResize/useNodeResize";
 import { sortNodesByParentChild } from "../parentChildUtils/ParentChildUtils";
 
 // --- Pure helper functions (reduce complexity) ---
@@ -18,15 +24,15 @@ export const processEdges = (edges, strokeWidth = 1) => {
 
 // Auto-locks nodes with parentId (ensures extent and isAttachedToGroup are set)
 function applyAutoLockToNodes(nodes) {
-  return nodes.map(node => {
+  return nodes.map((node) => {
     if (node.parentId) {
       return {
         ...node,
-        extent: 'parent',
+        extent: "parent",
         data: {
           ...node.data,
-          isAttachedToGroup: true
-        }
+          isAttachedToGroup: true,
+        },
       };
     }
     return node;
@@ -42,8 +48,8 @@ function prepareNodesForDisplay(nodes) {
 
 // Gets nodes to use, preferring originalFetchedNodesRef if available
 function getNodesToUse(originalFetchedNodesRef, fetchedNodes) {
-  return originalFetchedNodesRef.current.length > 0 
-    ? originalFetchedNodesRef.current 
+  return originalFetchedNodesRef.current.length > 0
+    ? originalFetchedNodesRef.current
     : fetchedNodes;
 }
 
@@ -54,14 +60,14 @@ function getNodeDimension(node, dimension) {
 
 // Preserves dimensions when updating a node with original data
 function preserveDimensionsForNode(currentNode, originalNode) {
-  const currentWidth = getNodeDimension(currentNode, 'width');
-  const currentHeight = getNodeDimension(currentNode, 'height');
-  const originalWidth = getNodeDimension(originalNode, 'width');
-  const originalHeight = getNodeDimension(originalNode, 'height');
-  
+  const currentWidth = getNodeDimension(currentNode, "width");
+  const currentHeight = getNodeDimension(currentNode, "height");
+  const originalWidth = getNodeDimension(originalNode, "width");
+  const originalHeight = getNodeDimension(originalNode, "height");
+
   const finalWidth = currentWidth || originalWidth;
   const finalHeight = currentHeight || originalHeight;
-  
+
   const updatedNode = {
     ...currentNode,
     width: finalWidth,
@@ -80,7 +86,7 @@ function preserveDimensionsForNode(currentNode, originalNode) {
       height: finalHeight,
     },
   };
-  
+
   // Only sync if dimensions are missing
   if (!updatedNode.style?.width || !updatedNode.style?.height) {
     return syncNodeDimensions(updatedNode);
@@ -90,34 +96,40 @@ function preserveDimensionsForNode(currentNode, originalNode) {
 
 // Updates original fetched nodes reference if nodes have changed
 // IMPORTANT: Preserves dimensions that were persisted from resize operations
-export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodesRef) => {
+export const updateOriginalFetchedNodesRef = (
+  fetchedNodes,
+  originalFetchedNodesRef,
+) => {
   const currentOriginalIds = originalFetchedNodesRef.current
     .map((n) => n.id)
     .sort()
     .join(",");
-  const fetchedIds = fetchedNodes.map((n) => n.id).sort().join(",");
+  const fetchedIds = fetchedNodes
+    .map((n) => n.id)
+    .sort()
+    .join(",");
 
-  const shouldUpdate = 
+  const shouldUpdate =
     originalFetchedNodesRef.current.length === 0 ||
     currentOriginalIds !== fetchedIds;
-  
+
   if (!shouldUpdate) {
     return false;
   }
 
   const existingNodeMap = new Map(
-    originalFetchedNodesRef.current.map((node) => [node.id, node])
+    originalFetchedNodesRef.current.map((node) => [node.id, node]),
   );
-  
+
   originalFetchedNodesRef.current = fetchedNodes.map((node) => {
     const existingNode = existingNodeMap.get(node.id);
-    
+
     if (existingNode) {
-      const existingWidth = getNodeDimension(existingNode, 'width');
-      const existingHeight = getNodeDimension(existingNode, 'height');
-      const fetchedWidth = getNodeDimension(node, 'width');
-      const fetchedHeight = getNodeDimension(node, 'height');
-      
+      const existingWidth = getNodeDimension(existingNode, "width");
+      const existingHeight = getNodeDimension(existingNode, "height");
+      const fetchedWidth = getNodeDimension(node, "width");
+      const fetchedHeight = getNodeDimension(node, "height");
+
       if (existingWidth !== fetchedWidth || existingHeight !== fetchedHeight) {
         const syncedNode = syncNodeDimensions({
           ...node,
@@ -134,7 +146,7 @@ export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodes
             height: existingHeight,
           },
         });
-        
+
         return {
           ...syncedNode,
           parentId: existingNode.parentId,
@@ -145,7 +157,7 @@ export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodes
         };
       }
     }
-    
+
     const syncedNode = syncNodeDimensions(node);
     return {
       ...syncedNode,
@@ -153,7 +165,7 @@ export const updateOriginalFetchedNodesRef = (fetchedNodes, originalFetchedNodes
       style: syncedNode.style ? { ...syncedNode.style } : undefined,
     };
   });
-  
+
   return true;
 };
 
@@ -180,14 +192,17 @@ function handleNormalModeInitialLoad({
   setEdges,
   setLegendPosition,
   zoomTo,
-  fitView
+  fitView,
 }) {
-  const sortedNodes = processNodesForNormalMode(nodesToUse, processNodesWithTableDataRef);
+  const sortedNodes = processNodesForNormalMode(
+    nodesToUse,
+    processNodesWithTableDataRef,
+  );
   const processedEdges = processEdges(fetchedEdges, 1);
   setNodes(sortedNodes);
   setEdges(processedEdges);
   setLegendPosition(fetchedLegendPosition);
-  
+
   setTimeout(() => {
     zoomTo(0.5);
     fitView({ duration: 800 });
@@ -201,7 +216,7 @@ function handleDeveloperModeInitialLoad({
   fetchedLegendPosition,
   setNodes,
   setEdges,
-  setLegendPosition
+  setLegendPosition,
 }) {
   const sortedNodes = processNodesForDeveloperMode(nodesToUse);
   setNodes(sortedNodes);
@@ -238,7 +253,7 @@ export const handleFetchedNodesEdgesChange = ({
 
   updateOriginalFetchedNodesRef(fetchedNodes, originalFetchedNodesRef);
   const nodesToUse = getNodesToUse(originalFetchedNodesRef, fetchedNodes);
-  
+
   if (!isDeveloperMode) {
     handleNormalModeInitialLoad({
       nodesToUse,
@@ -249,7 +264,7 @@ export const handleFetchedNodesEdgesChange = ({
       setEdges,
       setLegendPosition,
       zoomTo,
-      fitView
+      fitView,
     });
   } else {
     handleDeveloperModeInitialLoad({
@@ -258,7 +273,7 @@ export const handleFetchedNodesEdgesChange = ({
       fetchedLegendPosition,
       setNodes,
       setEdges,
-      setLegendPosition
+      setLegendPosition,
     });
   }
 
@@ -269,15 +284,15 @@ export const handleFetchedNodesEdgesChange = ({
 function processAndMergeNodesWithTableData({
   originalFetchedNodesRef,
   processNodesWithTableDataRef,
-  currentNodes
+  currentNodes,
 }) {
   const processedNodes = processNodesWithTableDataRef.current
     ? processNodesWithTableDataRef.current(
         originalFetchedNodesRef.current,
-        originalFetchedNodesRef.current
+        originalFetchedNodesRef.current,
       )
     : originalFetchedNodesRef.current;
-  
+
   const preparedNodes = prepareNodesForDisplay(processedNodes);
   return mergeProcessedNodesWithCurrent(preparedNodes, currentNodes);
 }
@@ -288,25 +303,25 @@ function handleTableDataChangeNormalMode({
   originalFetchedNodesRef,
   lastProcessedTableDataRef,
   processNodesWithTableDataRef,
-  setNodes
+  setNodes,
 }) {
   const tableDataKey = createTableDataKey(tableData);
-  
+
   if (lastProcessedTableDataRef.current === tableDataKey) {
     return { shouldUpdate: false };
   }
-  
+
   lastProcessedTableDataRef.current = tableDataKey;
-  
+
   setNodes((currentNodes) => {
     const merged = processAndMergeNodesWithTableData({
       originalFetchedNodesRef,
       processNodesWithTableDataRef,
-      currentNodes
+      currentNodes,
     });
     return sortNodesByParentChild(merged);
   });
-  
+
   return { shouldUpdate: true };
 }
 
@@ -314,7 +329,7 @@ function handleTableDataChangeNormalMode({
 function restoreNodesWithOriginalData(currentNodes, originalFetchedNodesRef) {
   if (currentNodes.length > 0) {
     const originalNodeMap = new Map(
-      originalFetchedNodesRef.current.map((node) => [node.id, node])
+      originalFetchedNodesRef.current.map((node) => [node.id, node]),
     );
     const result = currentNodes.map((currentNode) => {
       const originalNode = originalNodeMap.get(currentNode.id);
@@ -325,10 +340,11 @@ function restoreNodesWithOriginalData(currentNodes, originalFetchedNodesRef) {
     });
     return prepareNodesForDisplay(result);
   }
-  
-  const nodesToUse = originalFetchedNodesRef.current.length > 0 
-    ? originalFetchedNodesRef.current 
-    : [];
+
+  const nodesToUse =
+    originalFetchedNodesRef.current.length > 0
+      ? originalFetchedNodesRef.current
+      : [];
   return prepareNodesForDisplay(nodesToUse);
 }
 
@@ -336,19 +352,20 @@ function restoreNodesWithOriginalData(currentNodes, originalFetchedNodesRef) {
 function handleDeveloperModeRestore({
   originalFetchedNodesRef,
   lastProcessedTableDataRef,
-  setNodes
+  setNodes,
 }) {
-  const wasInDeveloperMode = lastProcessedTableDataRef.current === "DEVELOPER_MODE";
+  const wasInDeveloperMode =
+    lastProcessedTableDataRef.current === "DEVELOPER_MODE";
   if (wasInDeveloperMode) {
     return { shouldUpdate: false };
   }
-  
+
   lastProcessedTableDataRef.current = "DEVELOPER_MODE";
-  
-  setNodes((currentNodes) => 
-    restoreNodesWithOriginalData(currentNodes, originalFetchedNodesRef)
+
+  setNodes((currentNodes) =>
+    restoreNodesWithOriginalData(currentNodes, originalFetchedNodesRef),
   );
-  
+
   return { shouldUpdate: true };
 }
 
@@ -360,28 +377,28 @@ export const handleTableDataChange = ({
   lastProcessedTableDataRef,
   processNodesWithTableDataRef,
   setNodes,
-}) => {  
+}) => {
   if (isResizingRef?.current) {
     return { shouldUpdate: false };
   }
-  
+
   if (originalFetchedNodesRef.current.length === 0) {
     return { shouldUpdate: false };
   }
-  
+
   if (!isDeveloperMode) {
     return handleTableDataChangeNormalMode({
       tableData,
       originalFetchedNodesRef,
       lastProcessedTableDataRef,
       processNodesWithTableDataRef,
-      setNodes
+      setNodes,
     });
   }
-  
+
   return handleDeveloperModeRestore({
     originalFetchedNodesRef,
     lastProcessedTableDataRef,
-    setNodes
+    setNodes,
   });
 };

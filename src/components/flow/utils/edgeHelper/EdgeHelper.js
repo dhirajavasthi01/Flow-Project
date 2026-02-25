@@ -55,7 +55,7 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
       const isDotted =
         config.type === "flowingPipeDotted" ||
         config.type === "flowingPipeDottedArrow";
-      
+
       const updatedEdge = {
         ...edge,
         type: config.type,
@@ -71,8 +71,8 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
         };
       } else {
         // Remove strokeDasharray for non-dotted edges
-        updatedEdge.style = updatedEdge.style || {}
-        delete updatedEdge.style.strokeDasharray
+        updatedEdge.style = updatedEdge.style || {};
+        delete updatedEdge.style.strokeDasharray;
       }
 
       return updatedEdge;
@@ -80,5 +80,3 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
     return edge;
   });
 };
-
- 

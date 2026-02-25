@@ -8,13 +8,13 @@
  */
 export function toPascalCase(filename) {
   // Remove .svg extension
-  const name = filename.replace(/\.svg$/i, '');
-  
+  const name = filename.replace(/\.svg$/i, "");
+
   // Split by common separators and convert to PascalCase
   return name
     .split(/[-_\s]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('');
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("");
 }
 
 /**
@@ -23,19 +23,19 @@ export function toPascalCase(filename) {
  */
 export function toKebabCase(filename) {
   // Remove .svg extension
-  const name = filename.replace(/\.svg$/i, '');
-  
+  const name = filename.replace(/\.svg$/i, "");
+
   // Convert camelCase/PascalCase to kebab-case
   // Split by uppercase letters, keeping the uppercase letters with their following lowercase letters
   const words = [];
-  let currentWord = '';
-  
+  let currentWord = "";
+
   for (let i = 0; i < name.length; i++) {
     const char = name[i];
     const isUpper = /[A-Z]/.test(char);
-    const prevChar = i > 0 ? name[i - 1] : '';
+    const prevChar = i > 0 ? name[i - 1] : "";
     const isPrevLower = /[a-z]/.test(prevChar);
-    
+
     if (isUpper && isPrevLower && currentWord) {
       // Start a new word when we hit an uppercase after lowercase
       words.push(currentWord);
@@ -44,14 +44,14 @@ export function toKebabCase(filename) {
       currentWord += char;
     }
   }
-  
+
   if (currentWord) {
     words.push(currentWord);
   }
-  
+
   // Join words with dashes and convert to lowercase
-  const kebab = words.join('-').toLowerCase();
-  
+  const kebab = words.join("-").toLowerCase();
+
   return `${kebab}-node`;
 }
 
@@ -61,11 +61,11 @@ export function toKebabCase(filename) {
  */
 export function toCamelCase(filename) {
   // Remove .svg extension
-  const name = filename.replace(/\.svg$/i, '');
-  
+  const name = filename.replace(/\.svg$/i, "");
+
   // Convert to camelCase
   const pascal = toPascalCase(filename);
-  return pascal.charAt(0).toLowerCase() + pascal.slice(1) + 'Node';
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1) + "Node";
 }
 
 /**
@@ -77,41 +77,38 @@ export function getDisplayName(filename) {
   return `${pascal} Node`;
 }
 
-
 export function getValsBaseOnCondition(condition, ifTrue, elseWise) {
-  const result = typeof condition === 'function' ? condition() : condition
-  return result ? ifTrue : elseWise
+  const result = typeof condition === "function" ? condition() : condition;
+  return result ? ifTrue : elseWise;
 }
 
 export const getSafe = (fn, fallback) => {
   try {
-    const value = fn()
-    return value ?? fallback
+    const value = fn();
+    return value ?? fallback;
   } catch {
-    return fallback
+    return fallback;
   }
-}
+};
 
 export function ifElse(condition, ifFn, elseFn) {
   if (condition) {
-    return ifFn()
+    return ifFn();
   } else {
-    return elseFn()
+    return elseFn();
   }
 }
 
 export function getNestedValue(obj, keyPath) {
-  return keyPath.split('.').reduce((acc, key) => acc?.[key], obj)
+  return keyPath.split(".").reduce((acc, key) => acc?.[key], obj);
 }
-
 
 export const CompareValuesWithSymbol = (symbol, ...values) => {
-  if (symbol === '&&') {
-    return values.every((val) => Boolean(val))
+  if (symbol === "&&") {
+    return values.every((val) => Boolean(val));
   }
 
-  if (symbol === '||') {
-    return values.some((val) => Boolean(val))
+  if (symbol === "||") {
+    return values.some((val) => Boolean(val));
   }
-}
- 
+};

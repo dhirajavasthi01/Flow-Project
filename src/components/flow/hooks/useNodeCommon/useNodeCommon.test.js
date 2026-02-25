@@ -1,19 +1,18 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import { useNodeCommon } from "./useNodeCommon";
- 
 
 vi.mock(import("jotai"), async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal();
   return {
     ...actual,
     useAtomValue: vi.fn(),
-  }
-})
- 
+  };
+});
+
 vi.mock("@xyflow/react", () => ({
   useReactFlow: vi.fn(),
 }));
- 
+
 import { useAtomValue } from "jotai";
 import { useReactFlow } from "@xyflow/react";
 describe("useNodeCommon - Pure Vitest Test", () => {
@@ -23,7 +22,6 @@ describe("useNodeCommon - Pure Vitest Test", () => {
     useReactFlow.mockReturnValue({ setNodes: mockSetNodes });
   });
   test("returns correct computed values when tagData exists", () => {
- 
     useAtomValue
       .mockReturnValueOnce("node-1")
       .mockReturnValueOnce([
@@ -90,4 +88,3 @@ describe("useNodeCommon - Pure Vitest Test", () => {
     expect(result.isHighlighted).toBe(false);
   });
 });
- 

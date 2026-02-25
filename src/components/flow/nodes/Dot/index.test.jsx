@@ -1,16 +1,16 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
- 
+
 vi.mock(import("jotai"), async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal();
   return {
     ...actual,
     useAtomValue: vi.fn(),
-  }
-})
+  };
+});
 import { useAtomValue } from "jotai";
- 
+
 vi.mock("@xyflow/react", () => ({
   Handle: ({ id, type, position, style }) => (
     <div
@@ -39,12 +39,16 @@ describe("Dot Component", () => {
   it("renders dot and both handles", () => {
     mockShowHandles(true);
     render(<Dot {...defaultProps} />);
- 
+
     const dot = screen.getByTestId("handle-node-1-target-center").parentElement;
     expect(dot).toBeInTheDocument();
- 
-    expect(screen.getByTestId("handle-node-1-target-center")).toBeInTheDocument();
-    expect(screen.getByTestId("handle-node-1-source-center")).toBeInTheDocument();
+
+    expect(
+      screen.getByTestId("handle-node-1-target-center"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("handle-node-1-source-center"),
+    ).toBeInTheDocument();
   });
   it("applies opacity:1 when showHandles is true", () => {
     mockShowHandles(true);
@@ -75,22 +79,28 @@ describe("Dot Component", () => {
     render(<Dot {...defaultProps} />);
     const targetHandle = screen.getByTestId("handle-node-1-target-center");
     const sourceHandle = screen.getByTestId("handle-node-1-source-center");
- 
+
     expect(targetHandle.dataset.type).toBe("target");
     expect(sourceHandle.dataset.type).toBe("source");
- 
+
     expect(targetHandle.dataset.position).toBe("top");
     expect(sourceHandle.dataset.position).toBe("top");
- 
-    expect(targetHandle).toHaveAttribute("data-testid", "handle-node-1-target-center");
-    expect(sourceHandle).toHaveAttribute("data-testid", "handle-node-1-source-center");
+
+    expect(targetHandle).toHaveAttribute(
+      "data-testid",
+      "handle-node-1-target-center",
+    );
+    expect(sourceHandle).toHaveAttribute(
+      "data-testid",
+      "handle-node-1-source-center",
+    );
   });
   it("applies correct handle styles", () => {
     mockShowHandles(true);
     render(<Dot {...defaultProps} />);
     const targetHandle = screen.getByTestId("handle-node-1-target-center");
     const sourceHandle = screen.getByTestId("handle-node-1-source-center");
- 
+
     const expectedBaseStyle = {
       width: "6px",
       height: "6px",
@@ -102,9 +112,8 @@ describe("Dot Component", () => {
       expect(targetHandle.style[key]).toBe(val);
       expect(sourceHandle.style[key]).toBe(val);
     });
- 
+
     expect(targetHandle.style.top).toBe("50%");
     expect(sourceHandle.style.top).toBe("0%");
   });
 });
- 

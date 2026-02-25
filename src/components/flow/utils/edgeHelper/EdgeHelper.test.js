@@ -55,7 +55,7 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
       const isDotted =
         config.type === "flowingPipeDotted" ||
         config.type === "flowingPipeDottedArrow";
-      
+
       const updatedEdge = {
         ...edge,
         type: config.type,
@@ -71,8 +71,8 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
         };
       } else {
         // Remove strokeDasharray for non-dotted edges
-        updatedEdge.style = updatedEdge.style || {}
-        delete updatedEdge.style.strokeDasharray
+        updatedEdge.style = updatedEdge.style || {};
+        delete updatedEdge.style.strokeDasharray;
       }
 
       return updatedEdge;
@@ -81,7 +81,7 @@ export const updateEdgeWithConfig = (edges, selectedEdgeId, config) => {
   });
 };
 
- import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createEdge, updateEdgeWithConfig } from "./EdgeHelper";
 
 describe("createEdge", () => {
@@ -162,7 +162,7 @@ describe("updateEdgeWithConfig", () => {
       style: { stroke: "red" },
     });
 
-    const updatedEdge = result.find(e => e.id === "e1");
+    const updatedEdge = result.find((e) => e.id === "e1");
 
     expect(updatedEdge.type).toBe("flowingPipeDotted");
     expect(updatedEdge.style.stroke).toBe("red");
@@ -220,4 +220,3 @@ describe("updateEdgeWithConfig", () => {
     expect(result[1]).toEqual(edges[1]);
   });
 });
- 
