@@ -72,6 +72,7 @@ import {
   findGroupNodeAtPoint,
   getDescendantIds,
   getNodeDimensionHightAndWidth,
+  relativeToAbsolute,
   sortNodesByParentChild,
   wouldCreateCircularDependency,
 } from './utils/parentChildUtils/ParentChildUtils'
@@ -1666,13 +1667,11 @@ function Flow(props) {
       }
       addFlow(flowData, {
         onSuccess: () => {
-          showToast({ message: 'Flow diagram saved successfully' })
           setDeveloperMode(false)
           toggle(false)
         },
         onError: (error) => {
-          showToast({ message: 'Error saving flow diagram' })
-        },
+          console.error('Error saving flow diagram:', error)},
       })
     } catch (error) {
       console.error('Error saving flow diagram:', error)
