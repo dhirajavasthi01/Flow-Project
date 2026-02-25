@@ -38,8 +38,7 @@ export function computeRelativePosForAttach(
 ) {
   const draggedAbsolutePos =
     draggedNode.positionAbsolute || draggedNode.position
-  const parentAbsolutePos =
-    newParent.positionAbsolute || newParent.position
+  const parentAbsolutePos = newParent.positionAbsolute || newParent.position
   if (!draggedAbsolutePos || !parentAbsolutePos) return null
 
   if (oldParentId) {
@@ -59,8 +58,7 @@ export function computeRelativePosForAttach(
 }
 
 export function computeDetachAbsolutePos(draggedNode, oldParent) {
-  const oldParentAbsolutePos =
-    oldParent.positionAbsolute || oldParent.position
+  const oldParentAbsolutePos = oldParent.positionAbsolute || oldParent.position
   if (!oldParentAbsolutePos) return null
   return relativeToAbsolute(draggedNode.position, oldParentAbsolutePos)
 }
@@ -71,10 +69,7 @@ export function getPositionForSnapping(draggedNode, currentNodes) {
     const parentNode = currentNodes.find((n) => n.id === draggedNode.parentId)
     const parentAbs = parentNode?.positionAbsolute ?? parentNode?.position
     if (parentAbs) {
-      positionForSnapping = relativeToAbsolute(
-        draggedNode.position,
-        parentAbs,
-      )
+      positionForSnapping = relativeToAbsolute(draggedNode.position, parentAbs)
     }
     if (positionForSnapping === draggedNode.position) {
       positionForSnapping = null

@@ -2,9 +2,7 @@
  * Utility functions for managing parent-child relationships between nodes
  */
 
-import { CompareValuesWithSymbol } from "../../../../utills/nodeNameUtils/nodeNameUtils"
-
-
+import { CompareValuesWithSymbol } from '../../../../utills/nodeNameUtils/nodeNameUtils'
 
 /**
  * Convert absolute position to parent-relative position

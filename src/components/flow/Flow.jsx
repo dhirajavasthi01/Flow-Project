@@ -1091,8 +1091,7 @@ function Flow(props) {
       if (node.parentId && node.position) {
         const parentNode = currentNodes.find((n) => n.id === node.parentId)
         if (parentNode) {
-          const parentAbs =
-            parentNode.positionAbsolute || parentNode.position
+          const parentAbs = parentNode.positionAbsolute || parentNode.position
           if (parentAbs) {
             dragPoint = relativeToAbsolute(node.position, parentAbs)
           }
@@ -1144,41 +1143,38 @@ function Flow(props) {
     [getNodes, updateOriginalFetchedNodesRef],
   )
 
-  const applyDragStopAction = useCallback(
-    (action, setNodesFn, scheduleRef) => {
-      if (action.type === 'attach') {
-        setNodesFn((nds) => {
-          const sortedNodes = mapNodesWithAttach(
-            nds,
-            action.nodeId,
-            action.potentialParentId,
-            action.relativePos,
-          )
-          scheduleRef(action.nodeId)
-          return sortedNodes
-        })
-        return
-      }
-      if (action.type === 'detach') {
-        setNodesFn((nds) => {
-          const sortedNodes = mapNodesWithDetach(
-            nds,
-            action.nodeId,
-            action.absolutePos,
-          )
-          scheduleRef(action.nodeId)
-          return sortedNodes
-        })
-        return
-      }
-      if (action.type === 'snap') {
-        setNodesFn((nds) =>
-          mapNodesWithSnap(nds, action.nodeId, action.snappedPosition),
+  const applyDragStopAction = useCallback((action, setNodesFn, scheduleRef) => {
+    if (action.type === 'attach') {
+      setNodesFn((nds) => {
+        const sortedNodes = mapNodesWithAttach(
+          nds,
+          action.nodeId,
+          action.potentialParentId,
+          action.relativePos,
         )
-      }
-    },
-    [],
-  )
+        scheduleRef(action.nodeId)
+        return sortedNodes
+      })
+      return
+    }
+    if (action.type === 'detach') {
+      setNodesFn((nds) => {
+        const sortedNodes = mapNodesWithDetach(
+          nds,
+          action.nodeId,
+          action.absolutePos,
+        )
+        scheduleRef(action.nodeId)
+        return sortedNodes
+      })
+      return
+    }
+    if (action.type === 'snap') {
+      setNodesFn((nds) =>
+        mapNodesWithSnap(nds, action.nodeId, action.snappedPosition),
+      )
+    }
+  }, [])
 
   const onNodeDragStop = useCallback(
     (event, node) => {
@@ -1553,7 +1549,8 @@ function Flow(props) {
           toggle(false)
         },
         onError: (error) => {
-          console.error('Error saving flow diagram:', error)},
+          console.error('Error saving flow diagram:', error)
+        },
       })
     } catch (error) {
       console.error('Error saving flow diagram:', error)

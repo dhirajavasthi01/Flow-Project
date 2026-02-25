@@ -2,8 +2,8 @@ import { toKebabCase } from '../../../../utills/nodeNameUtils/nodeNameUtils'
 
 // Using import: 'default' to get the URL string directly from each SVG import
 const svgModules = import.meta.glob('../../../../assets/flowIcons/*.svg', {
-    eager: true,
-    import: 'default',
+  eager: true,
+  import: 'default',
 })
 
 /**

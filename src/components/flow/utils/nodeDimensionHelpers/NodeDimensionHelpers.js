@@ -14,8 +14,6 @@ export const checkForDimensionChanges = ({
   CompareValuesWithSymbol,
 }) => {
   let hasDimensionChanges = false
-  // Keep dimensionChanges but don't use it (matches original with eslint-disable)
-  const dimensionChanges = new Map() // eslint-disable-line no-unused-vars
 
   nodes.forEach((node) => {
     let prevDims = prevNodeDimensionsRef.current.get(node.id)
@@ -81,11 +79,6 @@ export const checkForDimensionChanges = ({
         )
       ) {
         hasDimensionChanges = true
-        // Set dimensionChanges but never use it (matches original)
-        dimensionChanges.set(node.id, {
-          prev: prevDims,
-          current: { width: currentWidth, height: currentHeight },
-        })
       }
     }
   })
