@@ -140,6 +140,7 @@ function Flow(props) {
     isAdding,
     error,
     addFlow,
+    refetch: refetchFlow,
     saved,
   } = useFlowData(caseId, actualTime)
   const originalFetchedNodesRef = useRef([])
@@ -1076,8 +1077,21 @@ function Flow(props) {
       if (!isDeveloperMode) return
 
       const currentNodes = getNodes()
-      // Use positionAbsolute if available (React Flow provides this), otherwise use position
-      const dragPoint = node.positionAbsolute || node.position
+      // Use positionAbsolute if available (React Flow provides this), otherwise use position.
+      // CRITICAL: For child nodes (node.parentId), positionAbsolute can be missing or stale on the
+      // first drag event, so we fall back to relative position and hit-test fails → unwanted detach.
+      // Always compute absolute position for children so findGroupNodeAtPoint gets correct coords.
+      let dragPoint = node.positionAbsolute || node.position
+      if (node.parentId && node.position) {
+        const parentNode = currentNodes.find((n) => n.id === node.parentId)
+        if (parentNode) {
+          const parentAbs =
+            parentNode.positionAbsolute || parentNode.position
+          if (parentAbs) {
+            dragPoint = relativeToAbsolute(node.position, parentAbs)
+          }
+        }
+      }
 
       if (!dragPoint) return
 
@@ -1090,10 +1104,9 @@ function Flow(props) {
       )
 
       if (potentialParent) {
-        // Check if this is a valid attachment
+        // Check if this is a valid attachment (include current parent so child is not detached when dropped over same parent)
         if (
           potentialParent.id !== node.id &&
-          potentialParent.id !== node.parentId &&
           !wouldCreateCircularDependency(
             currentNodes,
             node.id,
@@ -1278,43 +1291,58 @@ function Flow(props) {
       const isDotNode =
         node.type?.includes('dotNode') || node.nodeType?.includes('dot-node')
       if (!isDotNode && node.position) {
-        // Use absolute position for snapping if available
-        const positionForSnapping = node.positionAbsolute || node.position
-        const snappedPosition = snapNodePosition(node.id, positionForSnapping)
-        const xDiff = Math.abs(snappedPosition.x - positionForSnapping.x)
-        const yDiff = Math.abs(snappedPosition.y - positionForSnapping.y)
+        // Snapping must use absolute coords; for child nodes position is relative — convert first.
+        let positionForSnapping = draggedNode.positionAbsolute || draggedNode.position
+        if (draggedNode.parentId && !draggedNode.positionAbsolute) {
+          const parentNode = currentNodes.find(
+            (n) => n.id === draggedNode.parentId,
+          )
+          const parentAbs =
+            parentNode?.positionAbsolute ?? parentNode?.position
+          if (parentAbs) {
+            positionForSnapping = relativeToAbsolute(
+              draggedNode.position,
+              parentAbs,
+            )
+          }
+          // Child without valid absolute position: skip snapping to avoid overwriting with wrong coords
+          if (positionForSnapping === draggedNode.position) {
+            positionForSnapping = null
+          }
+        }
+        if (positionForSnapping) {
+          const snappedPosition = snapNodePosition(
+            node.id,
+            positionForSnapping,
+          )
+          const xDiff = Math.abs(snappedPosition.x - positionForSnapping.x)
+          const yDiff = Math.abs(snappedPosition.y - positionForSnapping.y)
 
-        // If there's a snap, update the node position
-        if ((xDiff > 0.1 || yDiff > 0.1) && xDiff <= 5 && yDiff <= 5) {
-          setNodes((nds) =>
-            nds.map((n) => {
-              if (n.id === node.id) {
-                // If node has parent, convert snapped absolute to relative
-                if (n.parentId) {
-                  const parentNode = nds.find((p) => p.id === n.parentId)
-                  if (parentNode) {
+          // If there's a snap, update the node position
+          if ((xDiff > 0.1 || yDiff > 0.1) && xDiff <= 5 && yDiff <= 5) {
+            setNodes((nds) =>
+              nds.map((n) => {
+                if (n.id === node.id) {
+                  if (n.parentId) {
+                    const parentNode = nds.find((p) => p.id === n.parentId)
                     const parentAbsolutePos =
-                      parentNode.positionAbsolute || parentNode.position
+                      parentNode?.positionAbsolute ?? parentNode?.position
                     if (parentAbsolutePos) {
-                      const relativePos = absoluteToRelative(
-                        snappedPosition,
-                        parentAbsolutePos,
-                      )
                       return {
                         ...n,
-                        position: relativePos,
+                        position: absoluteToRelative(
+                          snappedPosition,
+                          parentAbsolutePos,
+                        ),
                       }
                     }
                   }
+                  return { ...n, position: snappedPosition }
                 }
-                return {
-                  ...n,
-                  position: snappedPosition,
-                }
-              }
-              return n
-            }),
-          )
+                return n
+              }),
+            )
+          }
         }
       }
 
@@ -1667,6 +1695,8 @@ function Flow(props) {
       }
       addFlow(flowData, {
         onSuccess: () => {
+          originalFetchedNodesRef.current = []
+          refetchFlow()
           setDeveloperMode(false)
           toggle(false)
         },
