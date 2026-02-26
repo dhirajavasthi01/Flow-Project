@@ -89,9 +89,7 @@ export function getResizedNodeIds(
       const newHeight = Number(
         getNodeDimensionHightAndWidth(node, 'height', node.data?.height),
       )
-      if (
-        CompareValuesWithSymbol('&&', !isNaN(newWidth), !isNaN(newHeight))
-      ) {
+      if (CompareValuesWithSymbol('&&', !isNaN(newWidth), !isNaN(newHeight))) {
         resizedNodeIds.add(node.id)
       }
     }
@@ -170,8 +168,7 @@ export function applyResizedAndReparentedUpdates(
         'height',
         updatedNode.data?.height,
       )
-      const parentIdChanged =
-        updatedNode.parentId !== originalNode.parentId
+      const parentIdChanged = updatedNode.parentId !== originalNode.parentId
       const positionChanged = CompareValuesWithSymbol(
         '&&',
         updatedNode.position,
@@ -220,8 +217,7 @@ export function applyResizedAndReparentedUpdates(
     }
 
     if (updatedNode) {
-      const parentIdChanged =
-        updatedNode.parentId !== originalNode.parentId
+      const parentIdChanged = updatedNode.parentId !== originalNode.parentId
       const positionChanged = CompareValuesWithSymbol(
         '&&',
         updatedNode.position,

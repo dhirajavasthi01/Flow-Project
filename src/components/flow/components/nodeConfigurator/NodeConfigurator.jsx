@@ -41,6 +41,8 @@ const NodeConfigurator = () => {
   const subComponentList = useAtomValue(subComponentListAtom)
   const [extractedColors, setExtractedColors] = useState(null)
 
+  console.log('NodeConfigurator Rendered with config:', config)
+
   useEffect(() => {
     setConfig(null)
     setSelectedEdgeId(null)
@@ -187,6 +189,42 @@ const NodeConfigurator = () => {
     }
   }
 
+  const onDimensionChange = (dimension, value) => {
+    const trimmed = String(value ?? '').trim()
+    const num = trimmed === '' ? NaN : Number(trimmed)
+    if (Number.isNaN(num) || num <= 0) return
+    setConfig((prev) => {
+      if (!prev) return prev
+      const width =
+        dimension === 'width'
+          ? num
+          : (prev.data?.width ?? prev.width ?? prev.style?.width)
+      const height =
+        dimension === 'height'
+          ? num
+          : (prev.data?.height ?? prev.height ?? prev.style?.height)
+      return {
+        ...prev,
+        width,
+        height,
+        data: {
+          ...prev.data,
+          width,
+          height,
+        },
+        style: {
+          ...prev.style,
+          width,
+          height,
+        },
+        measured: {
+          width: Math.round(width),
+          height: Math.round(height),
+        },
+      }
+    })
+  }
+
   const onEdgeConfigChange = (event) => {
     const { name, value } = event.target
     setConfig((prev) => {
@@ -321,6 +359,7 @@ const NodeConfigurator = () => {
         setSelectedNodeId={setSelectedNodeId}
         setDelete={setDelete}
         onConfigChange={onConfigChange}
+        onDimensionChange={onDimensionChange}
         subComponentList={subComponentList}
       />
     )

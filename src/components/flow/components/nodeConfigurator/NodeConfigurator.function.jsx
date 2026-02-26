@@ -1,6 +1,65 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useState } from 'react'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { normalizeSubComponentAssetIds } from '../../../../utills/flowUtills/FlowUtills'
 import MultiSelectV2 from '../../../multiSelect/MultiSelect'
+
+const ColorInputWithCopy = ({ name, value, onChange, label }) => {
+  const [copied, setCopied] = useState(false)
+  const displayValue = value || ''
+  const handleCopy = () => {
+    if (displayValue) {
+      navigator.clipboard?.writeText(displayValue).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+    }
+  }
+  const handleTextChange = (e) => {
+    onChange({
+      target: {
+        name,
+        value: e.target.value,
+        type: 'color',
+        checked: false,
+      },
+    })
+  }
+  return (
+    <div className='flex flex-wrap items-center gap-[0.5vmin]'>
+      {label && (
+        <label className='text-14 text-primary_gray uppercase'>{label} :</label>
+      )}
+      <input
+        type='color'
+        name={name}
+        value={displayValue}
+        onChange={onChange}
+        className='form-control text-14 h-[2.5vmin] w-[3vmin] min-w-[3vmin] cursor-pointer border border-primary_gray_2 rounded-[0.3vmin]'
+      />
+      <input
+        type='text'
+        value={displayValue}
+        onChange={handleTextChange}
+        className='text-14 focus:outline-[0.2vmin] focus:outline-primary_blue p-[0.4vmin_0.5vmin] flex-grow min-w-[8vmin] border border-primary_gray_2 rounded-[0.4vmin]'
+        placeholder='#000000'
+      />
+      <button
+        type='button'
+        className='flex items-center justify-center p-[0.4vmin] rounded-[0.3vmin] border border-primary_gray_2 hover:bg-primary_gray_3 focus:outline-none'
+        onClick={handleCopy}
+        title={`Copy ${label || name}`}
+        aria-label={`Copy ${label || name}`}
+      >
+        <ContentCopyIcon sx={{ fontSize: '2vmin' }} />
+      </button>
+      {copied && (
+        <span className='text-12 text-primary_blue whitespace-nowrap'>
+          Copied!
+        </span>
+      )}
+    </div>
+  )
+}
 
 export const renderTextField = (field, data, onConfigChange) => (
   <div
@@ -37,16 +96,15 @@ export const renderNumberField = (field, data, onConfigChange) => (
 )
 
 export const renderColorField = (field, data, onConfigChange) => (
-  <div key={field.name} className='flex items-center p-[0vmin_1.5vmin]'>
-    <label className='text-14 text-primary_gray uppercase'>
-      {field.label} :
-    </label>
-    <input
-      className='form-control text-14'
-      type='color'
+  <div
+    key={field.name}
+    className='flex items-center p-[0vmin_1.5vmin] gap-[0.5vmin]'
+  >
+    <ColorInputWithCopy
       name={field.name}
       value={data?.[field.name] || ''}
       onChange={onConfigChange}
+      label={field.label}
     />
   </div>
 )
@@ -93,16 +151,12 @@ export const renderGradientColorField = (
       <label className='text-14 text-primary_gray uppercase mb-2'>
         <strong>{field.label} :</strong>
       </label>
-      <div className='flex flex-wrap gap-[0.5vmin]'>
+      <div className='flex flex-wrap gap-[1vmin]'>
         {colors.map(({ name, value, counterpart }) => (
-          <div key={name} className='flex items-center'>
-            <label className='text-14 text-primary_gray lineHeight1_3 uppercase'>
-              {name} :
-            </label>
-            <input
-              type='color'
+          <div key={name} className='flex items-center gap-[0.5vmin]'>
+            <ColorInputWithCopy
               name={name}
-              value={value}
+              value={value ?? ''}
               onChange={(e) =>
                 handleColorChange(
                   e,
@@ -111,7 +165,7 @@ export const renderGradientColorField = (
                   onConfigChange,
                 )
               }
-              className='form-control text-14'
+              label={name}
             />
           </div>
         ))}
@@ -122,15 +176,11 @@ export const renderGradientColorField = (
 
 export const renderStrokeColorField = (field, data, onConfigChange) => (
   <div key={field.name} className='text-14 p-[1vmin_1.5vmin]'>
-    <label className='text-14 text-primary_gray uppercase'>
-      {field.label} :
-    </label>
-    <input
-      type='color'
+    <ColorInputWithCopy
       name='strokeColor'
-      value={data.strokeColor || ''}
+      value={data?.strokeColor || ''}
       onChange={onConfigChange}
-      className='form-control text-14'
+      label={field.label}
     />
   </div>
 )
