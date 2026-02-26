@@ -63,6 +63,13 @@ import {
   handleTableDataChange,
 } from './utils/flowHelper/FlowHelper'
 import {
+  addNewNodesToOriginal,
+  applyResizedAndReparentedUpdates,
+  getResizedNodeIds,
+  hasParentOrPositionChanges,
+  nodeWithSyncedDimensions,
+} from './utils/flowHelper/updateOriginalFetchedNodesUtils'
+import {
   allNodes,
   edgeTypes,
   nodeTypes,
@@ -476,339 +483,52 @@ function Flow(props) {
   // Helper function to update originalFetchedNodesRef when nodes are resized
   // Works for all node types: regular nodes, parent nodes (with children), and child nodes
   const updateOriginalFetchedNodesRef = useCallback((finalNodes) => {
-    // IMPORTANT: This function now receives only the resized node(s) from onResizeEnd
-    // This prevents false positives when comparing unchanged nodes
-    // Only update nodes that have been resized (check if dimensions changed)
-    // This ensures parent nodes can be resized without affecting their children
-    // and child nodes can be resized without affecting their parent
-    const resizedNodeIds = new Set()
-    finalNodes.forEach((node) => {
-      const originalNode = originalFetchedNodesRef.current.find(
-        (n) => n.id === node.id,
+    const originalNodes = originalFetchedNodesRef.current
+    const resizedNodeIds = getResizedNodeIds(
+      finalNodes,
+      originalNodes,
+      getNodeDimensionHightAndWidth,
+      CompareValuesWithSymbol,
+    )
+
+    if (originalNodes.length === 0) {
+      originalFetchedNodesRef.current = finalNodes.map((node) =>
+        nodeWithSyncedDimensions(node, getNodeDimensionHightAndWidth),
       )
-      if (originalNode) {
-        // Check dimensions from all possible locations: root, style, data
-        // Convert to numbers for accurate comparison (handles string vs number mismatches)
-        // CRITICAL: Get dimensions from root first (most reliable), then style, then data
-
-        const originalWidth = Number(
-          getNodeDimensionHightAndWidth(
-            originalNode,
-            'width',
-            originalNode.data?.width,
-          ),
-        )
-
-        const originalHeight = Number(
-          getNodeDimensionHightAndWidth(
-            originalNode,
-            'height',
-            originalNode.data?.height,
-          ),
-        )
-
-        const newWidth = Number(
-          getNodeDimensionHightAndWidth(node, 'width', node.data?.width),
-        )
-
-        const newHeight = Number(
-          getNodeDimensionHightAndWidth(node, 'height', node.data?.height),
-        )
-
-        // Only consider it a resize if dimensions actually changed (not just type conversion)
-        if (
-          CompareValuesWithSymbol(
-            '&&',
-            !isNaN(originalWidth),
-            !isNaN(originalHeight),
-            !isNaN(newWidth),
-            !isNaN(newHeight),
-          )
-        ) {
-          if (
-            CompareValuesWithSymbol(
-              '||',
-              originalWidth !== newWidth,
-              originalHeight !== newHeight,
-            )
-          ) {
-            resizedNodeIds.add(node.id)
-          }
-        }
-      } else {
-        // Node doesn't exist in originalFetchedNodesRef, so it's a new node - treat as resized
-
-        const newWidth = Number(
-          getNodeDimensionHightAndWidth(node, 'width', node.data?.width),
-        )
-        const newHeight = Number(
-          getNodeDimensionHightAndWidth(node, 'height', node.data?.height),
-        )
-        if (
-          CompareValuesWithSymbol('&&', !isNaN(newWidth), !isNaN(newHeight))
-        ) {
-          resizedNodeIds.add(node.id)
-        }
-      }
-    })
-
-    // CRITICAL: If originalFetchedNodesRef is empty, add all nodes to it
-    // This handles the case where nodes are created but originalFetchedNodesRef wasn't populated
-    if (originalFetchedNodesRef.current.length === 0) {
-      originalFetchedNodesRef.current = finalNodes.map((node) => {
-        // CRITICAL: Get dimensions from root first (most reliable), then style, then data
-        const nodeWidth = getNodeDimensionHightAndWidth(
-          node,
-          'width',
-          node.data?.width,
-        )
-        const nodeHeight = getNodeDimensionHightAndWidth(
-          node,
-          'height',
-          node.data?.height,
-        )
-        return {
-          ...node,
-          width: nodeWidth,
-          height: nodeHeight,
-          style: {
-            ...node.style,
-            width: nodeWidth,
-            height: nodeHeight,
-          },
-          data: {
-            ...node.data,
-            width: nodeWidth,
-            height: nodeHeight,
-          },
-        }
-      })
       return
     }
 
     if (resizedNodeIds.size === 0) {
-      // Even if no nodes were resized, check if any new nodes need to be added
-      // OR if any nodes have parentId/position changes (re-parenting scenario)
-      const hasParentOrPositionChanges = finalNodes.some((node) => {
-        const originalNode = originalFetchedNodesRef.current.find(
-          (n) => n.id === node.id,
+      const hasChanges = hasParentOrPositionChanges(
+        finalNodes,
+        originalNodes,
+        CompareValuesWithSymbol,
+      )
+      if (!hasChanges) {
+        addNewNodesToOriginal(
+          originalFetchedNodesRef,
+          finalNodes,
+          getNodeDimensionHightAndWidth,
+          nodeWithSyncedDimensions,
         )
-        if (originalNode) {
-          const parentIdChanged = node.parentId !== originalNode.parentId
-          const positionChanged = CompareValuesWithSymbol(
-            '&&',
-            node.position,
-            originalNode.position,
-            CompareValuesWithSymbol(
-              '||',
-              node.position.x !== originalNode.position.x,
-              node.position.y !== originalNode.position.y,
-            ),
-          )
-          return CompareValuesWithSymbol('||', parentIdChanged, positionChanged)
-        }
-        return false
-      })
-
-      // If there are parentId/position changes, we need to update originalFetchedNodesRef
-      // Otherwise, just add new nodes and return
-      if (!hasParentOrPositionChanges) {
-        finalNodes.forEach((node) => {
-          if (!originalFetchedNodesRef.current.find((n) => n.id === node.id)) {
-            const nodeWidth = getNodeDimensionHightAndWidth(
-              node,
-              'width',
-              node.data?.width,
-            )
-            const nodeHeight = getNodeDimensionHightAndWidth(
-              node,
-              'height',
-              node.data?.height,
-            )
-            originalFetchedNodesRef.current.push({
-              ...node,
-              width: nodeWidth,
-              height: nodeHeight,
-              style: {
-                ...node.style,
-                width: nodeWidth,
-                height: nodeHeight,
-              },
-              data: {
-                ...node.data,
-                width: nodeWidth,
-                height: nodeHeight,
-              },
-            })
-          }
-        })
         return
       }
-      // If there are parentId/position changes, continue to the update logic below
     }
 
-    // Only update the resized nodes, preserve all others exactly as they were
-    originalFetchedNodesRef.current = originalFetchedNodesRef.current.map(
-      (originalNode) => {
-        const updatedNode = finalNodes.find((n) => n.id === originalNode.id)
-        if (
-          CompareValuesWithSymbol(
-            '&&',
-            updatedNode,
-            resizedNodeIds.has(originalNode.id),
-          )
-        ) {
-          // Only update dimensions for resized nodes, preserve everything else
-          // Update dimensions in all locations: root, style, and data
-          // CRITICAL: Get dimensions from root first (most reliable), then style, then data
-          // This ensures we use the actual resized dimensions, not stale data dimensions
-          const updatedWidth = getNodeDimensionHightAndWidth(
-            updatedNode,
-            'width',
-            updatedNode.data?.width,
-          )
-          const updatedHeight = getNodeDimensionHightAndWidth(
-            updatedNode,
-            'height',
-            updatedNode.data?.height,
-          )
-
-          // CRITICAL: Check if parentId or position changed (re-parenting scenario)
-          // If parentId changed, we need to update it to preserve the new parent-child relationship
-          // If position changed (and parentId is the same or both changed), update position
-          const parentIdChanged = updatedNode.parentId !== originalNode.parentId
-          const positionChanged = CompareValuesWithSymbol(
-            '&&',
-            updatedNode.position,
-            originalNode.position,
-            CompareValuesWithSymbol(
-              '||',
-              updatedNode.position.x !== originalNode.position.x,
-              updatedNode.position.y !== originalNode.position.y,
-            ),
-          )
-
-          const updated = {
-            ...originalNode,
-            // Update root level dimensions
-            width: updatedWidth,
-            height: updatedHeight,
-            // CRITICAL: Update parentId and position if they changed (re-parenting scenario)
-            // This ensures re-parented nodes maintain their new position when clicking on canvas
-            parentId: getValsBaseOnCondition(
-              parentIdChanged,
-              updatedNode.parentId,
-              originalNode.parentId,
-            ),
-            // Update position if parentId changed (new relative position) or if position explicitly changed
-            position: getValsBaseOnCondition(
-              CompareValuesWithSymbol('||', parentIdChanged, positionChanged),
-              updatedNode.position,
-              originalNode.position,
-            ),
-            // positionAbsolute is calculated by React Flow, but we should update it if parentId changed
-            positionAbsolute: getValsBaseOnCondition(
-              parentIdChanged,
-              updatedNode.positionAbsolute,
-              originalNode.positionAbsolute,
-            ),
-            // CRITICAL: Update style dimensions - don't spread updatedNode.style first as it may have stale dimensions
-            // Set width/height explicitly to ensure they match the root dimensions
-            style: {
-              ...originalNode.style,
-              width: updatedWidth,
-              height: updatedHeight,
-              // Preserve other style properties from updatedNode (like backgroundColor, etc.)
-              ...Object.fromEntries(
-                Object.entries(updatedNode.style || {}).filter(
-                  ([key]) => key !== 'width' && key !== 'height',
-                ),
-              ),
-            },
-            data: {
-              ...originalNode.data,
-              width: updatedWidth,
-              height: updatedHeight,
-            },
-          }
-
-          return updated
-        }
-        // For non-resized nodes, check if parentId or position changed (re-parenting without resize)
-        if (updatedNode) {
-          const parentIdChanged = updatedNode.parentId !== originalNode.parentId
-          const positionChanged = CompareValuesWithSymbol(
-            '&&',
-            updatedNode.position,
-            originalNode.position,
-            CompareValuesWithSymbol(
-              '||',
-              updatedNode.position.x !== originalNode.position.x,
-              updatedNode.position.y !== originalNode.position.y,
-            ),
-          )
-          // If parentId or position changed, update them to preserve re-parenting
-          if (CompareValuesWithSymbol('||', parentIdChanged, positionChanged)) {
-            const updated = {
-              ...originalNode,
-              parentId: getValsBaseOnCondition(
-                parentIdChanged,
-                updatedNode.parentId,
-                originalNode.parentId,
-              ),
-              position: getValsBaseOnCondition(
-                CompareValuesWithSymbol('||', parentIdChanged, positionChanged),
-                updatedNode.position,
-                originalNode.position,
-              ),
-              positionAbsolute: getValsBaseOnCondition(
-                parentIdChanged,
-                updatedNode.positionAbsolute,
-                originalNode.positionAbsolute,
-              ),
-            }
-            return updated
-          }
-        }
-        // For non-resized nodes with no parent/position changes, return the original unchanged
-        return originalNode
-      },
+    originalFetchedNodesRef.current = applyResizedAndReparentedUpdates(
+      originalNodes,
+      finalNodes,
+      resizedNodeIds,
+      getNodeDimensionHightAndWidth,
+      CompareValuesWithSymbol,
+      getValsBaseOnCondition,
     )
-
-    // Add any new nodes that weren't in the original
-    // CRITICAL: This ensures new nodes (dragged from node list) are added to originalFetchedNodesRef
-    // so their dimensions can be persisted
-    finalNodes.forEach((node) => {
-      if (!originalFetchedNodesRef.current.find((n) => n.id === node.id)) {
-        // CRITICAL: Sync dimensions to all locations before adding
-        const nodeWidth = getNodeDimensionHightAndWidth(
-          node,
-          'width',
-          node.data?.width,
-        )
-        const nodeHeight = getNodeDimensionHightAndWidth(
-          node,
-          'height',
-          node.data?.height,
-        )
-        const nodeToAdd = {
-          ...node,
-          width: nodeWidth,
-          height: nodeHeight,
-          style: {
-            ...node.style,
-            width: nodeWidth,
-            height: nodeHeight,
-          },
-          data: {
-            ...node.data,
-            width: nodeWidth,
-            height: nodeHeight,
-          },
-        }
-        originalFetchedNodesRef.current.push(nodeToAdd)
-      }
-    })
+    addNewNodesToOriginal(
+      originalFetchedNodesRef,
+      finalNodes,
+      getNodeDimensionHightAndWidth,
+      nodeWithSyncedDimensions,
+    )
   }, [])
 
   // Set up the global callback for persisting resize changes
