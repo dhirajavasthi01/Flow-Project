@@ -86,59 +86,59 @@ const NodeConfigurator = () => {
     }
     return updatedConfig;
   };
-const handleColorExtraction = async (svgPath) => {
-  setExtractedColors(null);
+  const handleColorExtraction = async (svgPath) => {
+    setExtractedColors(null);
 
-  // Skip color extraction for special nodes that preserve their original SVG colors
-  // Analyze the SVG to determine if it should preserve its original colors
-  const isSpecial = await isSpecialNode(config?.nodeType, svgPath);
-  console.log("isSpecial", isSpecial, config);
-  if (isSpecial) {
-    // For special nodes, ensure colors are undefined to preserve original SVG colors
-    setConfig((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        data: {
-          ...prev.data,
-          isSpecialNode: true,
-          nodeColor: undefined,
-          strokeColor: undefined,
-        },
-      };
-    });
-    return;
-  }
-
-  try {
-    const colors = await extractColorsFromSvg(svgPath);
-    setExtractedColors(colors);
-    if (colors.gradientStart && colors.gradientEnd) {
-      setConfig((prev) => updateConfigWithColors(colors, prev));
-    }
-    
-    // Set default colors for non-special nodes if they don't have colors yet
-    setConfig((prev) => {
-      if (!prev) return prev;
-      const hasNodeColor = prev.data?.nodeColor !== undefined;
-      const hasStrokeColor = prev.data?.strokeColor !== undefined;
-      
-      if (!hasNodeColor || !hasStrokeColor) {
+    // Skip color extraction for special nodes that preserve their original SVG colors
+    // Analyze the SVG to determine if it should preserve its original colors
+    const isSpecial = await isSpecialNode(config?.nodeType, svgPath);
+    console.log("isSpecial", isSpecial, config);
+    if (isSpecial) {
+      // For special nodes, ensure colors are undefined to preserve original SVG colors
+      setConfig((prev) => {
+        if (!prev) return prev;
         return {
           ...prev,
           data: {
             ...prev.data,
-            nodeColor: hasNodeColor ? prev.data.nodeColor : "#a9a6a6",
-            strokeColor: hasStrokeColor ? prev.data.strokeColor : "#000000",
+            isSpecialNode: true,
+            nodeColor: undefined,
+            strokeColor: undefined,
           },
         };
+      });
+      return;
+    }
+
+    try {
+      const colors = await extractColorsFromSvg(svgPath);
+      setExtractedColors(colors);
+      if (colors.gradientStart && colors.gradientEnd) {
+        setConfig((prev) => updateConfigWithColors(colors, prev));
       }
-      return prev;
-    });
-  } catch (error) {
-    console.error('Error extracting colors:', error);
-  }
-};
+
+      // Set default colors for non-special nodes if they don't have colors yet
+      setConfig((prev) => {
+        if (!prev) return prev;
+        const hasNodeColor = prev.data?.nodeColor !== undefined;
+        const hasStrokeColor = prev.data?.strokeColor !== undefined;
+
+        if (!hasNodeColor || !hasStrokeColor) {
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              nodeColor: hasNodeColor ? prev.data.nodeColor : "#a9a6a6",
+              strokeColor: hasStrokeColor ? prev.data.strokeColor : "#000000",
+            },
+          };
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error('Error extracting colors:', error);
+    }
+  };
   useEffect(() => {
     const svgPath = config?.nodeType ? svgMap[config.nodeType] : null;
     if (!svgPath || !config) {
@@ -159,8 +159,16 @@ const handleColorExtraction = async (svgPath) => {
     };
     onConfigChange(syntheticEvent);
   };
-  const onConfigChange = (event) => {
-    const { name, value, type, checked } = event.target;
+  const onConfigChange = (event, manualValue = null) => {
+    let name, value, type, checked;
+    if (event?.target) {
+      ({ name, value, type, checked } = event.target);
+    } else {
+      name = event;
+      value = manualValue;
+      type = "manual";
+    }
+
     if (type === "multi-select") {
       setConfig((prev) => ({
         ...prev,
@@ -528,8 +536,47 @@ const handleColorExtraction = async (svgPath) => {
           </p>
         </div>
         <>
-          {fieldsToRender.map((field) => getInputField(field, data))}
-          {renderSubSystemSelect(data)}
+          <div className="overflow-y-auto flex-grow p-[1.5vmin]">
+            <div className="flex flex-col gap-4">
+              {fieldsToRender
+                .filter((field) => !['isBold', 'isItalic', 'isUnderline'].includes(field.name))
+                .map((field) => getInputField(field, data))
+              }
+              <div className="flex items-center gap-2 mb-2 p-[1vmin]">
+                {fieldsToRender
+                  .filter((field) => ['isBold', 'isItalic', 'isUnderline'].includes(field.name))
+                  .map((field) => {
+                    const isActive = !!data[field.name];
+                    return (
+                      <button
+                        key={field.name}
+                        type="button"
+                        className={`w-10 h-10 border rounded flex items-center justify-center transition-all ${isActive
+                          ? 'bg-primary_blue text-white border-primary_blue shadow-sm'
+                          : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+                          }`}
+                        onClick={() => {
+                          onConfigChange(field.name, !isActive);
+                          setTimeout(() => setShouldUpdateConfig(true), 0);
+                        }}
+                        title={field.label}
+                      >
+                        <span style={{
+                          fontWeight: field.name === 'isBold' ? 'bold' : 'normal',
+                          fontStyle: field.name === 'isItalic' ? 'italic' : 'normal',
+                          textDecoration: field.name === 'isUnderline' ? 'underline' : 'none'
+                        }}>
+                          {field.label.charAt(0)}
+                        </span>
+                      </button>
+                    );
+                  })
+                }
+              </div>
+            </div>
+
+            {renderSubSystemSelect(data)}
+          </div>
           <div className="flex justify-around items-center mt-[1vmin] flex-wrap gap-[1vmin]">
             <button
               className="bg-primary_blue text-white text-15 rounded-[0.3vmin] p-[0.9vmin_2vmin] uppercase"

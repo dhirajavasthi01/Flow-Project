@@ -8,6 +8,9 @@ import Handles from "../handles/Handles";
 export const TextBoxNodeFieldConfig = {
     fields: [
         { label: "Label", name: "label", type: "text" },
+        { label: "Bold", name: "isBold", type: "switch" },
+        { label: "Italic", name: "isItalic", type: "switch" },
+        { label: "Underline", name: "isUnderline", type: "switch" },
         { label: "Text Color", name: "color", type: "color" },
         {
             label: "Orientation",
@@ -54,6 +57,9 @@ export const TextBoxNodeConfig = {
         targetHandles: [],
         orientation: "horizontal",
         rotation: 0,
+        isBold: false,
+        isItalic: false,
+        isUnderline: false,
     },
     template: null,
 };
@@ -69,7 +75,7 @@ export const TextboxNode = memo(({ data, id, selected }) => {
     const setFailureNodeClicked = useSetAtom(failureNodeClickedAtom);
     const textRef = useRef(null);
     const containerRef = useRef(null);
-     const nodeRef = useRef(null);
+    const nodeRef = useRef(null);
     const {
         width: initialWidth = 200,
         height: initialHeight = 100,
@@ -83,6 +89,10 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         template,
         targetHandles = [],
         rotation: initialRotation = 0,
+        isBold,
+        isItalic,
+        isUnderline,
+        orientation = "horizontal"
     } = data;
     const [rotation, setRotation] = useState(initialRotation);
     const rotationRef = useRef(initialRotation);
@@ -244,33 +254,29 @@ export const TextboxNode = memo(({ data, id, selected }) => {
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
     }, [id, setNodes]);
-    useLayoutEffect(() => {
-        const calculateFontSize = () => {
-            if (!textRef.current) return;
-            const parentWidth = currentDimensions.width - 4;
-            const parentHeight = currentDimensions.height - 4;
-            if (parentWidth <= 0 || parentHeight <= 0) {
-                setFontSize(1);
-                return;
+useLayoutEffect(() => {
+    const calculateFontSize = () => {
+        if (!textRef.current || !containerRef.current) return;
+        const parentWidth = currentDimensions.width - 4;
+        const parentHeight = currentDimensions.height - 4;
+
+        let low = 1;
+        let high = 500;
+        let bestFit = 1;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            textRef.current.style.fontSize = `${mid}px`;
+            const textWidth = textRef.current.scrollWidth;
+            const textHeight = textRef.current.scrollHeight;
+
+            if (textWidth <= parentWidth && textHeight <= parentHeight) {
+                bestFit = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
             }
-
-            let low = 1;
-            let high = 500;
-            let bestFit = 1;
-
-            while (low <= high) {
-                const mid = Math.floor((low + high) / 2);
-                textRef.current.style.fontSize = `${mid}px`;
-                const textWidth = textRef.current.scrollWidth;
-                const textHeight = textRef.current.scrollHeight;
-
-                if (textWidth <= parentWidth && textHeight <= parentHeight) {
-                    bestFit = mid;
-                    low = mid + 1;
-                } else {
-                    high = mid - 1;
-                }
-            }
+        }
             low = 1;
             high = bestFit;
             let finalFit = 1;
@@ -286,12 +292,11 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                     high = mid - 1;
                 }
             }
-            setFontSize(finalFit);
-        };
-        calculateFontSize();
-    }, [currentDimensions.width, currentDimensions.height, label, tagData]);
-
-    const { orientation = "horizontal"} = data;
+        setFontSize(finalFit);
+    };
+    calculateFontSize();
+}, [currentDimensions.width, currentDimensions.height, label, tagData, isBold, isItalic, isUnderline, orientation]);
+    // const { orientation = "horizontal" } = data;
 
     const rawText = tagData ? tagData?.actual ?? "-" : label;
 
@@ -362,18 +367,20 @@ export const TextboxNode = memo(({ data, id, selected }) => {
                         __html: textContent,
                     }}
                     style={{
-                        color: label.toLowerCase().includes("header") ? "red" : color,
-                        textAlign: "center",
-                        fontSize: `${fontSize}px`,
-                        margin: 0,
-                        padding: 0,
-                        fontWeight: 'bold',
-                        display: "block",
-                        lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
-                        overflow: "hidden",
-                        wordBreak: 'break-all',
-                        whiteSpace: 'nowrap',
-                    }}
+        color: label.toLowerCase().includes("header") ? "red" : color,
+        textAlign: "center",
+        fontSize: `${fontSize}px`,
+        margin: 0,
+        padding: 0,
+        fontWeight: isBold ? 'bold' : 'normal',
+        fontStyle: isItalic ? 'italic' : 'normal',
+        textDecoration: isUnderline ? 'underline' : 'none',
+         lineHeight: orientation === 'vertical' ? '1.1' : '1.2',
+        
+        overflow: "hidden", 
+        whiteSpace: orientation === 'vertical' ? 'normal' : 'nowrap',
+        wordBreak: 'break-all',
+    }}
                     className="text-uppercase"
                 />
 
